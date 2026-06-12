@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{{ config('app.name', 'Pronos TOP 14') }}</title>
+    @vite(['resources/css/app.css', 'resources/js/app.js'])
+</head>
+
+<body class="rugby-page">
+
+<header class="site-header">
+    <div class="topbar">
+        <div class="container d-flex justify-content-between align-items-center">
+            <a href="{{ route('home') }}" class="brand text-decoration-none">
+                <span class="brand-kicker">Pronos</span>
+                <span class="brand-title">Top 14</span>
+            </a>
+
+            @auth
+                <div class="d-flex align-items-center gap-3">
+                    <a href="{{ route('player-profile.edit') }}"
+                       class="user-chip text-decoration-none">
+                        <span class="user-dot"
+                              style="background: {{ auth()->user()->color ?? '#ffd200' }}"></span>
+                        <span>{{ auth()->user()->display_name }}</span>
+                    </a>
+
+                    <form method="POST" action="{{ route('logout') }}">
+                        @csrf
+                        <button type="submit" class="logout-link">
+                            Déconnexion
+                        </button>
+                    </form>
+                </div>
+            @endauth
+        </div>
+    </div>
+
+    @auth
+        <nav class="main-nav">
+            <div class="container d-flex flex-wrap gap-4">
+                <a href="{{ route('home') }}">Accueil</a>
+                <a href="{{ route('pronos.index') }}">Pronos</a>
+                <a href="{{ route('rankings.index') }}">Classement général</a>
+                <a href="{{ route('player-profile.edit') }}">Mon profil</a>
+
+                @if(auth()->user()->isAdmin())
+                    <a href="{{ route('admin.index') }}" class="admin-link">
+                        Administration
+                    </a>
+                @endif
+            </div>
+        </nav>
+    @endauth
+</header>
+
+<main class="container py-4">
+    @if(session('success'))
+        <div class="alert alert-success">
+            {{ session('success') }}
+        </div>
+    @endif
+
+    @if ($errors->any())
+        <div class="alert alert-danger">
+            <ul class="mb-0">
+                @foreach ($errors->all() as $error)
+                    <li>{{ $error }}</li>
+                @endforeach
+            </ul>
+        </div>
+    @endif
+
+    @yield('content')
+</main>
+
+<script>
+function togglePassword(inputId, button) {
+    const input = document.getElementById(inputId);
+
+    if (input.type === 'password') {
+        input.type = 'text';
+        button.innerHTML = '🙈';
+    } else {
+        input.type = 'password';
+        button.innerHTML = '👁';
+    }
+}
+</script>
+
+@stack('scripts')
+
+</body>
+</html>
