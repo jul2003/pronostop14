@@ -335,3 +335,132 @@ body {
 .club-list {
     min-height: 360px;
 }
+
+.club-picker {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0.6rem;
+}
+
+.club-picker-item {
+    width: 100%;
+    border: 1px solid #e5e7eb;
+    background: linear-gradient(180deg, #ffffff, #f8fafc);
+    border-radius: 16px;
+    padding: 0.75rem 1rem;
+    font-weight: 800;
+    text-align: left;
+    color: var(--rugby-navy);
+    box-shadow: 0 4px 10px rgba(6, 20, 47, 0.05);
+}
+
+.club-picker-item:hover {
+    border-color: var(--rugby-blue);
+    transform: translateY(-1px);
+}
+
+.selected-club-chip {
+    border: 1px solid rgba(0, 59, 122, 0.25);
+    background: #f8fafc;
+    color: var(--rugby-navy);
+    border-radius: 999px;
+    padding: 0.45rem 0.85rem;
+    font-weight: 800;
+}
+
+.selected-club-chip:hover {
+    background: #fee2e2;
+    border-color: #dc3545;
+    color: #842029;
+}
+
+.club-logo {
+    width: 32px;
+    height: 32px;
+    object-fit: contain;
+    flex-shrink: 0;
+}
+
+.club-logo-small {
+    width: 24px;
+    height: 24px;
+    object-fit: contain;
+}
+
+.club-picker-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.club-picker-item.is-selected {
+    border-color: var(--rugby-yellow);
+    background: #fff7cc;
+}
+
+.season-club-list {
+    display: grid;
+    gap: 0.6rem;
+}
+
+.season-club-item {
+    width: 100%;
+    border: 1px solid #e5e7eb;
+    background: linear-gradient(180deg, #ffffff, #f8fafc);
+    border-radius: 16px;
+    padding: 0.75rem 1rem;
+    font-weight: 800;
+    text-align: left;
+    color: var(--rugby-navy);
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    box-shadow: 0 4px 10px rgba(6, 20, 47, 0.05);
+}
+
+.season-club-item:hover {
+    background: #fee2e2;
+    border-color: #dc3545;
+    color: #842029;
+}
+
+.result-grid {
+    font-size: 0.9rem;
+}
+
+.result-grid th,
+.result-grid td {
+    white-space: nowrap;
+    vertical-align: middle;
+}
+
+.result-grid td {
+    padding: 0.45rem 0.55rem;
+}
+
+.cell-ok-dark {
+    background: #198754 !important;
+    color: #fff !important;
+    font-weight: 800;
+}
+
+.cell-ok-light {
+    background: #b7e4c7 !important;
+    color: #064e3b !important;
+    font-weight: 800;
+}
+
+.cell-ko {
+    background: #dc3545 !important;
+    color: #fff !important;
+    font-weight: 800;
+}
+
+.result-grid {
+    width: auto;
+}
+
+.result-grid td,
+.result-grid th {
+    min-width: 40px;
+}

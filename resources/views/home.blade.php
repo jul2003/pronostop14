@@ -28,6 +28,10 @@
                         Classement
                     </a>
                 @endif
+
+                <a href="{{ route('seasons.results', $season) }}">
+                    Résultats
+                </a>
             </div>
         </div>
 

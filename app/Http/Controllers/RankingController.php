@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use App\Models\Journee;
 use App\Models\JourneeUserScore;
 use App\Models\Season;
+use App\Models\Prono;
+
 
 class RankingController extends Controller
 {
@@ -67,6 +69,65 @@ class RankingController extends Controller
         return view('rankings.general', [
             'season' => $season,
             'scores' => $scores,
+        ]);
+    }
+
+    public function journeeResults(Season $season, Journee $journee)
+    {
+        abort_if($journee->season_id !== $season->id, 404);
+
+        if (! $journee->isLocked()) {
+            abort(403, 'Les résultats de cette journée ne sont pas encore visibles.');
+        }
+
+        $matches = $journee->matches()
+            ->with(['homeClub', 'awayClub', 'pronos.user'])
+            ->orderBy('position')
+            ->get();
+
+        $players = $season->players()
+            ->orderBy('nickname')
+            ->get();
+
+        return view('journees.results', [
+            'season' => $season,
+            'journee' => $journee,
+            'matches' => $matches,
+            'players' => $players,
+        ]);
+    }
+
+    public function seasonResults(Season $season)
+    {
+        $journees = $season->journees()
+            ->with([
+                'matches.homeClub',
+                'matches.awayClub',
+                'matches.pronos.user',
+            ])
+            ->withCount('matches')
+            ->orderByRaw("
+                CASE
+                    WHEN type = 'preseason' THEN 0
+                    WHEN type = 'regular' THEN number
+                    WHEN type = 'prod2_final' THEN 100
+                    WHEN type = 'access_match' THEN 101
+                    WHEN type = 'top14_playoff' THEN 102
+                    WHEN type = 'top14_semifinal' THEN 103
+                    WHEN type = 'top14_final' THEN 104
+                    ELSE 999
+                END
+            ")
+            ->get();
+
+        $players = $season->players()
+            ->orderBy('nickname')
+            ->get();
+
+        return view('seasons.results', [
+            'season' => $season,
+            'journees' => $journees,
+            'players' => $players,
         ]);
     }
 }

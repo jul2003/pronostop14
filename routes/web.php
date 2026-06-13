@@ -68,6 +68,12 @@ Route::middleware('auth')->group(function () {
 
     Route::get('/classements/{season}/{journee}', [RankingController::class, 'journee'])
         ->name('rankings.journee');
+
+    Route::get('/saisons/{season}/journees/{journee}/resultats', [RankingController::class, 'journeeResults'])
+        ->name('journees.results');
+
+    Route::get('/saisons/{season}/resultats', [RankingController::class, 'seasonResults'])
+        ->name('seasons.results');
 });
 
 Route::middleware(['auth', 'admin'])->group(function () {

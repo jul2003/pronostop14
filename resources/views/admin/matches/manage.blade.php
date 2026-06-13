@@ -3,8 +3,10 @@
 @section('content')
 
 @php
+    $usedClubIds = collect($usedClubIds)->map(fn ($id) => (int) $id)->toArray();
+
     $availableClubs = $clubs->reject(
-        fn ($club) => in_array($club->id, $usedClubIds)
+        fn ($club) => in_array((int) $club->id, $usedClubIds, true)
     );
 @endphp
 
@@ -23,87 +25,112 @@
     </h2>
 
     <p class="text-muted mb-0">
-        Gestion des matchs de la journée.
+        Clique sur les clubs dans l’ordre : domicile, extérieur, domicile, extérieur...
     </p>
 </div>
 
+@if($errors->any())
+    <div class="alert alert-danger">
+        {{ $errors->first() }}
+    </div>
+@endif
+
+@if(session('success'))
+    <div class="alert alert-success">
+        {{ session('success') }}
+    </div>
+@endif
+
 <div class="row g-4">
 
-    <div class="col-lg-4">
+    <div class="col-lg-5">
         <div class="rugby-card p-4">
-            <h3 class="h5 fw-bold mb-3">
-                Ajouter un match
-            </h3>
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h3 class="h5 fw-bold mb-0">
+                    Clubs disponibles
+                </h3>
 
-            @if($availableClubs->count() >= 2)
+                <span class="badge text-bg-primary rounded-pill">
+                    <span id="availableCount">{{ $availableClubs->count() }}</span>
+                </span>
+            </div>
 
-                <form method="POST"
-                      action="{{ route('admin.seasons.journees.matches.store', [$season, $journee]) }}">
-                    @csrf
-
-                    <div class="mb-3">
-                        <label class="form-label fw-bold">
-                            Club domicile
-                        </label>
-
-                        <select id="homeClubSelect"
-                            name="home_club_id"
-                            class="form-select"
-                            required>
-                            <option value="">
-                                Sélectionner...
-                            </option>
-
-                            @foreach($availableClubs as $club)
-                                <option value="{{ $club->id }}">
-                                    {{ $club->name }}
-                                </option>
-                            @endforeach
-                        </select>
-                    </div>
-
-                    <div class="mb-3">
-                        <label class="form-label fw-bold">
-                            Club extérieur
-                        </label>
-
-                        <select id="awayClubSelect"
-                            name="away_club_id"
-                            class="form-select"
-                            required>
-                            <option value="">
-                                Sélectionner...
-                            </option>
-
-                            @foreach($availableClubs as $club)
-                                <option value="{{ $club->id }}">
-                                    {{ $club->name }}
-                                </option>
-                            @endforeach
-                        </select>
-                    </div>
-
-                    <button class="btn btn-warning rounded-pill fw-bold w-100">
-                        Ajouter le match
-                    </button>
-                </form>
-
-            @else
+            @if($availableClubs->count() < 2)
 
                 <div class="alert alert-success mb-0">
                     Tous les clubs disponibles ont déjà été utilisés pour cette journée.
+                </div>
+
+            @else
+
+                <div id="availableClubs" class="club-picker">
+                    @foreach($availableClubs as $club)
+                        <button type="button"
+                                class="club-picker-item"
+                                data-club-id="{{ $club->id }}"
+                                data-club-name="{{ $club->name }}">
+
+                            <div class="d-flex align-items-center gap-2">
+
+                                <img src="{{ $club->logo_url }}"
+                                    alt="{{ $club->name }}"
+                                    class="club-logo">
+
+                                <span>{{ $club->name }}</span>
+
+                            </div>
+
+                        </button>
+                    @endforeach
                 </div>
 
             @endif
         </div>
     </div>
 
-    <div class="col-lg-8">
+    <div class="col-lg-7">
+        <div class="rugby-card p-4">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h3 class="h5 fw-bold mb-0">
+                    Matchs à créer
+                </h3>
+
+                <button type="button"
+                        id="resetSelection"
+                        class="btn btn-sm btn-outline-secondary rounded-pill">
+                    Réinitialiser
+                </button>
+            </div>
+
+            <form method="POST"
+                  action="{{ route('admin.seasons.journees.matches.storeBulk', [$season, $journee]) }}"
+                  id="bulkMatchesForm">
+                @csrf
+
+                <div id="selectedClubsInputs"></div>
+
+                <div id="draftMatches" class="draft-matches">
+                    <div class="alert alert-info mb-0">
+                        Aucun club sélectionné pour le moment.
+                    </div>
+                </div>
+
+                <button type="submit"
+                        id="saveMatchesButton"
+                        class="btn btn-warning rounded-pill fw-bold mt-4 px-4"
+                        disabled>
+                    Enregistrer les matchs
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <div class="col-12">
         <div class="rugby-card p-4">
 
             <div class="d-flex justify-content-between align-items-center mb-3">
                 <h3 class="h5 fw-bold mb-0">
-                    Matchs
+                    Matchs enregistrés
                 </h3>
 
                 <span class="badge text-bg-primary rounded-pill">
@@ -114,7 +141,7 @@
             @if($matches->isEmpty())
 
                 <div class="alert alert-info mb-0">
-                    Aucun match pour cette journée.
+                    Aucun match enregistré pour cette journée.
                 </div>
 
             @else
@@ -127,7 +154,7 @@
 
                             <div class="d-flex align-items-center gap-3">
                                 <span class="drag-handle text-muted"
-                                    style="cursor: grab;">
+                                      style="cursor: grab;">
                                     ☰
                                 </span>
 
@@ -166,6 +193,136 @@
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
 
 <script>
+    const selectedClubs = [];
+
+    const availableClubs = document.getElementById('availableClubs');
+    const draftMatches = document.getElementById('draftMatches');
+    const selectedClubsInputs = document.getElementById('selectedClubsInputs');
+    const saveMatchesButton = document.getElementById('saveMatchesButton');
+    const resetSelection = document.getElementById('resetSelection');
+    const availableCount = document.getElementById('availableCount');
+
+    function renderDraftMatches() {
+
+        selectedClubsInputs.innerHTML = '';
+
+        selectedClubs.forEach(club => {
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = 'clubs[]';
+            input.value = club.id;
+
+            selectedClubsInputs.appendChild(input);
+        });
+
+        if (selectedClubs.length === 0) {
+            draftMatches.innerHTML = `
+                <div class="alert alert-info mb-0">
+                    Aucun club sélectionné pour le moment.
+                </div>
+            `;
+        } else {
+            let html = '<div class="list-group">';
+
+            for (let i = 0; i < selectedClubs.length; i += 2) {
+                const home = selectedClubs[i];
+                const away = selectedClubs[i + 1];
+
+                html += `
+                    <div class="list-group-item">
+                        <div class="fw-bold mb-2">
+                            Match ${Math.floor(i / 2) + 1}
+                        </div>
+
+                        <div class="d-flex flex-wrap gap-2">
+                            <button type="button"
+                                    class="selected-club-chip"
+                                    onclick="removeSelectedClub(${i})">
+                                ${home.name}
+                            </button>
+
+                            ${away ? `
+                                <button type="button"
+                                        class="selected-club-chip"
+                                        onclick="removeSelectedClub(${i + 1})">
+                                    ${away.name}
+                                </button>
+                            ` : `
+                                <span class="text-muted">
+                                    En attente...
+                                </span>
+                            `}
+                        </div>
+                    </div>
+                `;
+            }
+
+            html += '</div>';
+
+            if (selectedClubs.length % 2 !== 0) {
+                html += `
+                    <div class="alert alert-warning mt-3 mb-0">
+                        Sélectionne encore un club pour compléter le dernier match.
+                    </div>
+                `;
+            }
+
+            draftMatches.innerHTML = html;
+        }
+
+        saveMatchesButton.disabled =
+            selectedClubs.length < 2 || selectedClubs.length % 2 !== 0;
+
+        resetSelection.disabled = selectedClubs.length === 0;
+
+        if (availableCount && availableClubs) {
+            availableCount.textContent = availableClubs.querySelectorAll('.club-picker-item:not(.d-none)').length;
+        }
+    }
+
+    function resetDraft() {
+        selectedClubs.length = 0;
+
+        document.querySelectorAll('.club-picker-item').forEach(button => {
+            button.classList.remove('d-none');
+        });
+
+        renderDraftMatches();
+    }
+
+    function removeSelectedClub(index) {
+        const removedClub = selectedClubs[index];
+
+        selectedClubs.splice(index, 1);
+
+        const button = document.querySelector(
+            `.club-picker-item[data-club-id="${removedClub.id}"]`
+        );
+
+        if (button) {
+            button.classList.remove('d-none');
+        }
+
+        renderDraftMatches();
+    }
+
+    document.querySelectorAll('.club-picker-item').forEach(button => {
+        button.addEventListener('click', function () {
+            selectedClubs.push({
+                id: this.dataset.clubId,
+                name: this.dataset.clubName,
+            });
+
+            this.classList.add('d-none');
+
+            renderDraftMatches();
+        });
+    });
+
+    resetSelection?.addEventListener('click', resetDraft);
+
+    renderDraftMatches();
+
     window.addEventListener('load', function () {
         const list = document.getElementById('matchesList');
 
@@ -193,32 +350,5 @@
             },
         });
     });
-</script>
-
-<script>
-    function syncClubSelects() {
-        const homeSelect = document.getElementById('homeClubSelect');
-        const awaySelect = document.getElementById('awayClubSelect');
-
-        if (!homeSelect || !awaySelect) {
-            return;
-        }
-
-        const homeValue = homeSelect.value;
-        const awayValue = awaySelect.value;
-
-        [...awaySelect.options].forEach(option => {
-            option.hidden = option.value !== '' && option.value === homeValue;
-        });
-
-        [...homeSelect.options].forEach(option => {
-            option.hidden = option.value !== '' && option.value === awayValue;
-        });
-    }
-
-    document.getElementById('homeClubSelect')?.addEventListener('change', syncClubSelects);
-    document.getElementById('awayClubSelect')?.addEventListener('change', syncClubSelects);
-
-    syncClubSelects();
 </script>
 @endpush

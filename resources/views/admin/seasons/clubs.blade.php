@@ -17,7 +17,7 @@
     </h2>
 
     <p class="text-muted mb-0">
-        Sélectionne un ou plusieurs clubs, puis affecte-les au TOP 14 ou à la PRO D2.
+        Clique sur un club disponible pour l’affecter au TOP 14 ou à la PRO D2.
     </p>
 </div>
 
@@ -27,6 +27,8 @@
       method="POST"
       action="{{ route('admin.seasons.clubs.sync', $season) }}">
     @csrf
+
+    <div id="hiddenInputs"></div>
 
     <div class="row g-4 align-items-start">
 
@@ -45,17 +47,23 @@
                     </button>
                 </div>
 
-                <select id="availableClubs"
-                        class="form-select club-list"
-                        multiple>
+                <div id="availableClubs" class="club-picker">
                     @foreach($clubs as $club)
                         @if(!in_array($club->id, $selectedTop14) && !in_array($club->id, $selectedProd2))
-                            <option value="{{ $club->id }}">
-                                {{ $club->name }} — {{ $club->short_name }}
-                            </option>
+                            <button type="button"
+                                    class="club-picker-item"
+                                    data-club-id="{{ $club->id }}"
+                                    data-club-name="{{ $club->name }}"
+                                    data-club-logo="{{ $club->logo_url }}">
+                                <img src="{{ $club->logo_url }}"
+                                     alt="{{ $club->name }}"
+                                     class="club-logo">
+
+                                <span>{{ $club->name }}</span>
+                            </button>
                         @endif
                     @endforeach
-                </select>
+                </div>
             </div>
         </div>
 
@@ -70,34 +78,34 @@
                         <span id="top14Count">{{ count($selectedTop14) }}</span>
                         / {{ $season->top14_clubs_count }}
                     </span>
-
-                    <div class="d-flex gap-2">
-                        <button type="button"
-                                class="btn btn-sm btn-outline-primary rounded-pill"
-                                onclick="moveSelected('availableClubs', 'top14Clubs')">
-                            →
-                        </button>
-
-                        <button type="button"
-                                class="btn btn-sm btn-outline-secondary rounded-pill"
-                                onclick="moveSelected('top14Clubs', 'availableClubs')">
-                            ←
-                        </button>
-                    </div>
                 </div>
 
-                <select id="top14Clubs"
-                        name="top14_clubs[]"
-                        class="form-select club-list"
-                        multiple>
+                <div class="d-grid gap-2 mb-3">
+                    <button type="button"
+                            class="btn btn-sm btn-outline-primary rounded-pill"
+                            onclick="moveSelectedClub('top14')">
+                        Ajouter au TOP 14 →
+                    </button>
+                </div>
+
+                <div id="top14Clubs" class="season-club-list">
                     @foreach($clubs as $club)
                         @if(in_array($club->id, $selectedTop14))
-                            <option value="{{ $club->id }}">
-                                {{ $club->name }} — {{ $club->short_name }}
-                            </option>
+                            <button type="button"
+                                    class="selected-club-chip w-100 text-start"
+                                    data-club-id="{{ $club->id }}"
+                                    data-club-name="{{ $club->name }}"
+                                    data-club-logo="{{ $club->logo_url }}"
+                                    onclick="removeClubFromCompetition(this, 'top14')">
+                                <img src="{{ $club->logo_url }}"
+                                     alt="{{ $club->name }}"
+                                     class="club-logo-small me-2">
+
+                                {{ $club->name }}
+                            </button>
                         @endif
                     @endforeach
-                </select>
+                </div>
             </div>
         </div>
 
@@ -112,34 +120,34 @@
                         <span id="prod2Count">{{ count($selectedProd2) }}</span>
                         / {{ $season->prod2_clubs_count }}
                     </span>
-
-                    <div class="d-flex gap-2">
-                        <button type="button"
-                                class="btn btn-sm btn-outline-primary rounded-pill"
-                                onclick="moveSelected('availableClubs', 'prod2Clubs')">
-                            →
-                        </button>
-
-                        <button type="button"
-                                class="btn btn-sm btn-outline-secondary rounded-pill"
-                                onclick="moveSelected('prod2Clubs', 'availableClubs')">
-                            ←
-                        </button>
-                    </div>
                 </div>
 
-                <select id="prod2Clubs"
-                        name="prod2_clubs[]"
-                        class="form-select club-list"
-                        multiple>
+                <div class="d-grid gap-2 mb-3">
+                    <button type="button"
+                            class="btn btn-sm btn-outline-primary rounded-pill"
+                            onclick="moveSelectedClub('prod2')">
+                        Ajouter à la PRO D2 →
+                    </button>
+                </div>
+
+                <div id="prod2Clubs" class="season-club-list">
                     @foreach($clubs as $club)
                         @if(in_array($club->id, $selectedProd2))
-                            <option value="{{ $club->id }}">
-                                {{ $club->name }} — {{ $club->short_name }}
-                            </option>
+                            <button type="button"
+                                    class="season-club-item"
+                                    data-club-id="{{ $club->id }}"
+                                    data-club-name="{{ $club->name }}"
+                                    data-club-logo="{{ $club->logo_url }}"
+                                    onclick="removeClubFromCompetition(this, 'prod2')">
+                                <img src="{{ $club->logo_url }}"
+                                     alt="{{ $club->name }}"
+                                     class="club-logo-small me-2">
+
+                                {{ $club->name }}
+                            </button>
                         @endif
                     @endforeach
-                </select>
+                </div>
             </div>
         </div>
 
@@ -154,51 +162,175 @@
 
 <script>
     const limits = {
-        top14Clubs: {{ $season->top14_clubs_count }},
-        prod2Clubs: {{ $season->prod2_clubs_count }},
+        top14: {{ $season->top14_clubs_count }},
+        prod2: {{ $season->prod2_clubs_count }},
     };
 
-    function moveSelected(fromId, toId) {
-        const from = document.getElementById(fromId);
-        const to = document.getElementById(toId);
+    let selectedAvailableClubs = [];
 
-        const selectedOptions = [...from.selectedOptions];
+    function selectAvailableClub(button) {
+        const clubId = button.dataset.clubId;
 
-        if (selectedOptions.length === 0) {
-            showWarning('Sélectionne au moins un club à déplacer.');
+        if (button.classList.contains('is-selected')) {
+            button.classList.remove('is-selected');
+
+            selectedAvailableClubs = selectedAvailableClubs.filter(
+                club => club.id !== clubId
+            );
+
             return;
         }
 
-        if (limits[toId] !== undefined) {
-            const availableSlots = limits[toId] - to.options.length;
+        button.classList.add('is-selected');
 
-            if (availableSlots <= 0) {
-                showWarning(`Impossible : la limite est déjà atteinte (${limits[toId]} clubs).`);
-                return;
-            }
+        selectedAvailableClubs.push({
+            id: button.dataset.clubId,
+            name: button.dataset.clubName,
+            logo: button.dataset.clubLogo,
+            element: button,
+        });
+    }
 
-            if (selectedOptions.length > availableSlots) {
-                showWarning(`Impossible d'ajouter ${selectedOptions.length} club(s). Il reste seulement ${availableSlots} place(s).`);
-                return;
-            }
+    document.querySelectorAll('#availableClubs .club-picker-item').forEach(button => {
+        button.addEventListener('click', function () {
+            selectAvailableClub(this);
+        });
+    });
+
+    function moveSelectedClub(competition) {
+        if (selectedAvailableClubs.length === 0) {
+            showWarning('Sélectionne au moins un club disponible.');
+            return;
+        }
+
+        const target = document.getElementById(competition + 'Clubs');
+        const currentCount = target.querySelectorAll('.selected-club-chip').length;
+        const availableSlots = limits[competition] - currentCount;
+
+        if (selectedAvailableClubs.length > availableSlots) {
+            showWarning(`Impossible d’ajouter ${selectedAvailableClubs.length} club(s). Il reste seulement ${availableSlots} place(s).`);
+            return;
         }
 
         hideWarning();
 
-        selectedOptions.forEach(option => {
-            option.selected = false;
-            to.appendChild(option);
+        selectedAvailableClubs.forEach(club => {
+            const chip = createSelectedChip(club, competition);
+            target.appendChild(chip);
+            club.element.remove();
         });
 
-        sortSelect(from);
-        sortSelect(to);
+        selectedAvailableClubs = [];
+
+        sortClubList(target);
         updateCounters();
+        updateHiddenInputs();
     }
 
-    function sortSelect(select) {
-        [...select.options]
-            .sort((a, b) => a.text.localeCompare(b.text, 'fr'))
-            .forEach(option => select.appendChild(option));
+    function createSelectedChip(club, competition) {
+        const chip = document.createElement('button');
+
+        chip.type = 'button';
+        chip.className = 'season-club-item';
+        chip.dataset.clubId = club.id;
+        chip.dataset.clubName = club.name;
+        chip.dataset.clubLogo = club.logo;
+        chip.onclick = function () {
+            removeClubFromCompetition(chip, competition);
+        };
+
+        chip.innerHTML = `
+            <img src="${club.logo}"
+                 alt="${club.name}"
+                 class="club-logo-small me-2">
+            ${club.name}
+        `;
+
+        return chip;
+    }
+
+    function removeClubFromCompetition(button, competition) {
+        const club = {
+            id: button.dataset.clubId,
+            name: button.dataset.clubName,
+            logo: button.dataset.clubLogo,
+        };
+
+        const availableButton = document.createElement('button');
+
+        availableButton.type = 'button';
+        availableButton.className = 'club-picker-item';
+        availableButton.dataset.clubId = club.id;
+        availableButton.dataset.clubName = club.name;
+        availableButton.dataset.clubLogo = club.logo;
+        availableButton.innerHTML = `
+            <img src="${club.logo}"
+                 alt="${club.name}"
+                 class="club-logo">
+            <span>${club.name}</span>
+        `;
+
+        availableButton.addEventListener('click', function () {
+            selectAvailableClub(this);
+        });
+
+        document.getElementById('availableClubs').appendChild(availableButton);
+
+        button.remove();
+
+        selectedAvailableClubs = selectedAvailableClubs.filter(
+            selectedClub => selectedClub.id !== club.id
+        );
+
+        sortClubList(document.getElementById('availableClubs'));
+        updateCounters();
+        updateHiddenInputs();
+    }
+
+    function sortClubList(container) {
+        [...container.children]
+            .sort((a, b) => a.dataset.clubName.localeCompare(b.dataset.clubName, 'fr'))
+            .forEach(child => container.appendChild(child));
+    }
+
+    function updateCounters() {
+        const top14Count = document.querySelectorAll('#top14Clubs .season-club-item').length;
+        const prod2Count = document.querySelectorAll('#prod2Clubs .season-club-item').length;
+
+        document.getElementById('top14Count').textContent = top14Count;
+        document.getElementById('prod2Count').textContent = prod2Count;
+
+        document.getElementById('top14Badge').className =
+            top14Count === limits.top14
+                ? 'badge text-bg-success rounded-pill'
+                : 'badge text-bg-warning rounded-pill';
+
+        document.getElementById('prod2Badge').className =
+            prod2Count === limits.prod2
+                ? 'badge text-bg-success rounded-pill'
+                : 'badge text-bg-warning rounded-pill';
+    }
+
+    function updateHiddenInputs() {
+        const hiddenInputs = document.getElementById('hiddenInputs');
+
+        hiddenInputs.innerHTML = '';
+
+        document.querySelectorAll('#top14Clubs .season-club-item').forEach(button => {
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = 'top14_clubs[]';
+            input.value = button.dataset.clubId;
+            hiddenInputs.appendChild(input);
+        });
+
+        document.querySelectorAll('#prod2Clubs .season-club-item').forEach(button => {
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = 'prod2_clubs[]';
+            input.value = button.dataset.clubId;
+            hiddenInputs.appendChild(input);
+        });
     }
 
     function showWarning(message) {
@@ -217,43 +349,12 @@
         document.getElementById('clubsWarning').classList.add('d-none');
     }
 
-    function updateCounters() {
-        const top14Count = document.getElementById('top14Clubs').options.length;
-        const prod2Count = document.getElementById('prod2Clubs').options.length;
-
-        document.getElementById('top14Count').textContent = top14Count;
-        document.getElementById('prod2Count').textContent = prod2Count;
-
-        const top14Badge = document.getElementById('top14Badge');
-        const prod2Badge = document.getElementById('prod2Badge');
-
-        top14Badge.className =
-            top14Count === limits.top14Clubs
-                ? 'badge text-bg-success rounded-pill'
-                : 'badge text-bg-warning rounded-pill';
-
-        prod2Badge.className =
-            prod2Count === limits.prod2Clubs
-                ? 'badge text-bg-success rounded-pill'
-                : 'badge text-bg-warning rounded-pill';
-    }
-
-    document.getElementById('season-clubs-form').addEventListener('submit', function () {
-        document.querySelectorAll('#top14Clubs option, #prod2Clubs option')
-            .forEach(option => {
-                option.selected = true;
-            });
-    });
-
-    ['availableClubs', 'top14Clubs', 'prod2Clubs'].forEach(id => {
-        const select = document.getElementById(id);
-
-        if (select) {
-            sortSelect(select);
-        }
-    });
+    sortClubList(document.getElementById('availableClubs'));
+    sortClubList(document.getElementById('top14Clubs'));
+    sortClubList(document.getElementById('prod2Clubs'));
 
     updateCounters();
+    updateHiddenInputs();
 </script>
 
 @endsection

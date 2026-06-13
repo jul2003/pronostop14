@@ -236,4 +236,82 @@ class MatchController extends Controller
             abort(404);
         }
     }
+
+    public function storeBulk(Request $request, Season $season, Journee $journee)
+    {
+        $this->ensureJourneeBelongsToSeason($season, $journee);
+
+        if ($journee->isLocked()) {
+            return back()->withErrors([
+                'journee' => 'Cette journée est verrouillée.',
+            ]);
+        }
+
+        $data = $request->validate([
+            'clubs' => ['required', 'array', 'min:2'],
+            'clubs.*' => ['integer', 'exists:clubs,id'],
+        ]);
+
+        $clubIds = array_map('intval', $data['clubs']);
+
+        if (count($clubIds) % 2 !== 0) {
+            return back()->withErrors([
+                'clubs' => 'Le nombre de clubs sélectionnés doit être pair.',
+            ]);
+        }
+
+        if (count($clubIds) !== count(array_unique($clubIds))) {
+            return back()->withErrors([
+                'clubs' => 'Un club ne peut pas être utilisé deux fois.',
+            ]);
+        }
+
+        $top14ClubIds = $season->clubs()
+            ->wherePivot('competition', 'top14')
+            ->pluck('clubs.id')
+            ->map(fn ($id) => (int) $id)
+            ->toArray();
+
+        foreach ($clubIds as $clubId) {
+            if (! in_array($clubId, $top14ClubIds, true)) {
+                return back()->withErrors([
+                    'clubs' => 'Tous les clubs sélectionnés doivent appartenir au TOP 14 de cette saison.',
+                ]);
+            }
+        }
+
+        $alreadyUsedClubIds = MatchGame::where('journee_id', $journee->id)
+            ->get()
+            ->flatMap(fn ($match) => [
+                (int) $match->home_club_id,
+                (int) $match->away_club_id,
+            ])
+            ->unique()
+            ->toArray();
+
+        foreach ($clubIds as $clubId) {
+            if (in_array($clubId, $alreadyUsedClubIds, true)) {
+                return back()->withErrors([
+                    'clubs' => 'Un des clubs sélectionnés est déjà utilisé sur cette journée.',
+                ]);
+            }
+        }
+
+        $nextPosition = ((int) MatchGame::where('journee_id', $journee->id)->max('position')) + 1;
+
+        foreach (array_chunk($clubIds, 2) as $pair) {
+            MatchGame::create([
+                'journee_id' => $journee->id,
+                'home_club_id' => $pair[0],
+                'away_club_id' => $pair[1],
+                'position' => $nextPosition,
+            ]);
+
+            $nextPosition++;
+        }
+
+        return redirect()
+            ->route('admin.seasons.journees.matches', [$season, $journee])
+            ->with('success', 'Matchs ajoutés.');
+    }
 }

@@ -29,7 +29,7 @@
             ← Retour aux journées
         </a>
 
-        <a href="{{ route('rankings.journee', [$season, $journee]) }}">
+        <a href="{{ route('rankings.journee', [$season, $journee]) }}"
            class="btn btn-outline-primary rounded-pill fw-bold">
             Classement journée
         </a>

@@ -48,6 +48,13 @@
                     Voir la journée
                 </a>
 
+                @if($journee->isLocked())
+                    <a href="{{ route('journees.results', [$journee->season, $journee]) }}"
+                    class="btn btn-outline-primary rounded-pill">
+                        Voir les résultats
+                    </a>
+                @endif
+
             </div>
 
         </div>

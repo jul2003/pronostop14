@@ -16,20 +16,20 @@ class ScoringService
 
         $rules = $this->rulesForMatch($match);
 
-        $points = 0;
-
         if (! $match->actual_result) {
             return 0;
         }
 
-        if ($prono->predicted_result === $match->actual_result) {
-            $points += match ($match->actual_result) {
-                'v' => $rules['home_win'] ?? 0,
-                'd' => $rules['away_win'] ?? 0,
-                'n' => $rules['draw'] ?? 0,
-                default => 0,
-            };
+        if ($prono->predicted_result !== $match->actual_result) {
+            return 0;
         }
+
+        $points = match ($match->actual_result) {
+            'v' => $rules['home_win'] ?? 0,
+            'd' => $rules['away_win'] ?? 0,
+            'n' => $rules['draw'] ?? 0,
+            default => 0,
+        };
 
         if ($match->actual_tries !== null && $prono->predicted_tries !== null) {
             $difference = abs($prono->predicted_tries - $match->actual_tries);

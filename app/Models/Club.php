@@ -37,4 +37,15 @@ class Club extends Model
     {
         return 'slug';
     }
+
+    public function getLogoUrlAttribute(): string
+    {
+        $path = public_path('images/clubs/'.$this->slug.'.png');
+
+        if (file_exists($path)) {
+            return asset('images/clubs/'.$this->slug.'.png');
+        }
+
+        return asset('images/clubs/default.png');
+    }
 }
