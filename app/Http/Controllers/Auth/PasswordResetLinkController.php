@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Password;
@@ -11,35 +12,41 @@ use Illuminate\View\View;
 
 class PasswordResetLinkController extends Controller
 {
-    /**
-     * Display the password reset link request view.
-     */
     public function create(): View
     {
         return view('auth.forgot-password');
     }
 
-    /**
-     * Handle an incoming password reset link request.
-     *
-     * @throws ValidationException
-     */
     public function store(Request $request): RedirectResponse
     {
         $request->validate([
-            'email' => ['required', 'email'],
+            'login' => ['required', 'string'],
         ]);
 
-        // We will send the password reset link to this user. Once we have attempted
-        // to send the link, we will examine the response then see the message we
-        // need to show to the user. Finally, we'll send out a proper response.
-        $status = Password::sendResetLink(
-            $request->only('email')
-        );
+        $login = trim($request->input('login'));
 
-        return $status == Password::RESET_LINK_SENT
-                    ? back()->with('status', __($status))
-                    : back()->withInput($request->only('email'))
-                        ->withErrors(['email' => __($status)]);
+        $user = User::where('nickname', strtoupper($login))
+            ->orWhere('email_pro', $login)
+            ->orWhere('email_perso', $login)
+            ->first();
+
+        if (! $user) {
+            throw ValidationException::withMessages([
+                'login' => 'Aucun compte ne correspond à cet identifiant.',
+            ]);
+        }
+
+        $email = filter_var($login, FILTER_VALIDATE_EMAIL)
+            ? $login
+            : ($user->email_pro ?? $user->email_perso);
+
+        $status = Password::sendResetLink([
+            'email' => $email,
+        ]);
+
+        return $status === Password::RESET_LINK_SENT
+            ? back()->with('status', 'Un lien de réinitialisation a été envoyé.')
+            : back()->withInput($request->only('login'))
+                ->withErrors(['login' => __($status)]);
     }
 }

@@ -33,8 +33,23 @@
         </div>
 
         <div class="mb-3">
-            <label class="form-label fw-bold">Email</label>
-            <input name="email" type="email" class="form-control" required>
+            <label class="form-label fw-bold">Email professionnel</label>
+            <input name="email_pro"
+                type="email"
+                value="{{ old('email_pro') }}"
+                class="form-control">
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label fw-bold">Email personnel</label>
+            <input name="email_perso"
+                type="email"
+                value="{{ old('email_perso') }}"
+                class="form-control">
+        </div>
+
+        <div class="form-text mb-3">
+            Au moins une des deux adresses est obligatoire.
         </div>
 
         <div class="mb-3">

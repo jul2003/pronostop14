@@ -9,12 +9,17 @@ use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\InitialSetupController;
 use App\Http\Controllers\PlayerProfileController;
 use App\Http\Controllers\PronoController;
-use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\RankingController;
 use Illuminate\Support\Facades\Route;
+use App\Models\User;
 use App\Models\Season;
 
 Route::get('/', function () {
+
+    if (User::count() === 0) {
+        return view('site-not-initialized');
+    }
+
     if (! auth()->check()) {
         return redirect()->route('login');
     }
@@ -26,6 +31,7 @@ Route::get('/', function () {
     ]);
 })->name('home');
 
+
 Route::get('/initialisation', [InitialSetupController::class, 'create'])
     ->name('initial-setup.create');
 
@@ -33,21 +39,14 @@ Route::post('/initialisation', [InitialSetupController::class, 'store'])
     ->name('initial-setup.store');
 
 Route::middleware('auth')->group(function () {
-    Route::get('/profile', [ProfileController::class, 'edit'])
-        ->name('profile.edit');
-
-    Route::patch('/profile', [ProfileController::class, 'update'])
-        ->name('profile.update');
-
-    Route::delete('/profile', [ProfileController::class, 'destroy'])
-        ->name('profile.destroy');
-
+    //Profil utilisateur
     Route::get('/mon-profil', [PlayerProfileController::class, 'edit'])
         ->name('player-profile.edit');
 
     Route::put('/mon-profil', [PlayerProfileController::class, 'update'])
         ->name('player-profile.update');
 
+    //Pronostic
     Route::get('/pronos', [PronoController::class, 'index'])
         ->name('pronos.index');
 
@@ -57,8 +56,15 @@ Route::middleware('auth')->group(function () {
     Route::post('/pronos/{season}/{journee}', [PronoController::class, 'storeAll'])
         ->name('pronos.store');
 
+    //Classement
     Route::get('/classements', function () {
-        $season = \App\Models\Season::where('is_active', true)->firstOrFail();
+        $season = Season::where('is_active', true)->first();
+
+        if (! $season) {
+            return redirect()
+                ->route('home')
+                ->with('error', 'Aucune saison active pour le moment.');
+        }
 
         return redirect()->route('rankings.general', $season);
     })->name('rankings.index');
@@ -69,11 +75,16 @@ Route::middleware('auth')->group(function () {
     Route::get('/classements/{season}/{journee}', [RankingController::class, 'journee'])
         ->name('rankings.journee');
 
+    //Resulats
     Route::get('/saisons/{season}/journees/{journee}/resultats', [RankingController::class, 'journeeResults'])
         ->name('journees.results');
 
     Route::get('/saisons/{season}/resultats', [RankingController::class, 'seasonResults'])
         ->name('seasons.results');
+
+    //Pour stopper la reprise historique des pronos
+    Route::post('impersonation/stop', [UserController::class, 'stopImpersonating'])
+        ->name('impersonation.stop');
 });
 
 Route::middleware(['auth', 'admin'])->group(function () {
@@ -187,6 +198,11 @@ Route::middleware(['auth', 'admin'])->group(function () {
 
     Route::patch('/admin/users/{user}/role', [UserController::class, 'updateRole'])
         ->name('admin.users.updateRole');
+
+    //Pour reprise historique pronos
+    Route::post('/admin/users/{user}/impersonate', [UserController::class, 'impersonate'])
+        ->name('admin.users.impersonate');
+
 });
 
 require __DIR__.'/auth.php';

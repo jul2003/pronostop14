@@ -2,6 +2,12 @@
 
 @section('content')
 
+@if(! $season)
+    <div class="alert alert-info">
+        Aucune saison active pour le moment.
+    </div>
+@endif
+
 <div class="mb-4">
     <div class="text-uppercase text-primary fw-bold small">
         Pronostics

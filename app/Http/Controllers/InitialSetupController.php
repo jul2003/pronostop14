@@ -32,7 +32,20 @@ class InitialSetupController extends Controller
                 'regex:/^[A-Za-z]{2}[0-9]{2}$/',
                 'unique:users,nickname',
             ],
-            'email' => ['required', 'email', 'unique:users,email'],
+            //'email' => ['required', 'email', 'unique:users,email'],
+            'email_pro' => [
+                'nullable',
+                'email',
+                'required_without:email_perso',
+                'unique:users,email_pro',
+            ],
+
+            'email_perso' => [
+                'nullable',
+                'email',
+                'required_without:email_pro',
+                'unique:users,email_perso',
+            ],
             'color' => ['required', 'regex:/^#[0-9A-Fa-f]{6}$/', 'unique:users,color'],
             'password' => ['required', 'confirmed', 'min:8'],
         ]);
@@ -40,7 +53,10 @@ class InitialSetupController extends Controller
         User::create([
             'name' => $data['name'],
             'nickname' => $data['nickname'],
-            'email' => $data['email'],
+            //'email' => $data['email'],
+            'email' => $data['email_pro'] ?? $data['email_perso'],
+            'email_pro' => $data['email_pro'] ?? null,
+            'email_perso' => $data['email_perso'] ?? null,
             'color' => $data['color'],
             'role' => 'super_admin',
             'password' => Hash::make($data['password']),

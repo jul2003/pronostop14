@@ -58,7 +58,15 @@
                         </td>
 
                         <td class="text-muted">
-                            {{ $user->email }}
+                            <div>
+                                @if($user->email_pro)
+                                    <div>{{ $user->email_pro }}</div>
+                                @endif
+
+                                @if($user->email_perso)
+                                    <div class="text-muted small">{{ $user->email_perso }}</div>
+                                @endif
+                            </div>
                         </td>
 
                         <td>
@@ -129,47 +137,54 @@
 
                             <div class="d-flex justify-content-end gap-2">
 
-                                @if(!$user->isSuperAdmin())
+                                @if(auth()->user()->isSuperAdmin() && ! $user->isSuperAdmin())
+                                    <form method="POST"
+                                        action="{{ route('admin.users.impersonate', $user) }}">
+                                        @csrf
 
-                                    @if($user->role === 'admin')
+                                        <button class="btn btn-sm btn-outline-dark rounded-pill">
+                                            Saisir ses pronos
+                                        </button>
+                                    </form>
+                                @endif
 
-                                        <form method="POST"
-                                              action="{{ route('admin.users.updateRole', $user) }}">
-                                            @csrf
-                                            @method('PATCH')
-
-                                            <input type="hidden"
-                                                   name="role"
-                                                   value="player">
-
-                                            <button class="btn btn-sm btn-outline-warning rounded-pill">
-                                                Rétrograder
-                                            </button>
-                                        </form>
-
-                                    @else
-
-                                        <form method="POST"
-                                              action="{{ route('admin.users.updateRole', $user) }}">
-                                            @csrf
-                                            @method('PATCH')
-
-                                            <input type="hidden"
-                                                   name="role"
-                                                   value="admin">
-
-                                            <button class="btn btn-sm btn-outline-success rounded-pill">
-                                                Promouvoir
-                                            </button>
-                                        </form>
-
-                                    @endif
-
-                                @else
+                                @if($user->isSuperAdmin())
 
                                     <span class="text-muted small">
                                         Verrouillé
                                     </span>
+
+                                @elseif($user->role === 'admin')
+
+                                    <form method="POST"
+                                        action="{{ route('admin.users.updateRole', $user) }}">
+                                        @csrf
+                                        @method('PATCH')
+
+                                        <input type="hidden"
+                                            name="role"
+                                            value="player">
+
+                                        <button class="btn btn-sm btn-outline-warning rounded-pill">
+                                            Rétrograder
+                                        </button>
+                                    </form>
+
+                                @else
+
+                                    <form method="POST"
+                                        action="{{ route('admin.users.updateRole', $user) }}">
+                                        @csrf
+                                        @method('PATCH')
+
+                                        <input type="hidden"
+                                            name="role"
+                                            value="admin">
+
+                                        <button class="btn btn-sm btn-outline-success rounded-pill">
+                                            Promouvoir
+                                        </button>
+                                    </form>
 
                                 @endif
 

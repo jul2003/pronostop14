@@ -14,7 +14,12 @@ return new class extends Migration
         Schema::create('users', function (Blueprint $table) {
             $table->id();
             $table->string('name');
+            //Email technique laravel
             $table->string('email')->unique();
+            // Emails métier
+            $table->string('email_pro')->nullable()->unique();
+            $table->string('email_perso')->nullable()->unique();
+
             $table->timestamp('email_verified_at')->nullable();
             $table->string('password');
             $table->rememberToken();

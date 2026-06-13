@@ -4,6 +4,9 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{{ config('app.name', 'Pronos TOP 14') }}</title>
+
+    <link rel="icon" href="{{ asset('favicon.ico') }}" sizes="any">
+
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
 
@@ -55,10 +58,35 @@
     @endauth
 </header>
 
+@if(session()->has('impersonator_id'))
+    <div class="alert alert-warning rounded-0 mb-0 text-center fw-bold">
+        🔄 Mode reprise historique :
+        vous êtes connecté en tant que
+        <strong>{{ auth()->user()->display_name }}</strong>
+
+        <form method="POST"
+              action="{{ route('impersonation.stop') }}"
+              class="d-inline ms-3">
+            @csrf
+
+            <button type="submit"
+                    class="btn btn-sm btn-dark rounded-pill">
+                Revenir super admin
+            </button>
+        </form>
+    </div>
+@endif
+
 <main class="container py-4">
     @if(session('success'))
         <div class="alert alert-success">
             {{ session('success') }}
+        </div>
+    @endif
+
+    @if(session('error'))
+        <div class="alert alert-warning">
+            {{ session('error') }}
         </div>
     @endif
 

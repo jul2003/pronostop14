@@ -12,7 +12,14 @@ class PronoController extends Controller
 {
     public function index()
     {
-        $season = Season::where('is_active', true)->firstOrFail();
+        $season = Season::where('is_active', true)->first();
+
+        if (! $season) {
+            return view('pronos.journees', [
+                'season' => null,
+                'journees' => collect(),
+            ]);
+        }
 
         $journees = Journee::with('season')
             ->withCount('matches')

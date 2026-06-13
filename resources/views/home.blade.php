@@ -6,7 +6,7 @@
     <div class="row align-items-center g-4">
         <div class="col-lg-8">
             <div class="text-uppercase fw-bold text-warning small mb-2">
-                TOP 14 PRONOS
+                PRONOS TOP 14
             </div>
 
             <h1 class="display-4 fw-black text-white mb-3">
@@ -27,11 +27,12 @@
                     class="btn btn-outline-primary rounded-pill fw-bold px-4">
                         Classement
                     </a>
+
+                    <a href="{{ route('seasons.results', $season) }}">
+                        Résultats
+                    </a>
                 @endif
 
-                <a href="{{ route('seasons.results', $season) }}">
-                    Résultats
-                </a>
             </div>
         </div>
 
