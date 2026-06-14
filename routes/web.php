@@ -13,6 +13,7 @@ use App\Http\Controllers\RankingController;
 use Illuminate\Support\Facades\Route;
 use App\Models\User;
 use App\Models\Season;
+use App\Http\Controllers\Admin\SettingController;
 
 Route::get('/', function () {
 
@@ -90,6 +91,25 @@ Route::middleware('auth')->group(function () {
 Route::middleware(['auth', 'admin'])->group(function () {
     Route::get('/admin', fn () => view('admin.index'))
         ->name('admin.index');
+
+    //Parametres
+    Route::get('/admin/parametres', [SettingController::class, 'index'])
+        ->name('admin.settings.index');
+
+    Route::put('/admin/parametres', [SettingController::class, 'update'])
+        ->name('admin.settings.update');
+
+    Route::get('/admin/parametres/baremes/create', [SettingController::class, 'createScoringProfile'])
+        ->name('admin.settings.scoring-profiles.create');
+
+    Route::post('/admin/parametres/baremes', [SettingController::class, 'storeScoringProfile'])
+        ->name('admin.settings.scoring-profiles.store');
+
+    Route::get('/admin/parametres/baremes/{profile}/edit', [SettingController::class, 'editScoringProfile'])
+        ->name('admin.settings.scoring-profiles.edit');
+
+    Route::put('/admin/parametres/baremes/{profile}', [SettingController::class, 'updateScoringProfile'])
+        ->name('admin.settings.scoring-profiles.update');
 
     // Clubs
     Route::get('/admin/clubs', [ClubController::class, 'index'])

@@ -13,6 +13,8 @@ return new class extends Migration
     {
         Schema::create('journee_type_scoring_profiles', function (Blueprint $table) {
             $table->id();
+            $table->string('journee_type')->unique();
+            $table->foreignId('scoring_profile_id')->constrained()->cascadeOnDelete();
             $table->timestamps();
         });
     }

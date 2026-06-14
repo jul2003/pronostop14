@@ -13,6 +13,10 @@ return new class extends Migration
     {
         Schema::create('scoring_profiles', function (Blueprint $table) {
             $table->id();
+            $table->string('code')->unique();
+            $table->string('name');
+            $table->text('description')->nullable();
+            $table->integer('position')->default(0);
             $table->timestamps();
         });
     }

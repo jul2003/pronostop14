@@ -13,7 +13,14 @@ return new class extends Migration
     {
         Schema::create('scoring_rule_templates', function (Blueprint $table) {
             $table->id();
+            $table->foreignId('scoring_profile_id')->constrained()->cascadeOnDelete();
+            $table->string('code');
+            $table->string('label');
+            $table->integer('points')->default(0);
+            $table->integer('position')->default(0);
             $table->timestamps();
+
+            $table->unique(['scoring_profile_id', 'code']);
         });
     }
 

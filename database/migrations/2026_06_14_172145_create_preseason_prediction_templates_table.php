@@ -13,6 +13,11 @@ return new class extends Migration
     {
         Schema::create('preseason_prediction_templates', function (Blueprint $table) {
             $table->id();
+            $table->string('label');
+            $table->string('answer_type');
+            $table->foreignId('scoring_profile_id')->constrained()->cascadeOnDelete();
+            $table->integer('position')->default(0);
+            $table->boolean('is_active')->default(true);
             $table->timestamps();
         });
     }
