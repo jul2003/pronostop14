@@ -36,17 +36,30 @@ class PasswordResetLinkController extends Controller
             ]);
         }
 
-        $email = filter_var($login, FILTER_VALIDATE_EMAIL)
-            ? $login
-            : ($user->email_pro ?? $user->email_perso);
+        $token = Password::broker()->createToken($user);
 
-        $status = Password::sendResetLink([
-            'email' => $email,
-        ]);
+        $emails = collect([
+            $user->email_pro,
+            $user->email_perso,
+        ])
+            ->filter()
+            ->unique()
+            ->values();
 
-        return $status === Password::RESET_LINK_SENT
-            ? back()->with('status', 'Un lien de réinitialisation a été envoyé.')
-            : back()->withInput($request->only('login'))
-                ->withErrors(['login' => __($status)]);
+        foreach ($emails as $email) {
+            $originalEmail = $user->email;
+
+            $user->forceFill([
+                'email' => $email,
+            ]);
+
+            $user->sendPasswordResetNotification($token);
+
+            $user->forceFill([
+                'email' => $originalEmail,
+            ]);
+        }
+
+        return back()->with('status', 'Un lien de réinitialisation a été envoyé.');
     }
 }

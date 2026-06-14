@@ -464,3 +464,80 @@ body {
 .result-grid th {
     min-width: 40px;
 }
+
+.prono-choice-group {
+    display: inline-flex;
+    gap: 0.35rem;
+    flex-wrap: wrap;
+}
+
+.prono-choice-input {
+    display: none;
+}
+
+.prono-choice-label {
+    border: 1px solid #d1d5db;
+    background: #fff;
+    color: var(--rugby-navy);
+    border-radius: 999px;
+    padding: 0.45rem 0.85rem;
+    font-weight: 800;
+    cursor: pointer;
+    min-width: 42px;
+    text-align: center;
+}
+
+.prono-choice-input:checked+.prono-choice-label {
+    background: var(--rugby-yellow);
+    border-color: var(--rugby-yellow);
+    color: var(--rugby-navy);
+}
+
+.prono-choice-label:hover {
+    border-color: var(--rugby-blue);
+}
+
+.prono-reset-btn {
+    border: 1px solid #d1d5db;
+    background: #fff;
+    border-radius: 999px;
+    padding: 0.45rem 0.75rem;
+    font-weight: 800;
+}
+
+.prono-match-card-compact {
+    border-radius: 18px;
+}
+
+.prono-match-card-compact .form-label {
+    margin-bottom: 0.25rem;
+}
+
+.prono-match-card-compact .prono-choice-label {
+    padding: 0.32rem 0.65rem;
+    min-width: 34px;
+    font-size: 0.85rem;
+}
+
+.prono-match-card-compact .prono-choice-group {
+    gap: 0.25rem;
+}
+
+.prono-match-card-compact .form-control {
+    padding-top: 0.32rem;
+    padding-bottom: 0.32rem;
+    min-height: 34px;
+}
+
+.prono-match-card-compact .match-versus {
+    transform: scale(0.85);
+}
+
+.prono-match-card-compact .club-logo-small {
+    width: 22px;
+    height: 22px;
+}
+
+.prono-match-card-compact .fw-bold {
+    font-size: 0.95rem;
+}

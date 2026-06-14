@@ -89,4 +89,9 @@ class User extends Authenticatable
     {
         return 'nickname';
     }
+
+    public function routeNotificationForMail($notification = null)
+    {
+        return $this->email;
+    }
 }

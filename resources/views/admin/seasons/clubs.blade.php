@@ -92,7 +92,7 @@
                     @foreach($clubs as $club)
                         @if(in_array($club->id, $selectedTop14))
                             <button type="button"
-                                    class="selected-club-chip w-100 text-start"
+                                    class="season-club-item w-100 text-start"
                                     data-club-id="{{ $club->id }}"
                                     data-club-name="{{ $club->name }}"
                                     data-club-logo="{{ $club->logo_url }}"

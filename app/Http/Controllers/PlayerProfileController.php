@@ -25,11 +25,27 @@ class PlayerProfileController extends Controller
                 'regex:/^[A-Za-z]{2}[0-9]{2}$/',
                 Rule::unique('users', 'nickname')->ignore($user->id),
             ],
+
+            'email_pro' => [
+                'nullable',
+                'email',
+                'required_without:email_perso',
+                Rule::unique('users', 'email_pro')->ignore($user->id),
+            ],
+
+            'email_perso' => [
+                'nullable',
+                'email',
+                'required_without:email_pro',
+                Rule::unique('users', 'email_perso')->ignore($user->id),
+            ],
+
             'color' => [
                 'required',
                 'regex:/^#[0-9A-Fa-f]{6}$/',
                 Rule::unique('users', 'color')->ignore($user->id),
             ],
+
             'current_password' => ['nullable', 'required_with:password', 'current_password'],
             'password' => ['nullable', 'confirmed', Password::defaults()],
         ]);
@@ -43,7 +59,7 @@ class PlayerProfileController extends Controller
         unset($data['current_password']);
         unset($data['password_confirmation']);
 
-        $data['email'] = $data['email_pro'] ?? $data['email_perso'];
+        $data['email'] = $data['email_pro'] ?? $data['email_perso'] ?? null;
 
         $user->update($data);
 
