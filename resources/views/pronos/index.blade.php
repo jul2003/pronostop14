@@ -3,7 +3,6 @@
 @section('content')
 
 <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-start gap-3 mb-4">
-
     <div>
         <div class="text-uppercase text-primary fw-bold small">
             Mes pronostics
@@ -33,14 +32,7 @@
             Classement journée
         </a>
     </div>
-
 </div>
-
-@if(session('success'))
-    <div class="alert alert-success">
-        {{ session('success') }}
-    </div>
-@endif
 
 @if($isLocked)
     <div class="alert alert-warning">
@@ -60,163 +52,129 @@
           action="{{ route('pronos.store', [$season, $journee]) }}">
         @csrf
 
-        <div class="row g-2">
+        <div class="rugby-card p-0 overflow-hidden">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0 prono-table">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Match</th>
+                            <th class="text-center">Résultat</th>
+                            <th class="text-center">Essais</th>
+                            <th class="text-center">Bonus dom.</th>
+                            <th class="text-center">Bonus ext.</th>
+                        </tr>
+                    </thead>
 
-            @foreach($matches as $match)
+                    <tbody>
+                        @foreach($matches as $match)
+                            @php
+                                $prono = $match->pronos->first();
+                            @endphp
 
-                @php
-                    $prono = $match->pronos->first();
-                @endphp
+                            <tr>
+                                <td class="match-cell">
+                                    <div class="match-line">
 
-                <div class="col-12">
-                    <div class="rugby-card prono-match-card-compact p-3">
+                                        <div class="match-home">
+                                            <img src="{{ $match->homeClub->logo_url }}"
+                                                alt="{{ $match->homeClub->name }}"
+                                                class="club-logo-small">
 
-                        <div class="row align-items-center g-2">
-
-                            <div class="col-lg-5">
-                                <div class="d-flex justify-content-between align-items-center gap-3">
-                                    <div class="fw-bold d-flex align-items-center gap-2">
-                                        <img src="{{ $match->homeClub->logo_url }}"
-                                             alt="{{ $match->homeClub->name }}"
-                                             class="club-logo-small">
-
-                                        <span>{{ $match->homeClub->name }}</span>
-                                    </div>
-
-                                    <div class="match-versus">
-                                        VS
-                                    </div>
-
-                                    <div class="fw-bold text-end d-flex align-items-center justify-content-end gap-2">
-                                        <span>{{ $match->awayClub->name }}</span>
-
-                                        <img src="{{ $match->awayClub->logo_url }}"
-                                             alt="{{ $match->awayClub->name }}"
-                                             class="club-logo-small">
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div class="col-lg-7">
-
-                                <div class="row g-2 align-items-end">
-
-                                    <div class="col-12 col-md-3">
-                                        <label class="form-label small fw-bold text-muted">
-                                            Résultat
-                                        </label>
-
-                                        <div class="prono-choice-group">
-                                            @foreach(['v' => 'V', 'n' => 'N', 'd' => 'D'] as $value => $label)
-                                                <input type="radio"
-                                                       id="result_{{ $match->id }}_{{ $value }}"
-                                                       name="pronos[{{ $match->id }}][predicted_result]"
-                                                       value="{{ $value }}"
-                                                       class="prono-choice-input"
-                                                       @checked($prono?->predicted_result === $value)
-                                                       @disabled($isLocked)
-                                                       required>
-
-                                                <label for="result_{{ $match->id }}_{{ $value }}"
-                                                       class="prono-choice-label">
-                                                    {{ $label }}
-                                                </label>
-                                            @endforeach
+                                            <span>
+                                                {{ $match->homeClub->short_name ?? $match->homeClub->name }}
+                                            </span>
                                         </div>
+
+                                        <div class="match-separator">
+                                            -
+                                        </div>
+
+                                        <div class="match-away">
+                                            <img src="{{ $match->awayClub->logo_url }}"
+                                                alt="{{ $match->awayClub->name }}"
+                                                class="club-logo-small">
+
+                                            <span>
+                                                {{ $match->awayClub->short_name ?? $match->awayClub->name }}
+                                            </span>
+                                        </div>
+
                                     </div>
+                                </td>
 
-                                    <div class="col-6 col-md-2">
-                                        <label class="form-label small fw-bold text-muted">
-                                            Essais
-                                        </label>
+                                <td class="text-center">
+                                    <div class="prono-choice-group">
+                                        @foreach(['v' => 'V', 'n' => 'N', 'd' => 'D'] as $value => $label)
+                                            <input type="radio"
+                                                   id="result_{{ $match->id }}_{{ $value }}"
+                                                   name="pronos[{{ $match->id }}][predicted_result]"
+                                                   value="{{ $value }}"
+                                                   class="prono-choice-input"
+                                                   @checked($prono?->predicted_result === $value)
+                                                   @disabled($isLocked)
+                                                   required>
 
-                                        <input type="text"
-                                               inputmode="numeric"
-                                               pattern="[0-9]*"
-                                               name="pronos[{{ $match->id }}][predicted_tries]"
-                                               value="{{ $prono?->predicted_tries }}"
-                                               class="form-control text-center"
-                                               required
-                                               @disabled($isLocked)>
-                                    </div>
-
-                                    <div class="col-12 col-md-3">
-                                        <div class="d-flex justify-content-between align-items-center mb-1">
-                                            <label class="form-label small fw-bold text-muted mb-0">
-                                                Bonus dom.
+                                            <label for="result_{{ $match->id }}_{{ $value }}"
+                                                   class="prono-choice-label">
+                                                {{ $label }}
                                             </label>
-
-                                            <button type="button"
-                                                    class="btn btn-sm btn-link text-danger fw-bold p-0 text-decoration-none"
-                                                    onclick="clearRadioGroup('pronos[{{ $match->id }}][predicted_home_bonus]')"
-                                                    @disabled($isLocked)>
-                                                ×
-                                            </button>
-                                        </div>
-
-                                        <div class="prono-choice-group">
-                                            @foreach(['o' => 'O', '-' => '-', 'd' => 'D'] as $value => $label)
-                                                <input type="radio"
-                                                       id="home_bonus_{{ $match->id }}_{{ $value }}"
-                                                       name="pronos[{{ $match->id }}][predicted_home_bonus]"
-                                                       value="{{ $value }}"
-                                                       class="prono-choice-input"
-                                                       @checked($prono?->predicted_home_bonus === $value)
-                                                       @disabled($isLocked)>
-
-                                                <label for="home_bonus_{{ $match->id }}_{{ $value }}"
-                                                       class="prono-choice-label">
-                                                    {{ $label }}
-                                                </label>
-                                            @endforeach
-
-                                        </div>
+                                        @endforeach
                                     </div>
+                                </td>
 
-                                    <div class="col-12 col-md-4">
-                                        <div class="d-flex justify-content-between align-items-center mb-1">
-                                            <label class="form-label small fw-bold text-muted mb-0">
-                                                Bonus ext.
+                                <td class="text-center">
+                                    <input type="text"
+                                           inputmode="numeric"
+                                           pattern="[0-9]*"
+                                           name="pronos[{{ $match->id }}][predicted_tries]"
+                                           value="{{ $prono?->predicted_tries }}"
+                                           class="form-control form-control-sm prono-tries-input mx-auto"
+                                           required
+                                           @disabled($isLocked)>
+                                </td>
+
+                                <td class="text-center">
+                                    <div class="prono-choice-group">
+                                        @foreach(['o' => 'O', '-' => '-', 'd' => 'D'] as $value => $label)
+                                            <input type="radio"
+                                                   id="home_bonus_{{ $match->id }}_{{ $value }}"
+                                                   name="pronos[{{ $match->id }}][predicted_home_bonus]"
+                                                   value="{{ $value }}"
+                                                   class="prono-choice-input"
+                                                   @checked($prono?->predicted_home_bonus === $value)
+                                                   @disabled($isLocked)>
+
+                                            <label for="home_bonus_{{ $match->id }}_{{ $value }}"
+                                                   class="prono-choice-label">
+                                                {{ $label }}
                                             </label>
-
-                                            <button type="button"
-                                                    class="btn btn-sm btn-link text-danger fw-bold p-0 text-decoration-none"
-                                                    onclick="clearRadioGroup('pronos[{{ $match->id }}][predicted_away_bonus]')"
-                                                    @disabled($isLocked)>
-                                                ×
-                                            </button>
-                                        </div>
-
-                                        <div class="prono-choice-group">
-                                            @foreach(['o' => 'O', '-' => '-', 'd' => 'D'] as $value => $label)
-                                                <input type="radio"
-                                                       id="away_bonus_{{ $match->id }}_{{ $value }}"
-                                                       name="pronos[{{ $match->id }}][predicted_away_bonus]"
-                                                       value="{{ $value }}"
-                                                       class="prono-choice-input"
-                                                       @checked($prono?->predicted_away_bonus === $value)
-                                                       @disabled($isLocked)>
-
-                                                <label for="away_bonus_{{ $match->id }}_{{ $value }}"
-                                                       class="prono-choice-label">
-                                                    {{ $label }}
-                                                </label>
-                                            @endforeach
-
-                                        </div>
+                                        @endforeach
                                     </div>
+                                </td>
 
-                                </div>
+                                <td class="text-center">
+                                    <div class="prono-choice-group">
+                                        @foreach(['o' => 'O', '-' => '-', 'd' => 'D'] as $value => $label)
+                                            <input type="radio"
+                                                   id="away_bonus_{{ $match->id }}_{{ $value }}"
+                                                   name="pronos[{{ $match->id }}][predicted_away_bonus]"
+                                                   value="{{ $value }}"
+                                                   class="prono-choice-input"
+                                                   @checked($prono?->predicted_away_bonus === $value)
+                                                   @disabled($isLocked)>
 
-                            </div>
-
-                        </div>
-
-                    </div>
-                </div>
-
-            @endforeach
-
+                                            <label for="away_bonus_{{ $match->id }}_{{ $value }}"
+                                                   class="prono-choice-label">
+                                                {{ $label }}
+                                            </label>
+                                        @endforeach
+                                    </div>
+                                </td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
         </div>
 
         @unless($isLocked)
@@ -227,16 +185,29 @@
                 </button>
             </div>
         @endunless
-
     </form>
 
 @endif
 
 <script>
-    function clearRadioGroup(name) {
-        document.querySelectorAll(`input[name="${name}"]`)
-            .forEach(input => input.checked = false);
-    }
+    document.querySelectorAll('.prono-choice-input').forEach(input => {
+        input.addEventListener('click', function () {
+            if (this.dataset.wasChecked === 'true') {
+                this.checked = false;
+                this.dataset.wasChecked = 'false';
+            } else {
+                document
+                    .querySelectorAll(`input[name="${this.name}"]`)
+                    .forEach(radio => radio.dataset.wasChecked = 'false');
+
+                this.dataset.wasChecked = 'true';
+            }
+        });
+    });
+
+    document.querySelectorAll('.prono-choice-input:checked').forEach(input => {
+        input.dataset.wasChecked = 'true';
+    });
 </script>
 
 @endsection

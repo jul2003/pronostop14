@@ -148,6 +148,16 @@ body {
     color: var(--rugby-navy);
 }
 
+.match-versus {
+    background: var(--rugby-yellow);
+    color: var(--rugby-navy);
+    border-radius: 999px;
+    padding: 0.25rem 0.75rem;
+    font-weight: 900;
+    font-size: 0.75rem;
+    white-space: nowrap;
+}
+
 /* ==========================================================================
    Home
    ========================================================================== */
@@ -224,45 +234,8 @@ body {
 }
 
 /* ==========================================================================
-   Sortable
+   Login
    ========================================================================== */
-
-.sortable-ghost {
-    opacity: 0.4;
-}
-
-.sortable-chosen {
-    background-color: rgb(51 65 85);
-}
-
-/* ==========================================================================
-   Responsive
-   ========================================================================== */
-
-@media (max-width: 768px) {
-    .rugby-home-hero {
-        padding: 2rem;
-        border-radius: 20px;
-    }
-
-    .brand-title {
-        font-size: 1.35rem;
-    }
-
-    .main-nav a {
-        padding: 0.75rem 0;
-    }
-}
-
-.match-versus {
-    background: var(--rugby-yellow);
-    color: var(--rugby-navy);
-    border-radius: 999px;
-    padding: 0.25rem 0.75rem;
-    font-weight: 900;
-    font-size: 0.75rem;
-    white-space: nowrap;
-}
 
 .login-page {
     min-height: 100vh;
@@ -310,30 +283,34 @@ body {
     color: var(--rugby-navy);
 }
 
-.club-check {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    width: 100%;
-    padding: 0.75rem 0.9rem;
-    border: 1px solid var(--rugby-border);
-    border-radius: 14px;
-    cursor: pointer;
-    background: #fff;
+/* ==========================================================================
+   Sortable
+   ========================================================================== */
+
+.sortable-ghost {
+    opacity: 0.4;
 }
 
-.club-check:hover {
-    border-color: var(--rugby-blue);
-    background: #f8fafc;
+.sortable-chosen {
+    background-color: rgb(51 65 85);
 }
 
-.club-check input {
-    width: 18px;
-    height: 18px;
+/* ==========================================================================
+   Clubs / Logos
+   ========================================================================== */
+
+.club-logo {
+    width: 32px;
+    height: 32px;
+    object-fit: contain;
+    flex-shrink: 0;
 }
 
-.club-list {
-    min-height: 360px;
+.club-logo-small {
+    width: 24px;
+    height: 24px;
+    object-fit: contain;
+    flex-shrink: 0;
 }
 
 .club-picker {
@@ -352,45 +329,14 @@ body {
     text-align: left;
     color: var(--rugby-navy);
     box-shadow: 0 4px 10px rgba(6, 20, 47, 0.05);
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
 }
 
 .club-picker-item:hover {
     border-color: var(--rugby-blue);
     transform: translateY(-1px);
-}
-
-.selected-club-chip {
-    border: 1px solid rgba(0, 59, 122, 0.25);
-    background: #f8fafc;
-    color: var(--rugby-navy);
-    border-radius: 999px;
-    padding: 0.45rem 0.85rem;
-    font-weight: 800;
-}
-
-.selected-club-chip:hover {
-    background: #fee2e2;
-    border-color: #dc3545;
-    color: #842029;
-}
-
-.club-logo {
-    width: 32px;
-    height: 32px;
-    object-fit: contain;
-    flex-shrink: 0;
-}
-
-.club-logo-small {
-    width: 24px;
-    height: 24px;
-    object-fit: contain;
-}
-
-.club-picker-item {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
 }
 
 .club-picker-item.is-selected {
@@ -424,7 +370,102 @@ body {
     color: #842029;
 }
 
+/* ==========================================================================
+   Match display
+   ========================================================================== */
+
+.match-cell {
+    min-width: 260px;
+}
+
+.match-line {
+    display: grid;
+    grid-template-columns: 1fr 24px 1fr;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.match-home {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 0.4rem;
+    text-align: right;
+    font-weight: 700;
+}
+
+.match-away {
+    display: flex;
+    justify-content: flex-start;
+    align-items: center;
+    gap: 0.4rem;
+    text-align: left;
+    font-weight: 700;
+}
+
+.match-separator {
+    text-align: center;
+    font-weight: 900;
+    color: #6b7280;
+}
+
+/* ==========================================================================
+   Pronos / Résultats saisie
+   ========================================================================== */
+
+.prono-table {
+    font-size: 0.9rem;
+}
+
+.prono-table th,
+.prono-table td {
+    vertical-align: middle;
+    white-space: nowrap;
+}
+
+.prono-choice-group {
+    display: inline-flex;
+    gap: 0.25rem;
+}
+
+.prono-choice-input {
+    display: none;
+}
+
+.prono-choice-label {
+    border: 1px solid #d1d5db;
+    background: #fff;
+    color: var(--rugby-navy);
+    border-radius: 999px;
+    padding: 0.28rem 0.62rem;
+    font-weight: 800;
+    cursor: pointer;
+    min-width: 34px;
+    text-align: center;
+    font-size: 0.85rem;
+}
+
+.prono-choice-input:checked+.prono-choice-label {
+    background: var(--rugby-yellow);
+    border-color: var(--rugby-yellow);
+    color: var(--rugby-navy);
+}
+
+.prono-choice-label:hover {
+    border-color: var(--rugby-blue);
+}
+
+.prono-tries-input {
+    width: 64px;
+    text-align: center;
+}
+
+/* ==========================================================================
+   Résultats grille type Excel
+   ========================================================================== */
+
 .result-grid {
+    width: auto;
     font-size: 0.9rem;
 }
 
@@ -432,6 +473,7 @@ body {
 .result-grid td {
     white-space: nowrap;
     vertical-align: middle;
+    min-width: 40px;
 }
 
 .result-grid td {
@@ -456,88 +498,39 @@ body {
     font-weight: 800;
 }
 
-.result-grid {
-    width: auto;
-}
+/* ==========================================================================
+   Responsive
+   ========================================================================== */
 
-.result-grid td,
-.result-grid th {
-    min-width: 40px;
-}
+@media (max-width: 768px) {
+    .rugby-home-hero {
+        padding: 2rem;
+        border-radius: 20px;
+    }
 
-.prono-choice-group {
-    display: inline-flex;
-    gap: 0.35rem;
-    flex-wrap: wrap;
-}
+    .brand-title {
+        font-size: 1.35rem;
+    }
 
-.prono-choice-input {
-    display: none;
-}
+    .main-nav a {
+        padding: 0.75rem 0;
+    }
 
-.prono-choice-label {
-    border: 1px solid #d1d5db;
-    background: #fff;
-    color: var(--rugby-navy);
-    border-radius: 999px;
-    padding: 0.45rem 0.85rem;
-    font-weight: 800;
-    cursor: pointer;
-    min-width: 42px;
-    text-align: center;
-}
+    .prono-table {
+        font-size: 0.82rem;
+    }
 
-.prono-choice-input:checked+.prono-choice-label {
-    background: var(--rugby-yellow);
-    border-color: var(--rugby-yellow);
-    color: var(--rugby-navy);
-}
+    .prono-choice-label {
+        padding: 0.24rem 0.5rem;
+        min-width: 30px;
+        font-size: 0.8rem;
+    }
 
-.prono-choice-label:hover {
-    border-color: var(--rugby-blue);
-}
+    .prono-tries-input {
+        width: 56px;
+    }
 
-.prono-reset-btn {
-    border: 1px solid #d1d5db;
-    background: #fff;
-    border-radius: 999px;
-    padding: 0.45rem 0.75rem;
-    font-weight: 800;
-}
-
-.prono-match-card-compact {
-    border-radius: 18px;
-}
-
-.prono-match-card-compact .form-label {
-    margin-bottom: 0.25rem;
-}
-
-.prono-match-card-compact .prono-choice-label {
-    padding: 0.32rem 0.65rem;
-    min-width: 34px;
-    font-size: 0.85rem;
-}
-
-.prono-match-card-compact .prono-choice-group {
-    gap: 0.25rem;
-}
-
-.prono-match-card-compact .form-control {
-    padding-top: 0.32rem;
-    padding-bottom: 0.32rem;
-    min-height: 34px;
-}
-
-.prono-match-card-compact .match-versus {
-    transform: scale(0.85);
-}
-
-.prono-match-card-compact .club-logo-small {
-    width: 22px;
-    height: 22px;
-}
-
-.prono-match-card-compact .fw-bold {
-    font-size: 0.95rem;
+    .match-cell {
+        min-width: 220px;
+    }
 }
