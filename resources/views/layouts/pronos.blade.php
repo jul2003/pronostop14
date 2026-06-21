@@ -6,6 +6,8 @@
     <title>{{ config('app.name', 'Pronos TOP 14') }}</title>
 
     <link rel="icon" href="{{ asset('favicon.ico') }}" sizes="any">
+    <link rel="icon" type="image/png" sizes="32x32" href="{{ asset('favicon-32x32.png') }}">
+    <link rel="apple-touch-icon" href="{{ asset('favicon-180x180.png') }}">
 
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>

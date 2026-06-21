@@ -2,6 +2,11 @@
 
 @section('content')
 
+@include('admin.partials.back-link', [
+    'href' => route('admin.seasons.edit', $season),
+    'label' => 'Retour à la saison',
+])
+
 <div class="d-flex justify-content-between align-items-start gap-3 mb-4">
     <div>
         <a href="{{ route('admin.seasons.index') }}"

@@ -2,11 +2,12 @@
 
 @section('content')
 
+@include('admin.partials.back-link', [
+    'href' => route('admin.seasons.index'),
+    'label' => 'Retour aux saisons',
+])
+
 <div class="mb-4">
-    <a href="{{ route('admin.seasons.index') }}"
-       class="text-decoration-none fw-bold">
-        ← Retour aux saisons
-    </a>
 
     <h2 class="fw-bold mt-3 mb-1">
         Modifier la saison

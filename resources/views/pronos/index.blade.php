@@ -81,7 +81,7 @@
                                                 class="club-logo-small">
 
                                             <span>
-                                                {{ $match->homeClub->short_name ?? $match->homeClub->name }}
+                                                {{ $match->homeClub->name }}
                                             </span>
                                         </div>
 
@@ -95,7 +95,7 @@
                                                 class="club-logo-small">
 
                                             <span>
-                                                {{ $match->awayClub->short_name ?? $match->awayClub->name }}
+                                                {{ $match->awayClub->name }}
                                             </span>
                                         </div>
 

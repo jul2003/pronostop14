@@ -2,6 +2,11 @@
 
 @section('content')
 
+@include('admin.partials.back-link', [
+    'href' => route('admin.seasons.edit', $season),
+    'label' => 'Retour à la saison',
+])
+
 <div class="mb-4">
     <a href="{{ route('admin.seasons.index') }}"
        class="text-decoration-none fw-bold">
@@ -17,7 +22,7 @@
     </h2>
 
     <p class="text-muted mb-0">
-        Sélectionne les utilisateurs qui participent à cette saison.
+        Sélectionne les utilisateurs qui participent à cette saison, puis déplace les joueurs sélectionnés pour définir leur ordre d’affichage.
     </p>
 </div>
 
@@ -43,9 +48,9 @@
                     </tr>
                 </thead>
 
-                <tbody>
+                <tbody id="playersList">
                     @forelse($users as $user)
-                        <tr>
+                        <tr data-id="{{ $user->id }}">
                             <td class="text-center">
                                 <input type="checkbox"
                                        name="players[]"
@@ -55,16 +60,13 @@
                             </td>
 
                             <td class="fw-bold" style="color: {{ $user->color ?? '#06142f' }}">
+                                <span class="drag-handle text-muted me-2" style="cursor: grab;">☰</span>
                                 {{ $user->nickname ?? $user->name }}
                             </td>
 
-                            <td>
-                                {{ $user->name }}
-                            </td>
+                            <td>{{ $user->name }}</td>
 
-                            <td class="text-muted">
-                                {{ $user->email }}
-                            </td>
+                            <td class="text-muted">{{ $user->email }}</td>
 
                             <td class="text-center">
                                 @if($user->role === 'super_admin')
@@ -94,3 +96,38 @@
 </form>
 
 @endsection
+
+@push('scripts')
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+
+<script>
+    window.addEventListener('load', function () {
+        const list = document.getElementById('playersList');
+
+        if (!list || !window.Sortable) {
+            return;
+        }
+
+        new window.Sortable(list, {
+            animation: 150,
+            handle: '.drag-handle',
+            ghostClass: 'opacity-50',
+
+            onEnd: function () {
+                const players = [...list.querySelectorAll('tr')]
+                    .filter(row => row.querySelector('input[type="checkbox"]').checked)
+                    .map(row => row.dataset.id);
+
+                fetch("{{ route('admin.seasons.players.reorder', $season) }}", {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                    },
+                    body: JSON.stringify({ players }),
+                });
+            },
+        });
+    });
+</script>
+@endpush

@@ -6,10 +6,10 @@ use Illuminate\Database\Eloquent\Model;
 
 class PreseasonPredictionTemplate extends Model
 {
-    //
     protected $fillable = [
         'label',
         'answer_type',
+        'correction_group',
         'scoring_profile_id',
         'position',
         'is_active',

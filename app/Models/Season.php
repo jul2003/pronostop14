@@ -40,6 +40,10 @@ class Season extends Model
     public function players()
     {
         return $this->belongsToMany(User::class)
-            ->withTimestamps();
+            ->withPivot('display_order')
+            ->withTimestamps()
+            ->orderByPivot('display_order')
+            ->orderBy('nickname')
+            ->orderBy('name');
     }
 }

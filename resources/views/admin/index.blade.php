@@ -54,6 +54,30 @@
         </a>
     </div>
 
+    <div class="col-md-6 col-xl-4">
+        <a href="{{ route('admin.settings.index') }}" class="text-decoration-none">
+            <div class="rugby-feature-card h-100">
+                <div class="feature-number">04</div>
+                <div class="h4 fw-bold mb-2">Barèmes & journées</div>
+                <p class="text-secondary mb-0">
+                    Configurer les barèmes globaux et les associations par type de journée.
+                </p>
+            </div>
+        </a>
+    </div>
+
+    <div class="col-md-6 col-xl-4">
+        <a href="{{ route('admin.settings.preseason') }}" class="text-decoration-none">
+            <div class="rugby-feature-card h-100">
+                <div class="feature-number">05</div>
+                <div class="h4 fw-bold mb-2">Paramètres avant-saison</div>
+                <p class="text-secondary mb-0">
+                    Gérer les questions avant-saison, les bonus conditionnels et les règles de stop.
+                </p>
+            </div>
+        </a>
+    </div>
+
 </div>
 
 @endsection

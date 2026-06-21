@@ -11,16 +11,8 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('clubs', function (Blueprint $table) {
+        Schema::create('season_preseason_tables', function (Blueprint $table) {
             $table->id();
-
-            $table->string('name')->unique();
-            $table->string('short_name')->unique();
-            $table->string('slug')->unique();
-
-            //$table->string('logo_path')->nullable();
-            //$table->string('lnr_url')->nullable();
-
             $table->timestamps();
         });
     }
@@ -30,6 +22,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('clubs');
+        Schema::dropIfExists('season_preseason_tables');
     }
 };

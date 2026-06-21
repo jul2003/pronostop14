@@ -2,6 +2,8 @@
 
 @section('content')
 
+@include('admin.partials.back-link')
+
 <div class="d-flex justify-content-between align-items-start gap-3 mb-4">
     <div>
         <div class="text-uppercase text-primary fw-bold small">

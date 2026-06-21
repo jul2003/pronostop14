@@ -272,10 +272,41 @@ class SeasonController extends Controller
             'players.*' => ['integer', 'exists:users,id'],
         ]);
 
-        $season->players()->sync($data['players'] ?? []);
+        $existingOrders = $season->players()
+            ->get()
+            ->pluck('pivot.display_order', 'id')
+            ->toArray();
+
+        $syncData = [];
+
+        foreach ($data['players'] ?? [] as $index => $userId) {
+            $syncData[$userId] = [
+                'display_order' => $existingOrders[$userId] ?? $index + 1,
+            ];
+        }
+
+        $season->players()->sync($syncData);
 
         return redirect()
             ->route('admin.seasons.players', $season)
             ->with('success', 'Joueurs de la saison enregistrés.');
+    }
+
+    public function reorderPlayers(Request $request, Season $season)
+    {
+        $data = $request->validate([
+            'players' => ['required', 'array'],
+            'players.*' => ['integer', 'exists:users,id'],
+        ]);
+
+        foreach ($data['players'] as $index => $userId) {
+            $season->players()->updateExistingPivot($userId, [
+                'display_order' => $index + 1,
+            ]);
+        }
+
+        return response()->json([
+            'success' => true,
+        ]);
     }
 }

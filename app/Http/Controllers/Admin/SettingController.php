@@ -4,16 +4,18 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\JourneeTypeScoringProfile;
+use App\Models\PreseasonBonusRuleTemplate;
 use App\Models\PreseasonPredictionTemplate;
 use App\Models\ScoringProfile;
-use Illuminate\Http\Request;
 use App\Models\ScoringRuleTemplate;
+use Illuminate\Http\Request;
 
 class SettingController extends Controller
 {
     public function index()
     {
         $profiles = ScoringProfile::with('rules')
+            ->where('category', 'journee')
             ->orderBy('position')
             ->get();
 
@@ -21,15 +23,32 @@ class SettingController extends Controller
             ->get()
             ->keyBy('journee_type');
 
+        return view('admin.settings.index', compact(
+            'profiles',
+            'journeeMappings'
+        ));
+    }
+
+    public function preseason()
+    {
+        $profiles = ScoringProfile::with('rules')
+            ->where('category', 'preseason')
+            ->orderBy('position')
+            ->get();
+
         $preseasonTemplates = PreseasonPredictionTemplate::with('profile')
             ->orderBy('position')
             ->get();
 
-        return view('admin.settings.index', [
-            'profiles' => $profiles,
-            'journeeMappings' => $journeeMappings,
-            'preseasonTemplates' => $preseasonTemplates,
-        ]);
+        $preseasonBonusRules = PreseasonBonusRuleTemplate::with('questions')
+            ->orderBy('position')
+            ->get();
+
+        return view('admin.settings.preseason', compact(
+            'profiles',
+            'preseasonTemplates',
+            'preseasonBonusRules'
+        ));
     }
 
     public function update(Request $request)
@@ -50,7 +69,7 @@ class SettingController extends Controller
         ]);
 
         foreach ($data['rules'] ?? [] as $ruleId => $points) {
-            \App\Models\ScoringRuleTemplate::whereKey($ruleId)->update([
+            ScoringRuleTemplate::whereKey($ruleId)->update([
                 'points' => $points,
             ]);
         }
@@ -74,13 +93,144 @@ class SettingController extends Controller
             ]);
         }
 
-        return back()->with('success', 'Paramètres généraux mis à jour.');
+        return back()->with('success', 'Paramètres mis à jour.');
     }
 
-    public function createScoringProfile()
+    public function storePreseasonTemplate(Request $request)
+    {
+        $data = $request->validate([
+            'label' => ['required', 'string', 'max:255'],
+            'answer_type' => ['required', 'in:top14_club,prod2_club,season_club,free_text'],
+            'scoring_profile_id' => ['required', 'exists:scoring_profiles,id'],
+            'is_active' => ['nullable', 'boolean'],
+        ]);
+
+        PreseasonPredictionTemplate::create([
+            'label' => $data['label'],
+            'answer_type' => $data['answer_type'],
+            'scoring_profile_id' => $data['scoring_profile_id'],
+            'position' => (PreseasonPredictionTemplate::max('position') ?? 0) + 10,
+            'is_active' => isset($data['is_active']),
+        ]);
+
+        return redirect()
+            ->route('admin.settings.preseason')
+            ->with('success', 'Question avant-saison créée.');
+    }
+
+    public function destroyPreseasonTemplate(PreseasonPredictionTemplate $template)
+    {
+        $template->delete();
+
+        return response()->json([
+            'success' => true,
+        ]);
+    }
+
+    public function reorderPreseasonTemplates(Request $request)
+    {
+        $data = $request->validate([
+            'templates' => ['required', 'array'],
+            'templates.*' => ['integer', 'exists:preseason_prediction_templates,id'],
+        ]);
+
+        foreach ($data['templates'] as $index => $templateId) {
+            PreseasonPredictionTemplate::whereKey($templateId)->update([
+                'position' => ($index + 1) * 10,
+            ]);
+        }
+
+        return response()->json([
+            'success' => true,
+        ]);
+    }
+
+    public function storePreseasonBonusRuleTemplate(Request $request)
+    {
+        $data = $request->validate([
+            'label' => ['required', 'string', 'max:255'],
+            'points' => ['required', 'integer', 'min:0'],
+            'questions' => ['required', 'array', 'min:1'],
+            'questions.*' => ['integer', 'exists:preseason_prediction_templates,id'],
+            'is_active' => ['nullable', 'boolean'],
+            'stop_after_match' => ['nullable', 'boolean'],
+        ]);
+
+        $bonusRule = PreseasonBonusRuleTemplate::create([
+            'label' => $data['label'],
+            'points' => $data['points'],
+            'position' => (PreseasonBonusRuleTemplate::max('position') ?? 0) + 10,
+            'is_active' => isset($data['is_active']),
+            'stop_after_match' => isset($data['stop_after_match']),
+        ]);
+
+        $bonusRule->questions()->sync($data['questions']);
+
+        return redirect()
+            ->route('admin.settings.preseason')
+            ->with('success', 'Bonus avant-saison créé.');
+    }
+
+    public function updatePreseasonBonusRuleTemplate(Request $request, PreseasonBonusRuleTemplate $bonusRule)
+    {
+        $data = $request->validate([
+            'label' => ['required', 'string', 'max:255'],
+            'points' => ['required', 'integer', 'min:0'],
+            'position' => ['nullable', 'integer'],
+            'questions' => ['required', 'array', 'min:1'],
+            'questions.*' => ['integer', 'exists:preseason_prediction_templates,id'],
+            'is_active' => ['nullable', 'boolean'],
+            'stop_after_match' => ['nullable', 'boolean'],
+        ]);
+
+        $bonusRule->update([
+            'label' => $data['label'],
+            'points' => $data['points'],
+            'position' => $data['position'] ?? 0,
+            'is_active' => isset($data['is_active']),
+            'stop_after_match' => isset($data['stop_after_match']),
+        ]);
+
+        $bonusRule->questions()->sync($data['questions']);
+
+        return redirect()
+            ->route('admin.settings.preseason')
+            ->with('success', 'Bonus avant-saison mis à jour.');
+    }
+
+    public function destroyPreseasonBonusRuleTemplate(PreseasonBonusRuleTemplate $bonusRule)
+    {
+        $bonusRule->delete();
+
+        return response()->json([
+            'success' => true,
+        ]);
+    }
+
+    public function reorderPreseasonBonusRuleTemplates(Request $request)
+    {
+        $data = $request->validate([
+            'bonus_rules' => ['required', 'array'],
+            'bonus_rules.*' => ['integer', 'exists:preseason_bonus_rule_templates,id'],
+        ]);
+
+        foreach ($data['bonus_rules'] as $index => $bonusRuleId) {
+            PreseasonBonusRuleTemplate::whereKey($bonusRuleId)->update([
+                'position' => ($index + 1) * 10,
+            ]);
+        }
+
+        return response()->json([
+            'success' => true,
+        ]);
+    }
+
+    public function createScoringProfile(Request $request)
     {
         return view('admin.settings.scoring-profile-form', [
             'profile' => null,
+            'returnTo' => $request->query('return_to'),
+            'defaultCategory' => $request->query('category', 'journee'),
         ]);
     }
 
@@ -88,6 +238,7 @@ class SettingController extends Controller
     {
         $data = $request->validate([
             'code' => ['required', 'string', 'max:255', 'unique:scoring_profiles,code'],
+            'category' => ['required', 'in:journee,preseason'],
             'name' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string'],
             'position' => ['nullable', 'integer'],
@@ -96,10 +247,12 @@ class SettingController extends Controller
             'rules.*.label' => ['required', 'string', 'max:255'],
             'rules.*.points' => ['required', 'integer'],
             'rules.*.position' => ['nullable', 'integer'],
+            'return_to' => ['nullable', 'string'],
         ]);
 
         $profile = ScoringProfile::create([
             'code' => $data['code'],
+            'category' => $data['category'],
             'name' => $data['name'],
             'description' => $data['description'] ?? null,
             'position' => $data['position'] ?? 0,
@@ -114,23 +267,30 @@ class SettingController extends Controller
             ]);
         }
 
+        $route = $data['return_to'] === 'preseason'
+            ? 'admin.settings.preseason'
+            : 'admin.settings.index';
+
         return redirect()
-            ->route('admin.settings.index')
+            ->route($route)
             ->with('success', 'Barème créé.');
     }
 
-    public function editScoringProfile(ScoringProfile $profile)
+    public function editScoringProfile(Request $request, ScoringProfile $profile)
     {
         $profile->load('rules');
 
         return view('admin.settings.scoring-profile-form', [
             'profile' => $profile,
+            'returnTo' => $request->query('return_to'),
+            'defaultCategory' => $profile->category,
         ]);
     }
 
     public function updateScoringProfile(Request $request, ScoringProfile $profile)
     {
         $data = $request->validate([
+            'category' => ['required', 'in:journee,preseason'],
             'name' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string'],
             'position' => ['nullable', 'integer'],
@@ -139,9 +299,11 @@ class SettingController extends Controller
             'rules.*.label' => ['required', 'string', 'max:255'],
             'rules.*.points' => ['required', 'integer'],
             'rules.*.position' => ['nullable', 'integer'],
+            'return_to' => ['nullable', 'string'],
         ]);
 
         $profile->update([
+            'category' => $data['category'],
             'name' => $data['name'],
             'description' => $data['description'] ?? null,
             'position' => $data['position'] ?? 0,
@@ -158,8 +320,12 @@ class SettingController extends Controller
             ]);
         }
 
+        $route = $data['return_to'] === 'preseason'
+            ? 'admin.settings.preseason'
+            : 'admin.settings.index';
+
         return redirect()
-            ->route('admin.settings.index')
+            ->route($route)
             ->with('success', 'Barème mis à jour.');
     }
 }

@@ -47,7 +47,7 @@
                                class="form-control form-control-lg">
 
                         <div class="form-text">
-                            Exemple : JA64, email professionnel ou email personnel.
+                            Exemple : Pseudo , email personnel ou email professionnel.
                         </div>
                     </div>
 

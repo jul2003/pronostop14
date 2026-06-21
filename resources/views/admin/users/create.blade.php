@@ -2,11 +2,12 @@
 
 @section('content')
 
+@include('admin.partials.back-link', [
+    'href' => route('admin.users.index'),
+    'label' => 'Retour aux utilisateurs',
+])
+
 <div class="mb-4">
-    <a href="{{ route('admin.users.index') }}"
-       class="text-decoration-none fw-bold">
-        ← Retour aux utilisateurs
-    </a>
 
     <h2 class="fw-bold mt-3 mb-1">
         Ajouter un utilisateur

@@ -6,9 +6,9 @@ use Illuminate\Database\Eloquent\Model;
 
 class ScoringProfile extends Model
 {
-    //
     protected $fillable = [
         'code',
+        'category',
         'name',
         'description',
         'position',

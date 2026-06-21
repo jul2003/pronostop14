@@ -11,8 +11,8 @@ class Club extends Model
         'name',
         'short_name',
         'slug',
-        'logo_path',
-        'lnr_url',
+        //'logo_path',
+        //'lnr_url',
     ];
 
     protected static function booted(): void

@@ -2,11 +2,12 @@
 
 @section('content')
 
+@include('admin.partials.back-link', [
+    'href' => route('admin.clubs.index'),
+    'label' => 'Retour aux clubs',
+])
+
 <div class="mb-4">
-    <a href="{{ route('admin.clubs.index') }}"
-       class="text-decoration-none fw-bold">
-        ← Retour aux équipes
-    </a>
 
     <div class="mt-3 text-uppercase text-primary fw-bold small">
         Administration

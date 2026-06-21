@@ -92,12 +92,36 @@ Route::middleware(['auth', 'admin'])->group(function () {
     Route::get('/admin', fn () => view('admin.index'))
         ->name('admin.index');
 
-    //Parametres
+    // Paramètres
     Route::get('/admin/parametres', [SettingController::class, 'index'])
         ->name('admin.settings.index');
 
     Route::put('/admin/parametres', [SettingController::class, 'update'])
         ->name('admin.settings.update');
+
+    Route::get('/admin/parametres/avant-saison', [SettingController::class, 'preseason'])
+        ->name('admin.settings.preseason');
+
+    Route::post('/admin/parametres/avant-saison', [SettingController::class, 'storePreseasonTemplate'])
+        ->name('admin.settings.preseason-templates.store');
+
+    Route::delete('/admin/parametres/avant-saison/{template}', [SettingController::class, 'destroyPreseasonTemplate'])
+        ->name('admin.settings.preseason-templates.destroy');
+
+    Route::post('/admin/parametres/avant-saison/reorder', [SettingController::class, 'reorderPreseasonTemplates'])
+        ->name('admin.settings.preseason-templates.reorder');
+
+    Route::post('/admin/parametres/bonus-avant-saison', [SettingController::class, 'storePreseasonBonusRuleTemplate'])
+        ->name('admin.settings.preseason-bonus-rules.store');
+
+    Route::put('/admin/parametres/bonus-avant-saison/{bonusRule}', [SettingController::class, 'updatePreseasonBonusRuleTemplate'])
+        ->name('admin.settings.preseason-bonus-rules.update');
+
+    Route::delete('/admin/parametres/bonus-avant-saison/{bonusRule}', [SettingController::class, 'destroyPreseasonBonusRuleTemplate'])
+        ->name('admin.settings.preseason-bonus-rules.destroy');
+
+    Route::post('/admin/parametres/bonus-avant-saison/reorder', [SettingController::class, 'reorderPreseasonBonusRuleTemplates'])
+        ->name('admin.settings.preseason-bonus-rules.reorder');
 
     Route::get('/admin/parametres/baremes/create', [SettingController::class, 'createScoringProfile'])
         ->name('admin.settings.scoring-profiles.create');
@@ -165,6 +189,9 @@ Route::middleware(['auth', 'admin'])->group(function () {
 
     Route::post('/admin/saisons/{season}/joueurs', [SeasonController::class, 'syncPlayers'])
         ->name('admin.seasons.players.sync');
+
+    Route::post('/admin/saisons/{season}/joueurs/reorder', [SeasonController::class, 'reorderPlayers'])
+        ->name('admin.seasons.players.reorder');
 
     // Barème d'une saison
     Route::get('/admin/saisons/{season}/bareme', [SeasonScoringRuleController::class, 'edit'])
