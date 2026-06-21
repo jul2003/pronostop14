@@ -3,17 +3,20 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
-use App\Models\Season;
-use Illuminate\Validation\Rule;
-use Illuminate\Support\Str;
 use App\Models\Club;
-use App\Services\SeasonJourneeGenerator;
+use App\Models\Season;
 use App\Models\User;
+use App\Services\GlobalSetupHashService;
+use App\Services\SeasonJourneeGenerator;
+use App\Services\SeasonPreseasonSetupService;
+use App\Services\SeasonScoringSetupService;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 
 class SeasonController extends Controller
 {
-    //
     public function index()
     {
         $seasons = Season::withCount('journees')
@@ -28,8 +31,12 @@ class SeasonController extends Controller
         return view('admin.seasons.create');
     }
 
-    public function store(Request $request)
-    {
+    public function store(
+        Request $request,
+        SeasonPreseasonSetupService $preseasonSetup,
+        SeasonScoringSetupService $scoringSetup,
+        GlobalSetupHashService $hashService
+    ) {
         $data = $request->validate([
             'name' => ['required', 'string', 'max:255', 'unique:seasons,name'],
             'is_active' => ['nullable', 'boolean'],
@@ -37,44 +44,64 @@ class SeasonController extends Controller
             'prod2_clubs_count' => ['required', 'integer', 'min:0'],
         ]);
 
-        $previousActiveSeason = Season::where('is_active', true)->first();
+        DB::transaction(function () use ($request, $data, $preseasonSetup, $scoringSetup, $hashService) {
+            $previousActiveSeason = Season::where('is_active', true)->first();
 
-        if ($request->boolean('is_active')) {
-            Season::query()->update([
-                'is_active' => false,
-            ]);
-        }
+            $journeeHash = $hashService->journeeScoringHash();
+            $preseasonHash = $hashService->preseasonHash();
 
-        $season = Season::create([
-            'name' => $data['name'],
-            'slug' => Str::slug($data['name']),
-            'is_active' => $request->boolean('is_active'),
-            'top14_clubs_count' => $data['top14_clubs_count'],
-            'prod2_clubs_count' => $data['prod2_clubs_count'],
-        ]);
-
-        $this->createDefaultScoringRules($season);
-
-        if ($previousActiveSeason) {
-
-            // Copie des clubs
-            $clubsToSync = [];
-
-            foreach ($previousActiveSeason->clubs as $club) {
-                $clubsToSync[$club->id] = [
-                    'competition' => $club->pivot->competition,
-                ];
+            if ($request->boolean('is_active')) {
+                Season::query()->update([
+                    'is_active' => false,
+                ]);
             }
 
-            $season->clubs()->sync($clubsToSync);
+            $season = Season::create([
+                'name' => $data['name'],
+                'slug' => Str::slug($data['name']),
+                'is_active' => $request->boolean('is_active'),
+                'top14_clubs_count' => $data['top14_clubs_count'],
+                'prod2_clubs_count' => $data['prod2_clubs_count'],
+                'journee_scoring_setup_hash' => $journeeHash,
+                'preseason_setup_hash' => $preseasonHash,
+            ]);
 
-            // Copie des joueurs
-            $season->players()->sync(
-                $previousActiveSeason->players
-                    ->pluck('id')
-                    ->toArray()
-            );
-        }
+            if (
+                $previousActiveSeason &&
+                $previousActiveSeason->journee_scoring_setup_hash === $journeeHash
+            ) {
+                $scoringSetup->copyFromSeason($previousActiveSeason, $season);
+            } else {
+                $scoringSetup->copyJourneeScoringProfilesToSeason($season);
+            }
+
+            if (
+                $previousActiveSeason &&
+                $previousActiveSeason->preseason_setup_hash === $preseasonHash
+            ) {
+                $preseasonSetup->copyFromSeason($previousActiveSeason, $season);
+            } else {
+                $preseasonSetup->copyTemplatesToSeason($season);
+            }
+
+            if ($previousActiveSeason) {
+                $clubsToSync = [];
+
+                foreach ($previousActiveSeason->clubs as $club) {
+                    $clubsToSync[$club->id] = [
+                        'competition' => $club->pivot->competition,
+                    ];
+                }
+
+                $season->clubs()->sync($clubsToSync);
+
+                $season->players()->sync(
+                    $previousActiveSeason->players
+                        ->pluck('id')
+                        ->toArray()
+                );
+            }
+        });
 
         return redirect()
             ->route('admin.seasons.index')
@@ -222,29 +249,6 @@ class SeasonController extends Controller
         $generator->generate($season);
 
         return back()->with('success', 'Journées générées.');
-    }
-
-    private function createDefaultScoringRules(Season $season): void
-    {
-        $rules = [
-            ['home_win', 'Résultat juste — victoire domicile', 2, 1],
-            ['away_win', 'Résultat juste — victoire extérieur', 5, 2],
-            ['draw', 'Résultat juste — match nul', 10, 3],
-            ['tries_exact', 'Nombre d’essais exact', 2, 4],
-            ['tries_near', 'Nombre d’essais à +/- 1', 1, 5],
-            ['bonus_correct', 'Bonus pronostiqué juste', 2, 6],
-            ['bonus_wrong', 'Bonus pronostiqué faux', -1, 7],
-            ['perfect_round', 'Bonus journée parfaite', 3, 8],
-        ];
-
-        foreach ($rules as [$code, $label, $points, $position]) {
-            $season->scoringRules()->create([
-                'code' => $code,
-                'label' => $label,
-                'points' => $points,
-                'position' => $position,
-            ]);
-        }
     }
 
     public function players(Season $season)

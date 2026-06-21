@@ -13,33 +13,51 @@
                 Crée le premier compte super admin.
             </p>
 
+            @if($errors->any())
+                <div class="alert alert-danger">
+                    {{ $errors->first() }}
+                </div>
+            @endif
+
             <form method="POST" action="{{ route('initial-setup.store') }}">
                 @csrf
 
                 <div class="mb-3">
                     <label class="form-label">Nom</label>
-                    <input name="name" class="form-control" required>
+
+                    <input name="name"
+                           value="{{ old('name') }}"
+                           class="form-control"
+                           required>
                 </div>
 
                 <div class="mb-3">
                     <label class="form-label">Pseudo</label>
-                    <input name="nickname" maxlength="4" pattern="[A-Za-z]{2}[0-9]{2}" class="form-control" required>
+
+                    <input name="nickname"
+                           value="{{ old('nickname') }}"
+                           maxlength="4"
+                           pattern="[A-Za-z]{2}[0-9]{2}"
+                           class="form-control"
+                           required>
                 </div>
 
                 <div class="mb-3">
                     <label class="form-label fw-bold">Email professionnel</label>
+
                     <input name="email_pro"
-                        type="email"
-                        value="{{ old('email_pro') }}"
-                        class="form-control">
+                           type="email"
+                           value="{{ old('email_pro') }}"
+                           class="form-control">
                 </div>
 
                 <div class="mb-3">
                     <label class="form-label fw-bold">Email personnel</label>
+
                     <input name="email_perso"
-                        type="email"
-                        value="{{ old('email_perso') }}"
-                        class="form-control">
+                           type="email"
+                           value="{{ old('email_perso') }}"
+                           class="form-control">
                 </div>
 
                 <div class="form-text mb-3">
@@ -48,17 +66,29 @@
 
                 <div class="mb-3">
                     <label class="form-label">Couleur</label>
-                    <input name="color" type="color" value="#ffd200" class="form-control form-control-color">
+
+                    <input name="color"
+                           type="color"
+                           value="{{ old('color', '#ffd200') }}"
+                           class="form-control form-control-color">
                 </div>
 
                 <div class="mb-3">
                     <label class="form-label">Mot de passe</label>
-                    <input name="password" type="password" class="form-control" required>
+
+                    <input name="password"
+                           type="password"
+                           class="form-control"
+                           required>
                 </div>
 
                 <div class="mb-4">
                     <label class="form-label">Confirmation</label>
-                    <input name="password_confirmation" type="password" class="form-control" required>
+
+                    <input name="password_confirmation"
+                           type="password"
+                           class="form-control"
+                           required>
                 </div>
 
                 <button class="btn btn-warning rounded-pill fw-bold px-4">

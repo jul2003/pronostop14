@@ -18,6 +18,7 @@ class DatabaseSeeder extends Seeder
 
         $this->call([
             Clubs20252026Seeder::class,
+            //JourneeScoringProfilesSeeder::class,
             //PreseasonScoringProfilesSeeder::class,
             //PreseasonPredictionTemplatesSeeder::class,
             //PreseasonBonusRuleTemplatesSeeder::class,

@@ -2,9 +2,11 @@
 
 @section('content')
 
-@include('admin.partials.back-link')
-
 <div class="mb-4">
+    <a href="{{ route('admin.index') }}"
+       class="text-decoration-none fw-bold">
+        ← Retour administration
+    </a>
 
     <div class="mt-3 text-uppercase text-primary fw-bold small">
         Administration
@@ -15,7 +17,7 @@
     </h2>
 
     <p class="text-muted mb-0">
-        Gère les barèmes globaux et les associations de barèmes pour les journées.
+        Gère les barèmes de journées et les associations par type de journée.
     </p>
 </div>
 
@@ -35,14 +37,14 @@
 
     <div class="col-12">
         <div class="rugby-card p-4">
-            <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-3">
+            <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
                 <div>
                     <h3 class="h5 fw-bold mb-1">
                         Barèmes de journées
                     </h3>
 
                     <p class="text-muted mb-0">
-                        Modèles de barèmes utilisés pour les journées, matchs de phase finale et barrages.
+                        Modèles utilisés pour les journées régulières, barrages, demi-finales et finales.
                     </p>
                 </div>
 
@@ -52,96 +54,131 @@
                 </a>
             </div>
 
-            <form method="POST" action="{{ route('admin.settings.update') }}">
-                @csrf
-                @method('PUT')
+            @if($profiles->isEmpty())
+                <div class="alert alert-warning mb-0">
+                    Aucun barème de journée n’est encore configuré.
+                </div>
+            @else
+                <form method="POST" action="{{ route('admin.settings.update') }}">
+                    @csrf
+                    @method('PUT')
 
-                @forelse($profiles as $profile)
-                    <div class="border rounded-4 p-3 mb-4">
-                        <div class="d-flex justify-content-between align-items-start gap-3 mb-3">
-                            <div>
-                                <div class="d-flex flex-wrap align-items-center gap-2">
-                                    <div class="fw-bold">
-                                        {{ $profile->name }}
+                    <div class="d-grid gap-3">
+                        @foreach($profiles as $profile)
+                            <div class="border rounded-4 bg-white overflow-hidden">
+                                <div class="p-3 p-md-4">
+                                    <div class="d-flex flex-wrap justify-content-between align-items-start gap-3">
+                                        <div>
+                                            <div class="d-flex flex-wrap align-items-center gap-2 mb-1">
+                                                <h4 class="h5 fw-bold mb-0">
+                                                    {{ $profile->name }}
+                                                </h4>
+
+                                                <span class="badge rounded-pill text-bg-primary">
+                                                    Journée
+                                                </span>
+
+                                                <span class="badge rounded-pill text-bg-light border text-dark">
+                                                    {{ $profile->rules->count() }} règle(s)
+                                                </span>
+                                            </div>
+
+                                            <div class="text-muted small">
+                                                {{ $profile->code }}
+                                            </div>
+
+                                            @if($profile->description)
+                                                <div class="text-muted small mt-1">
+                                                    {{ $profile->description }}
+                                                </div>
+                                            @endif
+                                        </div>
+
+                                        <div class="d-flex flex-wrap gap-2">
+                                            <button type="button"
+                                                    class="btn btn-sm btn-outline-primary rounded-pill"
+                                                    onclick="togglePanel('rules_panel_{{ $profile->id }}', 'rules_icon_{{ $profile->id }}')">
+                                                <span>
+                                                    Modifier les règles
+                                                </span>
+
+                                                <span id="rules_icon_{{ $profile->id }}">
+                                                    +
+                                                </span>
+                                            </button>
+
+                                            <a href="{{ route('admin.settings.scoring-profiles.edit', ['profile' => $profile]) }}"
+                                               class="btn btn-sm btn-outline-secondary rounded-pill">
+                                                Modifier le barème
+                                            </a>
+                                        </div>
                                     </div>
 
-                                    <span class="badge rounded-pill text-bg-primary">
-                                        Journée
-                                    </span>
+                                    @if($profile->rules->isNotEmpty())
+                                        <div class="d-flex flex-wrap gap-2 mt-3">
+                                            @foreach($profile->rules as $rule)
+                                                <span class="badge rounded-pill text-bg-light border text-dark px-3 py-2">
+                                                    {{ $rule->label }} : {{ $rule->points }} pts
+                                                </span>
+                                            @endforeach
+                                        </div>
+                                    @endif
                                 </div>
 
-                                <div class="text-muted small">
-                                    {{ $profile->code }}
+                                <div id="rules_panel_{{ $profile->id }}"
+                                     class="border-top p-3 p-md-4 bg-light d-none">
+                                    @if($profile->rules->isEmpty())
+                                        <div class="alert alert-info mb-0">
+                                            Aucune règle dans ce barème.
+                                        </div>
+                                    @else
+                                        <div class="table-responsive">
+                                            <table class="table table-sm align-middle mb-0">
+                                                <thead class="table-light">
+                                                    <tr>
+                                                        <th>Règle</th>
+                                                        <th class="text-center">Code</th>
+                                                        <th class="text-center" style="width: 140px;">
+                                                            Points
+                                                        </th>
+                                                    </tr>
+                                                </thead>
+
+                                                <tbody>
+                                                    @foreach($profile->rules as $rule)
+                                                        <tr>
+                                                            <td class="fw-bold">
+                                                                {{ $rule->label }}
+                                                            </td>
+
+                                                            <td class="text-center text-muted">
+                                                                {{ $rule->code }}
+                                                            </td>
+
+                                                            <td>
+                                                                <input type="number"
+                                                                       name="rules[{{ $rule->id }}]"
+                                                                       value="{{ $rule->points }}"
+                                                                       class="form-control form-control-sm text-center">
+                                                            </td>
+                                                        </tr>
+                                                    @endforeach
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    @endif
                                 </div>
-
-                                @if($profile->description)
-                                    <div class="text-muted small mt-1">
-                                        {{ $profile->description }}
-                                    </div>
-                                @endif
                             </div>
-
-                            <a href="{{ route('admin.settings.scoring-profiles.edit', ['profile' => $profile]) }}"
-                               class="btn btn-sm btn-outline-primary rounded-pill">
-                                Modifier
-                            </a>
-                        </div>
-
-                        @if($profile->rules->isEmpty())
-                            <div class="alert alert-info mb-0">
-                                Aucune règle dans ce barème.
-                            </div>
-                        @else
-                            <div class="table-responsive">
-                                <table class="table table-sm align-middle mb-0">
-                                    <thead class="table-light">
-                                        <tr>
-                                            <th>Règle</th>
-                                            <th class="text-center">Code</th>
-                                            <th class="text-center" style="width: 140px;">
-                                                Points
-                                            </th>
-                                        </tr>
-                                    </thead>
-
-                                    <tbody>
-                                        @foreach($profile->rules as $rule)
-                                            <tr>
-                                                <td class="fw-bold">
-                                                    {{ $rule->label }}
-                                                </td>
-
-                                                <td class="text-center text-muted">
-                                                    {{ $rule->code }}
-                                                </td>
-
-                                                <td>
-                                                    <input type="number"
-                                                           name="rules[{{ $rule->id }}]"
-                                                           value="{{ $rule->points }}"
-                                                           class="form-control form-control-sm text-center">
-                                                </td>
-                                            </tr>
-                                        @endforeach
-                                    </tbody>
-                                </table>
-                            </div>
-                        @endif
+                        @endforeach
                     </div>
-                @empty
-                    <div class="alert alert-warning mb-0">
-                        Aucun barème de journée n’est encore configuré.
-                    </div>
-                @endforelse
 
-                @if($profiles->isNotEmpty())
                     <div class="mt-4">
                         <button class="btn btn-warning rounded-pill fw-bold px-4">
                             Enregistrer les points
                         </button>
                     </div>
-                @endif
-            </form>
+                </form>
+            @endif
         </div>
     </div>
 
@@ -223,3 +260,22 @@
 </div>
 
 @endsection
+
+@push('scripts')
+<script>
+    function togglePanel(panelId, iconId) {
+        const panel = document.getElementById(panelId);
+        const icon = document.getElementById(iconId);
+
+        if (!panel) {
+            return;
+        }
+
+        panel.classList.toggle('d-none');
+
+        if (icon) {
+            icon.textContent = panel.classList.contains('d-none') ? '+' : '−';
+        }
+    }
+</script>
+@endpush

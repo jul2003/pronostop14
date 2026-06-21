@@ -248,15 +248,17 @@ class SettingController extends Controller
             'rules.*.points' => ['required', 'integer'],
             'rules.*.position' => ['nullable', 'integer'],
             'return_to' => ['nullable', 'string'],
+            'stop_on_wrong_result' => ['nullable', 'boolean'],
         ]);
 
-        $profile = ScoringProfile::create([
-            'code' => $data['code'],
-            'category' => $data['category'],
-            'name' => $data['name'],
-            'description' => $data['description'] ?? null,
-            'position' => $data['position'] ?? 0,
-        ]);
+            $profile = ScoringProfile::create([
+                'code' => $data['code'],
+                'category' => $data['category'],
+                'name' => $data['name'],
+                'description' => $data['description'] ?? null,
+                'position' => $data['position'] ?? 0,
+                'stop_on_wrong_result' => $request->boolean('stop_on_wrong_result'),
+            ]);
 
         foreach ($data['rules'] ?? [] as $rule) {
             $profile->rules()->create([
@@ -300,6 +302,7 @@ class SettingController extends Controller
             'rules.*.points' => ['required', 'integer'],
             'rules.*.position' => ['nullable', 'integer'],
             'return_to' => ['nullable', 'string'],
+            'stop_on_wrong_result' => ['nullable', 'boolean'],
         ]);
 
         $profile->update([
@@ -307,6 +310,7 @@ class SettingController extends Controller
             'name' => $data['name'],
             'description' => $data['description'] ?? null,
             'position' => $data['position'] ?? 0,
+            'stop_on_wrong_result' => $request->boolean('stop_on_wrong_result'),
         ]);
 
         $profile->rules()->delete();

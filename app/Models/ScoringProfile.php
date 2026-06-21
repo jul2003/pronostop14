@@ -9,9 +9,14 @@ class ScoringProfile extends Model
     protected $fillable = [
         'code',
         'category',
+        'stop_on_wrong_result',
         'name',
         'description',
         'position',
+    ];
+
+    protected $casts = [
+        'stop_on_wrong_result' => 'boolean',
     ];
 
     public function rules()

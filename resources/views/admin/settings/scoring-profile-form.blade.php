@@ -4,16 +4,25 @@
 
 @php
     $isEdit = $profile !== null;
-    $returnTo = $returnTo ?? request('return_to');
-    $selectedCategory = old('category', $profile->category ?? $defaultCategory ?? 'journee');
 
-    $backRoute = $returnTo === 'preseason'
-        ? route('admin.settings.preseason')
-        : route('admin.settings.index');
+    $rules = old('rules');
+
+    if ($rules === null) {
+        $rules = $isEdit
+            ? $profile->rules->map(fn ($rule) => [
+                'code' => $rule->code,
+                'label' => $rule->label,
+                'points' => $rule->points,
+                'position' => $rule->position,
+            ])->toArray()
+            : [
+                ['code' => '', 'label' => '', 'points' => 0, 'position' => 1],
+            ];
+    }
 @endphp
 
 <div class="mb-4">
-    <a href="{{ $backRoute }}"
+    <a href="{{ route('admin.settings.index') }}"
        class="text-decoration-none fw-bold">
         ← Retour aux paramètres
     </a>
@@ -23,19 +32,13 @@
     </div>
 
     <h2 class="fw-bold mb-1">
-        {{ $isEdit ? 'Modifier un barème' : 'Créer un barème' }}
+        {{ $isEdit ? 'Modifier le barème' : 'Créer un barème' }}
     </h2>
 
     <p class="text-muted mb-0">
-        Définis le nom, la catégorie et les règles de points du barème.
+        Définis les règles de points qui pourront être associées aux types de journées ou aux pronostics avant-saison.
     </p>
 </div>
-
-@if($errors->any())
-    <div class="alert alert-danger">
-        {{ $errors->first() }}
-    </div>
-@endif
 
 <form method="POST"
       action="{{ $isEdit
@@ -47,91 +50,55 @@
         @method('PUT')
     @endif
 
-    <input type="hidden" name="return_to" value="{{ $returnTo }}">
-
     <div class="rugby-card p-4 mb-4">
         <h3 class="h5 fw-bold mb-3">
-            Informations du barème
+            Informations générales
         </h3>
 
-        <div class="row g-3">
-            @if(! $isEdit)
-                <div class="col-md-6">
-                    <label class="form-label fw-bold">
-                        Code
-                    </label>
-
-                    <input type="text"
-                           name="code"
-                           value="{{ old('code', $profile->code ?? '') }}"
-                           class="form-control"
-                           placeholder="preseason_champion_top14"
-                           required>
-
-                    <div class="form-text">
-                        Identifiant technique unique. Exemple : preseason_champion_top14.
-                    </div>
-                </div>
-            @else
-                <div class="col-md-6">
-                    <label class="form-label fw-bold">
-                        Code
-                    </label>
-
-                    <input type="text"
-                           value="{{ $profile->code }}"
-                           class="form-control"
-                           disabled>
-
-                    <div class="form-text">
-                        Le code ne se modifie pas après création.
-                    </div>
-                </div>
-            @endif
-
-            <div class="col-md-6">
+        <div class="row g-4">
+            <div class="col-md-4">
                 <label class="form-label fw-bold">
-                    Catégorie
+                    Code
                 </label>
 
-                <select name="category"
-                        class="form-select"
-                        required>
-                    <option value="journee" @selected($selectedCategory === 'journee')>
-                        Journée
-                    </option>
+                <input type="text"
+                       name="code"
+                       value="{{ old('code', $profile?->code) }}"
+                       class="form-control"
+                       @disabled($isEdit)
+                       required>
 
-                    <option value="preseason" @selected($selectedCategory === 'preseason')>
-                        Avant-saison
-                    </option>
-                </select>
-
-                <div class="form-text">
-                    Permet de filtrer les barèmes dans les bons écrans d’administration.
-                </div>
+                @if($isEdit)
+                    <div class="form-text">
+                        Le code ne peut pas être modifié après création.
+                    </div>
+                @else
+                    <div class="form-text">
+                        Exemple : match_dom_ext, match_neutre, preseason_champion.
+                    </div>
+                @endif
             </div>
 
-            <div class="col-md-8">
+            <div class="col-md-5">
                 <label class="form-label fw-bold">
                     Nom
                 </label>
 
                 <input type="text"
                        name="name"
-                       value="{{ old('name', $profile->name ?? '') }}"
+                       value="{{ old('name', $profile?->name) }}"
                        class="form-control"
-                       placeholder="Avant-saison — Champion TOP 14"
                        required>
             </div>
 
-            <div class="col-md-4">
+            <div class="col-md-3">
                 <label class="form-label fw-bold">
                     Position
                 </label>
 
                 <input type="number"
                        name="position"
-                       value="{{ old('position', $profile->position ?? 0) }}"
+                       value="{{ old('position', $profile?->position ?? 0) }}"
                        class="form-control text-center">
             </div>
 
@@ -141,217 +108,176 @@
                 </label>
 
                 <textarea name="description"
-                          class="form-control"
-                          rows="3">{{ old('description', $profile->description ?? '') }}</textarea>
+                          rows="3"
+                          class="form-control">{{ old('description', $profile?->description) }}</textarea>
+            </div>
+
+            <div class="col-12">
+                <div class="form-check">
+                    <input type="checkbox"
+                           name="stop_on_wrong_result"
+                           value="1"
+                           class="form-check-input"
+                           id="stop_on_wrong_result"
+                           @checked(old('stop_on_wrong_result', $profile->stop_on_wrong_result ?? true))>
+
+                    <label class="form-check-label fw-bold" for="stop_on_wrong_result">
+                        Stopper le calcul si le résultat pronostiqué est faux
+                    </label>
+
+                    <div class="form-text">
+                        Si activé, le score du match vaut 0 quand le résultat pronostiqué est faux.
+                        Les points d’essais et de bonus ne sont pas calculés.
+                    </div>
+                </div>
             </div>
         </div>
     </div>
 
     <div class="rugby-card p-4">
         <div class="d-flex justify-content-between align-items-center gap-3 mb-3">
-            <div>
-                <h3 class="h5 fw-bold mb-1">
-                    Règles
-                </h3>
+            <h3 class="h5 fw-bold mb-0">
+                Règles du barème
+            </h3>
 
-                <p class="text-muted mb-0">
-                    Pour les barèmes simples, crée une règle avec le code <strong>correct</strong>.
-                </p>
-            </div>
+            <button type="button"
+                    class="btn btn-sm btn-outline-primary rounded-pill"
+                    onclick="addRuleRow()">
+                + Ajouter une règle
+            </button>
         </div>
 
-        <div id="rulesList">
-            @php
-                $rules = old('rules');
+        <div class="table-responsive">
+            <table class="table align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Code</th>
+                        <th>Libellé</th>
+                        <th class="text-center" style="width: 120px;">Points</th>
+                        <th class="text-center" style="width: 120px;">Position</th>
+                        <th class="text-end" style="width: 90px;">Action</th>
+                    </tr>
+                </thead>
 
-                if ($rules === null && $profile) {
-                    $rules = $profile->rules->map(function ($rule) {
-                        return [
-                            'code' => $rule->code,
-                            'label' => $rule->label,
-                            'points' => $rule->points,
-                            'position' => $rule->position,
-                        ];
-                    })->toArray();
-                }
+                <tbody id="rulesRows">
+                    @foreach($rules as $index => $rule)
+                        <tr>
+                            <td>
+                                <input type="text"
+                                       name="rules[{{ $index }}][code]"
+                                       value="{{ $rule['code'] ?? '' }}"
+                                       class="form-control"
+                                       required>
+                            </td>
 
-                if (empty($rules)) {
-                    $rules = [
-                        [
-                            'code' => 'correct',
-                            'label' => 'Bonne réponse',
-                            'points' => 0,
-                            'position' => 10,
-                        ],
-                    ];
-                }
-            @endphp
+                            <td>
+                                <input type="text"
+                                       name="rules[{{ $index }}][label]"
+                                       value="{{ $rule['label'] ?? '' }}"
+                                       class="form-control"
+                                       required>
+                            </td>
 
-            @foreach($rules as $index => $rule)
-                <div class="border rounded-4 p-3 mb-3 rule-item">
-                    <div class="row g-3 align-items-end">
-                        <div class="col-md-3">
-                            <label class="form-label fw-bold">
-                                Code
-                            </label>
+                            <td>
+                                <input type="number"
+                                       name="rules[{{ $index }}][points]"
+                                       value="{{ $rule['points'] ?? 0 }}"
+                                       class="form-control text-center"
+                                       required>
+                            </td>
 
-                            <input type="text"
-                                   name="rules[{{ $index }}][code]"
-                                   value="{{ $rule['code'] ?? '' }}"
-                                   class="form-control"
-                                   required>
-                        </div>
+                            <td>
+                                <input type="number"
+                                       name="rules[{{ $index }}][position]"
+                                       value="{{ $rule['position'] ?? ($index + 1) }}"
+                                       class="form-control text-center">
+                            </td>
 
-                        <div class="col-md-4">
-                            <label class="form-label fw-bold">
-                                Libellé
-                            </label>
-
-                            <input type="text"
-                                   name="rules[{{ $index }}][label]"
-                                   value="{{ $rule['label'] ?? '' }}"
-                                   class="form-control"
-                                   required>
-                        </div>
-
-                        <div class="col-md-2">
-                            <label class="form-label fw-bold">
-                                Points
-                            </label>
-
-                            <input type="number"
-                                   name="rules[{{ $index }}][points]"
-                                   value="{{ $rule['points'] ?? 0 }}"
-                                   class="form-control text-center"
-                                   required>
-                        </div>
-
-                        <div class="col-md-2">
-                            <label class="form-label fw-bold">
-                                Position
-                            </label>
-
-                            <input type="number"
-                                   name="rules[{{ $index }}][position]"
-                                   value="{{ $rule['position'] ?? 0 }}"
-                                   class="form-control text-center">
-                        </div>
-
-                        <div class="col-md-1">
-                            <button type="button"
-                                    class="btn btn-outline-danger rounded-pill w-100"
-                                    onclick="removeRule(this)">
-                                ×
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            @endforeach
+                            <td class="text-end">
+                                <button type="button"
+                                        class="btn btn-sm btn-outline-danger rounded-pill"
+                                        onclick="removeRuleRow(this)">
+                                    ×
+                                </button>
+                            </td>
+                        </tr>
+                    @endforeach
+                </tbody>
+            </table>
         </div>
 
-        <button type="button"
-                class="btn btn-outline-primary rounded-pill fw-bold px-4"
-                onclick="addRule()">
-            + Ajouter une règle
-        </button>
+        <div class="alert alert-info mt-4 mb-0">
+            Chaque règle correspond à un élément de calcul : bon résultat, essais exacts, bonus juste, etc.
+        </div>
     </div>
 
-    <div class="mt-4 d-flex gap-2">
-        <button class="btn btn-warning rounded-pill fw-bold px-4">
-            {{ $isEdit ? 'Enregistrer le barème' : 'Créer le barème' }}
-        </button>
-
-        <a href="{{ $backRoute }}"
+    <div class="d-flex justify-content-end gap-2 mt-4">
+        <a href="{{ route('admin.settings.index') }}"
            class="btn btn-outline-secondary rounded-pill fw-bold px-4">
             Annuler
         </a>
+
+        <button type="submit"
+                class="btn btn-warning rounded-pill fw-bold px-4">
+            {{ $isEdit ? 'Enregistrer le barème' : 'Créer le barème' }}
+        </button>
     </div>
 </form>
 
-@endsection
-
-@push('scripts')
 <script>
     let ruleIndex = {{ count($rules) }};
 
-    function addRule() {
-        const list = document.getElementById('rulesList');
+    function addRuleRow() {
+        const tbody = document.getElementById('rulesRows');
 
-        const html = `
-            <div class="border rounded-4 p-3 mb-3 rule-item">
-                <div class="row g-3 align-items-end">
-                    <div class="col-md-3">
-                        <label class="form-label fw-bold">
-                            Code
-                        </label>
+        const row = document.createElement('tr');
 
-                        <input type="text"
-                               name="rules[${ruleIndex}][code]"
-                               value="correct"
-                               class="form-control"
-                               required>
-                    </div>
+        row.innerHTML = `
+            <td>
+                <input type="text"
+                       name="rules[${ruleIndex}][code]"
+                       class="form-control"
+                       required>
+            </td>
 
-                    <div class="col-md-4">
-                        <label class="form-label fw-bold">
-                            Libellé
-                        </label>
+            <td>
+                <input type="text"
+                       name="rules[${ruleIndex}][label]"
+                       class="form-control"
+                       required>
+            </td>
 
-                        <input type="text"
-                               name="rules[${ruleIndex}][label]"
-                               value="Bonne réponse"
-                               class="form-control"
-                               required>
-                    </div>
+            <td>
+                <input type="number"
+                       name="rules[${ruleIndex}][points]"
+                       value="0"
+                       class="form-control text-center"
+                       required>
+            </td>
 
-                    <div class="col-md-2">
-                        <label class="form-label fw-bold">
-                            Points
-                        </label>
+            <td>
+                <input type="number"
+                       name="rules[${ruleIndex}][position]"
+                       value="${ruleIndex + 1}"
+                       class="form-control text-center">
+            </td>
 
-                        <input type="number"
-                               name="rules[${ruleIndex}][points]"
-                               value="0"
-                               class="form-control text-center"
-                               required>
-                    </div>
-
-                    <div class="col-md-2">
-                        <label class="form-label fw-bold">
-                            Position
-                        </label>
-
-                        <input type="number"
-                               name="rules[${ruleIndex}][position]"
-                               value="10"
-                               class="form-control text-center">
-                    </div>
-
-                    <div class="col-md-1">
-                        <button type="button"
-                                class="btn btn-outline-danger rounded-pill w-100"
-                                onclick="removeRule(this)">
-                            ×
-                        </button>
-                    </div>
-                </div>
-            </div>
+            <td class="text-end">
+                <button type="button"
+                        class="btn btn-sm btn-outline-danger rounded-pill"
+                        onclick="removeRuleRow(this)">
+                    ×
+                </button>
+            </td>
         `;
 
-        list.insertAdjacentHTML('beforeend', html);
-
+        tbody.appendChild(row);
         ruleIndex++;
     }
 
-    function removeRule(button) {
-        const items = document.querySelectorAll('.rule-item');
-
-        if (items.length <= 1) {
-            alert('Un barème doit contenir au moins une règle.');
-            return;
-        }
-
-        button.closest('.rule-item').remove();
+    function removeRuleRow(button) {
+        button.closest('tr').remove();
     }
 </script>
-@endpush
+
+@endsection

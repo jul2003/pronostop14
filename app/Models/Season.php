@@ -6,30 +6,44 @@ use Illuminate\Database\Eloquent\Model;
 
 class Season extends Model
 {
-    //
     protected $fillable = [
         'name',
-        'is_active',
         'slug',
+        'is_active',
         'top14_clubs_count',
         'prod2_clubs_count',
+        'journee_scoring_setup_hash',
+        'preseason_setup_hash',
     ];
 
-    public function journees()
-    {
-        return $this->hasMany(Journee::class);
-    }
-
-    public function getRouteKeyName(): string
-    {
-        return 'slug';
-    }
+    protected $casts = [
+        'is_active' => 'boolean',
+    ];
 
     public function clubs()
     {
-        return $this->belongsToMany(Club::class)
+        return $this->belongsToMany(Club::class, 'club_season')
             ->withPivot('competition')
             ->withTimestamps();
+    }
+
+    public function players()
+    {
+        return $this->belongsToMany(User::class, 'season_user')
+            ->withPivot('display_order')
+            ->withTimestamps()
+            ->orderByPivot('display_order');
+    }
+
+    public function journees()
+    {
+        return $this->hasMany(Journee::class)
+            ->orderBy('number');
+    }
+
+    public function matches()
+    {
+        return $this->hasManyThrough(MatchGame::class, Journee::class);
     }
 
     public function scoringRules()
@@ -37,13 +51,31 @@ class Season extends Model
         return $this->hasMany(SeasonScoringRule::class);
     }
 
-    public function players()
+    public function scoringProfiles()
     {
-        return $this->belongsToMany(User::class)
-            ->withPivot('display_order')
-            ->withTimestamps()
-            ->orderByPivot('display_order')
-            ->orderBy('nickname')
-            ->orderBy('name');
+        return $this->hasMany(SeasonScoringProfile::class)
+            ->orderBy('position');
+    }
+
+    public function journeeTypeScoringProfiles()
+    {
+        return $this->hasMany(SeasonJourneeTypeScoringProfile::class);
+    }
+
+    public function preseasonQuestions()
+    {
+        return $this->hasMany(SeasonPreseasonQuestion::class)
+            ->orderBy('position');
+    }
+
+    public function preseasonBonusRules()
+    {
+        return $this->hasMany(SeasonPreseasonBonusRule::class)
+            ->orderBy('position');
+    }
+
+    public function preseasonPredictions()
+    {
+        return $this->hasMany(SeasonPreseasonPrediction::class);
     }
 }

@@ -4,15 +4,12 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 
-class SeasonScoringRule extends Model
+class SeasonJourneeTypeScoringProfile extends Model
 {
     protected $fillable = [
         'season_id',
+        'journee_type',
         'season_scoring_profile_id',
-        'code',
-        'label',
-        'points',
-        'position',
     ];
 
     public function season()

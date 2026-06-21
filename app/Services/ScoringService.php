@@ -6,30 +6,41 @@ use App\Models\Journee;
 use App\Models\JourneeUserScore;
 use App\Models\MatchGame;
 use App\Models\Prono;
+use App\Models\SeasonScoringProfile;
 use App\Models\User;
 
 class ScoringService
 {
     public function calculateMatchPoints(Prono $prono, MatchGame $match): int
     {
-        $match->loadMissing('journee.season.scoringRules');
+        $match->loadMissing([
+            'journee.season.scoringRules',
+            'journee.season.journeeTypeScoringProfiles.profile.rules',
+        ]);
 
+        $profile = $this->profileForMatch($match);
         $rules = $this->rulesForMatch($match);
 
         if (! $match->actual_result) {
             return 0;
         }
 
-        if ($prono->predicted_result !== $match->actual_result) {
+        $resultIsCorrect = $prono->predicted_result === $match->actual_result;
+
+        if (! $resultIsCorrect && ($profile?->stop_on_wrong_result ?? true)) {
             return 0;
         }
 
-        $points = match ($match->actual_result) {
-            'v' => $rules['home_win'] ?? 0,
-            'd' => $rules['away_win'] ?? 0,
-            'n' => $rules['draw'] ?? 0,
-            default => 0,
-        };
+        $points = 0;
+
+        if ($resultIsCorrect) {
+            $points += match ($match->actual_result) {
+                'v' => $rules['home_win'] ?? 0,
+                'd' => $rules['away_win'] ?? 0,
+                'n' => $rules['draw'] ?? 0,
+                default => 0,
+            };
+        }
 
         if ($match->actual_tries !== null && $prono->predicted_tries !== null) {
             $difference = abs($prono->predicted_tries - $match->actual_tries);
@@ -151,18 +162,43 @@ class ScoringService
         return $rules['bonus_wrong'] ?? 0;
     }
 
+    private function profileForMatch(MatchGame $match): ?SeasonScoringProfile
+    {
+        return $this->profileForJournee($match->journee);
+    }
+
+    private function profileForJournee(Journee $journee): ?SeasonScoringProfile
+    {
+        $journee->loadMissing([
+            'season.journeeTypeScoringProfiles.profile.rules',
+        ]);
+
+        $mapping = $journee->season
+            ->journeeTypeScoringProfiles
+            ->firstWhere('journee_type', $journee->type);
+
+        return $mapping?->profile;
+    }
+
     private function rulesForMatch(MatchGame $match): array
     {
-        return $match->journee
-            ->season
-            ->scoringRules
-            ->pluck('points', 'code')
-            ->toArray();
+        return $this->rulesForJournee($match->journee);
     }
 
     private function rulesForJournee(Journee $journee): array
     {
-        $journee->loadMissing('season.scoringRules');
+        $journee->loadMissing([
+            'season.scoringRules',
+            'season.journeeTypeScoringProfiles.profile.rules',
+        ]);
+
+        $profile = $this->profileForJournee($journee);
+
+        if ($profile) {
+            return $profile->rules
+                ->pluck('points', 'code')
+                ->toArray();
+        }
 
         return $journee->season
             ->scoringRules
