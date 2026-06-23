@@ -24,10 +24,19 @@
                 Date limite des pronostics
             </label>
 
-            <input type="date"
-                name="prediction_deadline"
-                class="form-control"
-                value="{{ $journee->prediction_deadline?->format('Y-m-d') }}">
+            <div class="input-group">
+                <input type="date"
+                    name="prediction_deadline"
+                    value="{{ old('prediction_deadline', $journee->prediction_deadline?->format('Y-m-d')) }}"
+                    class="form-control app-date-input">
+
+                <button type="button"
+                        class="btn btn-outline-secondary clear-date-button"
+                        title="Effacer la date"
+                        aria-label="Effacer la date">
+                    ×
+                </button>
+            </div>
         </div>
 
         <button class="btn btn-warning rounded-pill fw-bold">
@@ -37,5 +46,28 @@
     </form>
 
 </div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        document.querySelectorAll('.clear-date-button').forEach(function (button) {
+            button.addEventListener('click', function () {
+                const group = button.closest('.input-group');
+
+                if (! group) {
+                    return;
+                }
+
+                const input = group.querySelector('.app-date-input');
+
+                if (! input) {
+                    return;
+                }
+
+                input.value = '';
+                input.dispatchEvent(new Event('change', { bubbles: true }));
+            });
+        });
+    });
+</script>
 
 @endsection

@@ -4,9 +4,13 @@
 
 <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-start gap-3 mb-4">
     <div>
-        <div class="text-uppercase text-primary fw-bold small">
-            Mes pronostics
-        </div>
+        <h2 class="fw-bold mb-1">
+            Pronostics à saisir
+        </h2>
+
+        <p class="text-muted mb-0">
+            Retrouve ici uniquement les pronostics encore ouverts que tu dois compléter.
+        </p>
 
         <h2 class="fw-bold mb-1">
             {{ $journee->name }}
@@ -104,18 +108,19 @@
 
                                 <td class="text-center">
                                     <div class="prono-choice-group">
-                                        @foreach(['v' => 'V', 'n' => 'N', 'd' => 'D'] as $value => $label)
+                                        @foreach($journee->resultOptionShortLabels() as $value => $label)
                                             <input type="radio"
-                                                   id="result_{{ $match->id }}_{{ $value }}"
-                                                   name="pronos[{{ $match->id }}][predicted_result]"
-                                                   value="{{ $value }}"
-                                                   class="prono-choice-input"
-                                                   @checked($prono?->predicted_result === $value)
-                                                   @disabled($isLocked)
-                                                   required>
+                                                id="result_{{ $match->id }}_{{ $value }}"
+                                                name="pronos[{{ $match->id }}][predicted_result]"
+                                                value="{{ $value }}"
+                                                class="prono-choice-input"
+                                                @checked($prono?->predicted_result === $value)
+                                                @disabled($isLocked)
+                                                required>
 
                                             <label for="result_{{ $match->id }}_{{ $value }}"
-                                                   class="prono-choice-label">
+                                                class="prono-choice-label"
+                                                title="{{ $journee->resultOptionLabel($value) }}">
                                                 {{ $label }}
                                             </label>
                                         @endforeach

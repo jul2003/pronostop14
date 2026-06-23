@@ -7,6 +7,7 @@ use App\Models\Club;
 use App\Models\Season;
 use App\Models\User;
 use App\Services\GlobalSetupHashService;
+use App\Services\PreseasonDeadlineService;
 use App\Services\SeasonJourneeGenerator;
 use App\Services\SeasonPreseasonSetupService;
 use App\Services\SeasonScoringSetupService;
@@ -269,23 +270,33 @@ class SeasonController extends Controller
         ]);
     }
 
-    public function syncPlayers(Request $request, Season $season)
-    {
+    public function syncPlayers(
+        Request $request,
+        Season $season,
+        PreseasonDeadlineService $preseasonDeadlineService
+    ) {
         $data = $request->validate([
             'players' => ['nullable', 'array'],
             'players.*' => ['integer', 'exists:users,id'],
         ]);
 
-        $existingOrders = $season->players()
+        $currentPlayers = $season->players()
             ->get()
-            ->pluck('pivot.display_order', 'id')
-            ->toArray();
+            ->keyBy('id');
+
+        $selectedPlayerIds = $data['players'] ?? [];
+
+        $newPlayerDeadline = $preseasonDeadlineService->deadlineForNewParticipant($season);
 
         $syncData = [];
 
-        foreach ($data['players'] ?? [] as $index => $userId) {
+        foreach ($selectedPlayerIds as $index => $userId) {
+            $currentPlayer = $currentPlayers->get($userId);
+
             $syncData[$userId] = [
-                'display_order' => $existingOrders[$userId] ?? $index + 1,
+                'display_order' => $currentPlayer?->pivot?->display_order ?? $index + 1,
+                'preseason_prediction_deadline' => $currentPlayer?->pivot?->preseason_prediction_deadline
+                    ?: $newPlayerDeadline?->format('Y-m-d H:i:s'),
             ];
         }
 

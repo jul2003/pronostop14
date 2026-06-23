@@ -4,7 +4,7 @@
 
 @if(! $season)
     <div class="alert alert-info">
-        Aucune saison active pour le moment.
+        Aucune saison active disponible pour tes pronostics.
     </div>
 @endif
 
@@ -14,11 +14,11 @@
     </div>
 
     <h2 class="fw-bold mb-1">
-        Journées disponibles
+        Pronostics à saisir
     </h2>
 
     <p class="text-muted mb-0">
-        Sélectionne une journée pour saisir ou consulter tes pronostics.
+        Retrouve ici les pronostics encore ouverts, à saisir ou à modifier.
     </p>
 </div>
 
@@ -39,27 +39,33 @@
                 </h3>
 
                 <div class="text-muted mb-2">
-                    {{ $journee->matches_count }} match(s)
+                    @if($journee->type === 'preseason')
+                        Questions avant-saison
+                    @else
+                        {{ $journee->matches_count }} match(s)
+                    @endif
                 </div>
 
-                @if($journee->prediction_deadline)
+                @if($journee->type === 'preseason')
+                    @if($preseasonDeadline)
+                        <div class="small text-secondary mb-3">
+                            Limite :
+                            {{ $preseasonDeadline->format('d/m/Y') }}
+                        </div>
+                    @endif
+                @elseif($journee->prediction_deadline)
                     <div class="small text-secondary mb-3">
                         Limite :
                         {{ $journee->prediction_deadline->format('d/m/Y') }}
                     </div>
                 @endif
 
-                <a href="{{ route('pronos.show', [$journee->season, $journee]) }}"
-                   class="btn btn-primary rounded-pill">
-                    Voir la journée
-                </a>
-
-                @if($journee->isLocked())
-                    <a href="{{ route('journees.results', [$journee->season, $journee]) }}"
-                    class="btn btn-outline-primary rounded-pill">
-                        Voir les résultats
+                <div class="d-flex flex-wrap gap-2">
+                    <a href="{{ route('pronos.show', [$journee->season, $journee]) }}"
+                       class="btn btn-primary rounded-pill">
+                        Voir la journée
                     </a>
-                @endif
+                </div>
 
             </div>
 
@@ -69,7 +75,7 @@
 
         <div class="col-12">
             <div class="alert alert-info">
-                Aucune journée disponible.
+                Aucun pronostic ouvert pour le moment.
             </div>
         </div>
 

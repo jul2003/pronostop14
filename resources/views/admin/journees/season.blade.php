@@ -9,11 +9,6 @@
 
 <div class="d-flex justify-content-between align-items-start gap-3 mb-4">
     <div>
-        <a href="{{ route('admin.seasons.index') }}"
-           class="text-decoration-none fw-bold">
-            ← Retour aux saisons
-        </a>
-
         <div class="mt-3 text-uppercase text-primary fw-bold small">
             Administration
         </div>
@@ -78,18 +73,26 @@
                             <td class="text-end">
                                 <div class="d-flex justify-content-end gap-2">
                                     <a href="{{ route('admin.seasons.journees.edit', [$season, $journee]) }}"
-                                    class="btn btn-sm btn-outline-secondary rounded-pill">
+                                       class="btn btn-sm btn-outline-secondary rounded-pill">
                                         Modifier
                                     </a>
-                                    <a href="{{ route('admin.seasons.journees.matches', [$season, $journee]) }}"
-                                       class="btn btn-sm btn-outline-primary rounded-pill">
-                                        Matchs
-                                    </a>
 
-                                    <a href="{{ route('admin.seasons.journees.results', [$season, $journee]) }}"
-                                       class="btn btn-sm btn-outline-secondary rounded-pill">
-                                        Résultats
-                                    </a>
+                                    @if($journee->type === 'preseason')
+                                        <a href="{{ route('admin.seasons.preseason.edit', $season) }}"
+                                           class="btn btn-sm btn-outline-primary rounded-pill">
+                                            Questions avant-saison
+                                        </a>
+                                    @else
+                                        <a href="{{ route('admin.seasons.journees.matches', [$season, $journee]) }}"
+                                           class="btn btn-sm btn-outline-primary rounded-pill">
+                                            Matchs
+                                        </a>
+
+                                        <a href="{{ route('admin.seasons.journees.results', [$season, $journee]) }}"
+                                           class="btn btn-sm btn-outline-success rounded-pill">
+                                            Résultats
+                                        </a>
+                                    @endif
                                 </div>
                             </td>
                         </tr>

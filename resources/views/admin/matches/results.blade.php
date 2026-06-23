@@ -90,16 +90,17 @@
 
                                 <td class="text-center">
                                     <div class="prono-choice-group">
-                                        @foreach(['v' => 'V', 'n' => 'N', 'd' => 'D'] as $value => $label)
+                                        @foreach($journee->resultOptionShortLabels() as $value => $label)
                                             <input type="radio"
-                                                   id="actual_result_{{ $match->id }}_{{ $value }}"
-                                                   name="matches[{{ $match->id }}][actual_result]"
-                                                   value="{{ $value }}"
-                                                   class="prono-choice-input"
-                                                   @checked($match->actual_result === $value)>
+                                                id="actual_result_{{ $match->id }}_{{ $value }}"
+                                                name="matches[{{ $match->id }}][actual_result]"
+                                                value="{{ $value }}"
+                                                class="prono-choice-input"
+                                                @checked($match->actual_result === $value)>
 
                                             <label for="actual_result_{{ $match->id }}_{{ $value }}"
-                                                   class="prono-choice-label">
+                                                class="prono-choice-label"
+                                                title="{{ $journee->resultOptionLabel($value) }}">
                                                 {{ $label }}
                                             </label>
                                         @endforeach

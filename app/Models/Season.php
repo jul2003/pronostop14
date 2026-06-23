@@ -20,6 +20,11 @@ class Season extends Model
         'is_active' => 'boolean',
     ];
 
+    public function getRouteKeyName(): string
+    {
+        return 'slug';
+    }
+
     public function clubs()
     {
         return $this->belongsToMany(Club::class, 'club_season')
@@ -30,7 +35,10 @@ class Season extends Model
     public function players()
     {
         return $this->belongsToMany(User::class, 'season_user')
-            ->withPivot('display_order')
+            ->withPivot([
+                'display_order',
+                'preseason_prediction_deadline',
+            ])
             ->withTimestamps()
             ->orderByPivot('display_order');
     }

@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use App\Services\AppDateService;
 
 class Journee extends Model
 {
@@ -38,7 +39,11 @@ class Journee extends Model
 
     public function isLocked(): bool
     {
-        return $this->prediction_deadline?->isPast() ?? false;
+        if (! $this->prediction_deadline) {
+            return false;
+        }
+
+        return $this->prediction_deadline->lte(app(AppDateService::class)->now());
     }
 
     public function getRouteKeyName(): string
@@ -91,15 +96,15 @@ class Journee extends Model
     public function allowedResultOptions(): array
     {
         return match ($this->type) {
-            'regular' => ['home_win', 'draw', 'away_win'],
+            'regular' => ['v', 'n', 'd'],
 
             'access_match',
             'top14_playoff',
             'prod2_final',
             'top14_semifinal',
-            'top14_final' => ['home_win', 'away_win'],
+            'top14_final' => ['v', 'd'],
 
-            default => ['home_win', 'draw', 'away_win'],
+            default => ['v', 'n', 'd'],
         };
     }
 
@@ -114,14 +119,32 @@ class Journee extends Model
             'prod2_final',
             'top14_semifinal',
             'top14_final' => [
-                'home_win' => 'Équipe 1',
-                'away_win' => 'Équipe 2',
+                'v' => 'Équipe 1',
+                'd' => 'Équipe 2',
             ],
 
             default => [
-                'home_win' => 'Domicile',
-                'draw' => 'Nul',
-                'away_win' => 'Extérieur',
+                'v' => 'Domicile',
+                'n' => 'Nul',
+                'd' => 'Extérieur',
+            ],
+        };
+    }
+
+    public function resultOptionShortLabels(): array
+    {
+        return match ($this->type) {
+            'prod2_final',
+            'top14_semifinal',
+            'top14_final' => [
+                'v' => 'Éq. 1',
+                'd' => 'Éq. 2',
+            ],
+
+            default => [
+                'v' => 'V',
+                'n' => 'N',
+                'd' => 'D',
             ],
         };
     }
@@ -129,5 +152,10 @@ class Journee extends Model
     public function resultOptionLabel(string $result): string
     {
         return $this->resultOptionLabels()[$result] ?? $result;
+    }
+
+    public function resultOptionShortLabel(string $result): string
+    {
+        return $this->resultOptionShortLabels()[$result] ?? $result;
     }
 }

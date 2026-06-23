@@ -10,6 +10,7 @@ use App\Models\Prono;
 use App\Models\Season;
 use App\Services\ScoringService;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 
 class MatchController extends Controller
 {
@@ -153,7 +154,7 @@ class MatchController extends Controller
         $data = $request->validate([
             'matches' => ['nullable', 'array'],
 
-            'matches.*.actual_result' => ['nullable', 'in:v,n,d'],
+            'matches.*.actual_result' => ['nullable', Rule::in($journee->allowedResultOptions())],
             'matches.*.actual_tries' => ['nullable', 'integer', 'min:0'],
             'matches.*.actual_home_bonus' => ['nullable', 'in:o,-,d'],
             'matches.*.actual_away_bonus' => ['nullable', 'in:o,-,d'],

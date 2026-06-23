@@ -1,22 +1,25 @@
 <?php
 
+use App\Http\Controllers\Admin\AppSettingController;
 use App\Http\Controllers\Admin\ClubController;
 use App\Http\Controllers\Admin\JourneeController;
 use App\Http\Controllers\Admin\MatchController;
+use App\Http\Controllers\Admin\PendingResultController;
 use App\Http\Controllers\Admin\SeasonController;
+use App\Http\Controllers\Admin\SeasonPreseasonController;
 use App\Http\Controllers\Admin\SeasonScoringRuleController;
+use App\Http\Controllers\Admin\SettingController;
+use App\Http\Controllers\Admin\UpcomingMatchController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\InitialSetupController;
 use App\Http\Controllers\PlayerProfileController;
 use App\Http\Controllers\PronoController;
 use App\Http\Controllers\RankingController;
-use Illuminate\Support\Facades\Route;
-use App\Models\User;
 use App\Models\Season;
-use App\Http\Controllers\Admin\SettingController;
+use App\Models\User;
+use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
-
     if (User::count() === 0) {
         return view('site-not-initialized');
     }
@@ -32,7 +35,6 @@ Route::get('/', function () {
     ]);
 })->name('home');
 
-
 Route::get('/initialisation', [InitialSetupController::class, 'create'])
     ->name('initial-setup.create');
 
@@ -40,14 +42,12 @@ Route::post('/initialisation', [InitialSetupController::class, 'store'])
     ->name('initial-setup.store');
 
 Route::middleware('auth')->group(function () {
-    //Profil utilisateur
     Route::get('/mon-profil', [PlayerProfileController::class, 'edit'])
         ->name('player-profile.edit');
 
     Route::put('/mon-profil', [PlayerProfileController::class, 'update'])
         ->name('player-profile.update');
 
-    //Pronostic
     Route::get('/pronos', [PronoController::class, 'index'])
         ->name('pronos.index');
 
@@ -57,7 +57,6 @@ Route::middleware('auth')->group(function () {
     Route::post('/pronos/{season}/{journee}', [PronoController::class, 'storeAll'])
         ->name('pronos.store');
 
-    //Classement
     Route::get('/classements', function () {
         $season = Season::where('is_active', true)->first();
 
@@ -76,14 +75,12 @@ Route::middleware('auth')->group(function () {
     Route::get('/classements/{season}/{journee}', [RankingController::class, 'journee'])
         ->name('rankings.journee');
 
-    //Resulats
     Route::get('/saisons/{season}/journees/{journee}/resultats', [RankingController::class, 'journeeResults'])
         ->name('journees.results');
 
     Route::get('/saisons/{season}/resultats', [RankingController::class, 'seasonResults'])
         ->name('seasons.results');
 
-    //Pour stopper la reprise historique des pronos
     Route::post('impersonation/stop', [UserController::class, 'stopImpersonating'])
         ->name('impersonation.stop');
 });
@@ -92,7 +89,18 @@ Route::middleware(['auth', 'admin'])->group(function () {
     Route::get('/admin', fn () => view('admin.index'))
         ->name('admin.index');
 
-    // Paramètres
+    Route::get('/admin/parametres-application', [AppSettingController::class, 'index'])
+        ->name('admin.app-settings.index');
+
+    Route::put('/admin/parametres-application', [AppSettingController::class, 'update'])
+        ->name('admin.app-settings.update');
+
+    Route::get('/admin/matchs-a-saisir', [UpcomingMatchController::class, 'index'])
+        ->name('admin.upcoming-matches.index');
+
+    Route::get('/admin/resultats-a-saisir', [PendingResultController::class, 'index'])
+        ->name('admin.pending-results.index');
+
     Route::get('/admin/parametres', [SettingController::class, 'index'])
         ->name('admin.settings.index');
 
@@ -135,7 +143,6 @@ Route::middleware(['auth', 'admin'])->group(function () {
     Route::put('/admin/parametres/baremes/{profile}', [SettingController::class, 'updateScoringProfile'])
         ->name('admin.settings.scoring-profiles.update');
 
-    // Clubs
     Route::get('/admin/clubs', [ClubController::class, 'index'])
         ->name('admin.clubs.index');
 
@@ -154,7 +161,6 @@ Route::middleware(['auth', 'admin'])->group(function () {
     Route::delete('/admin/clubs/{club}', [ClubController::class, 'destroy'])
         ->name('admin.clubs.destroy');
 
-    // Saisons
     Route::get('/admin/saisons', [SeasonController::class, 'index'])
         ->name('admin.seasons.index');
 
@@ -176,14 +182,12 @@ Route::middleware(['auth', 'admin'])->group(function () {
     Route::post('/admin/saisons/{season}/generate-journees', [SeasonController::class, 'generateJournees'])
         ->name('admin.seasons.generateJournees');
 
-    // Clubs d'une saison
     Route::get('/admin/saisons/{season}/clubs', [SeasonController::class, 'clubs'])
         ->name('admin.seasons.clubs');
 
     Route::post('/admin/saisons/{season}/clubs', [SeasonController::class, 'syncClubs'])
         ->name('admin.seasons.clubs.sync');
 
-    // Joueurs d'une saison
     Route::get('/admin/saisons/{season}/joueurs', [SeasonController::class, 'players'])
         ->name('admin.seasons.players');
 
@@ -193,14 +197,12 @@ Route::middleware(['auth', 'admin'])->group(function () {
     Route::post('/admin/saisons/{season}/joueurs/reorder', [SeasonController::class, 'reorderPlayers'])
         ->name('admin.seasons.players.reorder');
 
-    // Barème d'une saison
     Route::get('/admin/saisons/{season}/bareme', [SeasonScoringRuleController::class, 'edit'])
         ->name('admin.seasons.scoring.edit');
 
     Route::put('/admin/saisons/{season}/bareme', [SeasonScoringRuleController::class, 'update'])
         ->name('admin.seasons.scoring.update');
 
-    // Journées d'une saison
     Route::get('/admin/saisons/{season}/journees', [JourneeController::class, 'season'])
         ->name('admin.seasons.journees');
 
@@ -210,7 +212,30 @@ Route::middleware(['auth', 'admin'])->group(function () {
     Route::put('/admin/saisons/{season}/journees/{journee}', [JourneeController::class, 'update'])
         ->name('admin.seasons.journees.update');
 
-    // Matchs d'une journée
+    Route::get('/admin/saisons/{season}/avant-saison', [SeasonPreseasonController::class, 'edit'])
+        ->name('admin.seasons.preseason.edit');
+
+    Route::put('/admin/saisons/{season}/avant-saison/questions', [SeasonPreseasonController::class, 'updateQuestions'])
+        ->name('admin.seasons.preseason.questions.update');
+
+    Route::post('/admin/saisons/{season}/avant-saison/questions', [SeasonPreseasonController::class, 'storeQuestion'])
+        ->name('admin.seasons.preseason.questions.store');
+
+    Route::delete('/admin/saisons/{season}/avant-saison/questions/{question}', [SeasonPreseasonController::class, 'destroyQuestion'])
+        ->name('admin.seasons.preseason.questions.destroy');
+
+    Route::put('/admin/saisons/{season}/avant-saison/bonus', [SeasonPreseasonController::class, 'updateBonusRules'])
+        ->name('admin.seasons.preseason.bonus.update');
+
+    Route::post('/admin/saisons/{season}/avant-saison/bonus', [SeasonPreseasonController::class, 'storeBonusRule'])
+        ->name('admin.seasons.preseason.bonus.store');
+
+    Route::delete('/admin/saisons/{season}/avant-saison/bonus/{bonusRule}', [SeasonPreseasonController::class, 'destroyBonusRule'])
+        ->name('admin.seasons.preseason.bonus.destroy');
+
+    Route::post('/admin/saisons/{season}/avant-saison/appliquer-aux-parametres-globaux', [SeasonPreseasonController::class, 'syncToGlobal'])
+        ->name('admin.seasons.preseason.sync-to-global');
+
     Route::get('/admin/saisons/{season}/journees/{journee}/matches', [MatchController::class, 'manage'])
         ->name('admin.seasons.journees.matches');
 
@@ -226,14 +251,12 @@ Route::middleware(['auth', 'admin'])->group(function () {
     Route::post('/admin/saisons/{season}/journees/{journee}/matches/bulk', [MatchController::class, 'storeBulk'])
         ->name('admin.seasons.journees.matches.storeBulk');
 
-    // Résultats
     Route::get('/admin/saisons/{season}/journees/{journee}/results', [MatchController::class, 'results'])
         ->name('admin.seasons.journees.results');
 
     Route::post('/admin/saisons/{season}/journees/{journee}/results', [MatchController::class, 'storeResults'])
         ->name('admin.seasons.journees.results.store');
 
-    // Utilisateurs
     Route::get('/admin/users', [UserController::class, 'index'])
         ->name('admin.users.index');
 
@@ -246,10 +269,8 @@ Route::middleware(['auth', 'admin'])->group(function () {
     Route::patch('/admin/users/{user}/role', [UserController::class, 'updateRole'])
         ->name('admin.users.updateRole');
 
-    //Pour reprise historique pronos
     Route::post('/admin/users/{user}/impersonate', [UserController::class, 'impersonate'])
         ->name('admin.users.impersonate');
-
 });
 
 require __DIR__.'/auth.php';

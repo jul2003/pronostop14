@@ -22,6 +22,7 @@ class DatabaseSeeder extends Seeder
             //PreseasonScoringProfilesSeeder::class,
             //PreseasonPredictionTemplatesSeeder::class,
             //PreseasonBonusRuleTemplatesSeeder::class,
+            //AppSettingsSeeder::class,
         ]);
     }
 }
