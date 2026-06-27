@@ -46,10 +46,17 @@ class SeasonPreseasonResultController extends Controller
         Season $season,
         PreseasonScoringService $scoringService
     ) {
+        if ($season->is_locked) {
+            return redirect()
+                ->route('admin.seasons.preseason-results.edit', $season)
+                ->with('error', 'Cette saison est verrouillée : les résultats avant-saison ne peuvent plus être modifiés.');
+        }
+
         $data = $request->validate([
             'results' => ['nullable', 'array'],
             'results.*.club_id' => ['nullable', 'integer', 'exists:clubs,id'],
             'results.*.text_answer' => ['nullable', 'string', 'max:255'],
+            'lock_season' => ['nullable', 'boolean'],
         ]);
 
         $questions = $season->preseasonQuestions()
@@ -86,6 +93,16 @@ class SeasonPreseasonResultController extends Controller
         }
 
         $scoringService->recalculateSeason($season);
+
+        if ($request->boolean('lock_season')) {
+            $season->update([
+                'is_locked' => true,
+            ]);
+
+            return redirect()
+                ->route('admin.seasons.preseason-results.edit', $season)
+                ->with('success', 'Résultats avant-saison enregistrés, points recalculés et saison verrouillée.');
+        }
 
         return redirect()
             ->route('admin.seasons.preseason-results.edit', $season)

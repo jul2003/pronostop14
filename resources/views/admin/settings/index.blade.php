@@ -48,7 +48,10 @@
                     </p>
                 </div>
 
-                <a href="{{ route('admin.settings.scoring-profiles.create', ['category' => 'journee']) }}"
+                <a href="{{ route('admin.settings.scoring-profiles.create', [
+                        'category' => 'journee',
+                        'return_to' => 'settings',
+                    ]) }}"
                    class="btn btn-warning rounded-pill fw-bold px-4">
                     + Créer un barème
                 </a>
@@ -107,7 +110,10 @@
                                                 </span>
                                             </button>
 
-                                            <a href="{{ route('admin.settings.scoring-profiles.edit', ['profile' => $profile]) }}"
+                                            <a href="{{ route('admin.settings.scoring-profiles.edit', [
+                                                    'profile' => $profile,
+                                                    'return_to' => 'settings',
+                                                ]) }}"
                                                class="btn btn-sm btn-outline-secondary rounded-pill">
                                                 Modifier le barème
                                             </a>
@@ -267,7 +273,7 @@
         const panel = document.getElementById(panelId);
         const icon = document.getElementById(iconId);
 
-        if (!panel) {
+        if (! panel) {
             return;
         }
 

@@ -18,7 +18,11 @@
         </h2>
 
         <p class="text-muted mb-0">
-            {{ $season->name }}
+            @if($season->is_locked)
+                {{ $season->name }} — saison verrouillée, résultats consultables uniquement.
+            @else
+                {{ $season->name }}
+            @endif
         </p>
     </div>
 
@@ -29,6 +33,37 @@
         </a>
     </div>
 </div>
+
+@if($season->is_locked)
+    <div class="alert alert-warning">
+        <div class="fw-bold">
+            Saison verrouillée
+        </div>
+
+        <div>
+            Les résultats de cette saison ne peuvent plus être modifiés.
+            Pour les corriger, il faut d’abord déverrouiller la saison depuis sa page d’édition.
+        </div>
+    </div>
+@endif
+
+@if($errors->any())
+    <div class="alert alert-danger">
+        {{ $errors->first() }}
+    </div>
+@endif
+
+@if(session('error'))
+    <div class="alert alert-danger">
+        {{ session('error') }}
+    </div>
+@endif
+
+@if(session('success'))
+    <div class="alert alert-success">
+        {{ session('success') }}
+    </div>
+@endif
 
 @if($matches->isEmpty())
 
@@ -63,8 +98,8 @@
 
                                         <div class="match-home">
                                             <img src="{{ $match->homeClub->logo_url }}"
-                                                alt="{{ $match->homeClub->name }}"
-                                                class="club-logo-small">
+                                                 alt="{{ $match->homeClub->name }}"
+                                                 class="club-logo-small">
 
                                             <span>
                                                 {{ $match->homeClub->short_name ?? $match->homeClub->name }}
@@ -77,8 +112,8 @@
 
                                         <div class="match-away">
                                             <img src="{{ $match->awayClub->logo_url }}"
-                                                alt="{{ $match->awayClub->name }}"
-                                                class="club-logo-small">
+                                                 alt="{{ $match->awayClub->name }}"
+                                                 class="club-logo-small">
 
                                             <span>
                                                 {{ $match->awayClub->short_name ?? $match->awayClub->name }}
@@ -92,15 +127,16 @@
                                     <div class="prono-choice-group">
                                         @foreach($journee->resultOptionShortLabels() as $value => $label)
                                             <input type="radio"
-                                                id="actual_result_{{ $match->id }}_{{ $value }}"
-                                                name="matches[{{ $match->id }}][actual_result]"
-                                                value="{{ $value }}"
-                                                class="prono-choice-input"
-                                                @checked($match->actual_result === $value)>
+                                                   id="actual_result_{{ $match->id }}_{{ $value }}"
+                                                   name="matches[{{ $match->id }}][actual_result]"
+                                                   value="{{ $value }}"
+                                                   class="prono-choice-input"
+                                                   @checked($match->actual_result === $value)
+                                                   @disabled($season->is_locked)>
 
                                             <label for="actual_result_{{ $match->id }}_{{ $value }}"
-                                                class="prono-choice-label"
-                                                title="{{ $journee->resultOptionLabel($value) }}">
+                                                   class="prono-choice-label"
+                                                   title="{{ $journee->resultOptionLabel($value) }}">
                                                 {{ $label }}
                                             </label>
                                         @endforeach
@@ -113,7 +149,8 @@
                                            pattern="[0-9]*"
                                            name="matches[{{ $match->id }}][actual_tries]"
                                            value="{{ $match->actual_tries }}"
-                                           class="form-control form-control-sm prono-tries-input mx-auto">
+                                           class="form-control form-control-sm prono-tries-input mx-auto"
+                                           @disabled($season->is_locked)>
                                 </td>
 
                                 <td class="text-center">
@@ -124,7 +161,8 @@
                                                    name="matches[{{ $match->id }}][actual_home_bonus]"
                                                    value="{{ $value }}"
                                                    class="prono-choice-input"
-                                                   @checked($match->actual_home_bonus === $value)>
+                                                   @checked($match->actual_home_bonus === $value)
+                                                   @disabled($season->is_locked)>
 
                                             <label for="actual_home_bonus_{{ $match->id }}_{{ $value }}"
                                                    class="prono-choice-label">
@@ -142,7 +180,8 @@
                                                    name="matches[{{ $match->id }}][actual_away_bonus]"
                                                    value="{{ $value }}"
                                                    class="prono-choice-input"
-                                                   @checked($match->actual_away_bonus === $value)>
+                                                   @checked($match->actual_away_bonus === $value)
+                                                   @disabled($season->is_locked)>
 
                                             <label for="actual_away_bonus_{{ $match->id }}_{{ $value }}"
                                                    class="prono-choice-label">
@@ -158,35 +197,39 @@
             </div>
         </div>
 
-        <div class="mt-4">
-            <button type="submit"
-                    class="btn btn-warning rounded-pill fw-bold px-4">
-                Enregistrer les résultats
-            </button>
-        </div>
+        @unless($season->is_locked)
+            <div class="mt-4">
+                <button type="submit"
+                        class="btn btn-warning rounded-pill fw-bold px-4">
+                    Enregistrer les résultats
+                </button>
+            </div>
+        @endunless
     </form>
 
 @endif
 
-<script>
-    document.querySelectorAll('.prono-choice-input').forEach(input => {
-        input.addEventListener('click', function () {
-            if (this.dataset.wasChecked === 'true') {
-                this.checked = false;
-                this.dataset.wasChecked = 'false';
-            } else {
-                document
-                    .querySelectorAll(`input[name="${this.name}"]`)
-                    .forEach(radio => radio.dataset.wasChecked = 'false');
+@unless($season->is_locked)
+    <script>
+        document.querySelectorAll('.prono-choice-input').forEach(input => {
+            input.addEventListener('click', function () {
+                if (this.dataset.wasChecked === 'true') {
+                    this.checked = false;
+                    this.dataset.wasChecked = 'false';
+                } else {
+                    document
+                        .querySelectorAll(`input[name="${this.name}"]`)
+                        .forEach(radio => radio.dataset.wasChecked = 'false');
 
-                this.dataset.wasChecked = 'true';
-            }
+                    this.dataset.wasChecked = 'true';
+                }
+            });
         });
-    });
 
-    document.querySelectorAll('.prono-choice-input:checked').forEach(input => {
-        input.dataset.wasChecked = 'true';
-    });
-</script>
+        document.querySelectorAll('.prono-choice-input:checked').forEach(input => {
+            input.dataset.wasChecked = 'true';
+        });
+    </script>
+@endunless
 
 @endsection

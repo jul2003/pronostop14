@@ -62,6 +62,12 @@ class MatchController extends Controller
     {
         $this->ensureJourneeBelongsToSeason($season, $journee);
 
+        if ($season->is_locked) {
+            return back()->withErrors([
+                'season' => 'Cette saison est verrouillée : les matchs ne peuvent plus être modifiés.',
+            ]);
+        }
+
         if ($journee->isLocked()) {
             return back()->withErrors([
                 'journee' => 'Cette journée est verrouillée.',
@@ -121,6 +127,20 @@ class MatchController extends Controller
 
     public function destroy(MatchGame $match)
     {
+        $match->load('journee.season');
+
+        if ($match->journee?->season?->is_locked) {
+            return back()->withErrors([
+                'season' => 'Cette saison est verrouillée : les matchs ne peuvent plus être modifiés.',
+            ]);
+        }
+
+        if ($match->journee?->isLocked()) {
+            return back()->withErrors([
+                'journee' => 'Cette journée est verrouillée.',
+            ]);
+        }
+
         $match->delete();
 
         return back()->with('success', 'Match supprimé.');
@@ -150,6 +170,12 @@ class MatchController extends Controller
         ScoringService $scoringService
     ) {
         $this->ensureJourneeBelongsToSeason($season, $journee);
+
+        if ($season->is_locked) {
+            return redirect()
+                ->route('admin.seasons.journees.results', [$season, $journee])
+                ->with('error', 'Cette saison est verrouillée : les résultats ne peuvent plus être modifiés.');
+        }
 
         $data = $request->validate([
             'matches' => ['nullable', 'array'],
@@ -213,6 +239,20 @@ class MatchController extends Controller
     {
         $this->ensureJourneeBelongsToSeason($season, $journee);
 
+        if ($season->is_locked) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Cette saison est verrouillée : les matchs ne peuvent plus être réordonnés.',
+            ], 403);
+        }
+
+        if ($journee->isLocked()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Cette journée est verrouillée.',
+            ], 403);
+        }
+
         $data = $request->validate([
             'matches' => ['required', 'array'],
             'matches.*' => ['integer', 'exists:match_games,id'],
@@ -231,16 +271,15 @@ class MatchController extends Controller
         ]);
     }
 
-    private function ensureJourneeBelongsToSeason(Season $season, Journee $journee): void
-    {
-        if ($journee->season_id !== $season->id) {
-            abort(404);
-        }
-    }
-
     public function storeBulk(Request $request, Season $season, Journee $journee)
     {
         $this->ensureJourneeBelongsToSeason($season, $journee);
+
+        if ($season->is_locked) {
+            return back()->withErrors([
+                'season' => 'Cette saison est verrouillée : les matchs ne peuvent plus être modifiés.',
+            ]);
+        }
 
         if ($journee->isLocked()) {
             return back()->withErrors([
@@ -314,5 +353,12 @@ class MatchController extends Controller
         return redirect()
             ->route('admin.seasons.journees.matches', [$season, $journee])
             ->with('success', 'Matchs ajoutés.');
+    }
+
+    private function ensureJourneeBelongsToSeason(Season $season, Journee $journee): void
+    {
+        if ($journee->season_id !== $season->id) {
+            abort(404);
+        }
     }
 }

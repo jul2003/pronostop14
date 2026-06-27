@@ -36,6 +36,10 @@ class SeasonPreseasonController extends Controller
 
     public function updateQuestions(Request $request, Season $season)
     {
+        if ($season->is_locked) {
+            return $this->lockedRedirect($season);
+        }
+
         $data = $request->validate([
             'questions' => ['nullable', 'array'],
             'questions.*.label' => ['required', 'string', 'max:255'],
@@ -74,6 +78,10 @@ class SeasonPreseasonController extends Controller
 
     public function storeQuestion(Request $request, Season $season)
     {
+        if ($season->is_locked) {
+            return $this->lockedRedirect($season);
+        }
+
         $data = $request->validate([
             'label' => ['required', 'string', 'max:255'],
             'answer_type' => ['required', 'string', 'max:50'],
@@ -100,6 +108,10 @@ class SeasonPreseasonController extends Controller
 
     public function destroyQuestion(Season $season, SeasonPreseasonQuestion $question)
     {
+        if ($season->is_locked) {
+            return $this->lockedRedirect($season);
+        }
+
         $question = $season->preseasonQuestions()
             ->whereKey($question->id)
             ->firstOrFail();
@@ -119,6 +131,10 @@ class SeasonPreseasonController extends Controller
 
     public function updateBonusRules(Request $request, Season $season)
     {
+        if ($season->is_locked) {
+            return $this->lockedRedirect($season);
+        }
+
         $data = $request->validate([
             'bonus_rules' => ['nullable', 'array'],
             'bonus_rules.*.label' => ['required', 'string', 'max:255'],
@@ -169,6 +185,10 @@ class SeasonPreseasonController extends Controller
 
     public function storeBonusRule(Request $request, Season $season)
     {
+        if ($season->is_locked) {
+            return $this->lockedRedirect($season);
+        }
+
         $data = $request->validate([
             'label' => ['required', 'string', 'max:255'],
             'points' => ['required', 'integer'],
@@ -209,6 +229,10 @@ class SeasonPreseasonController extends Controller
 
     public function destroyBonusRule(Season $season, SeasonPreseasonBonusRule $bonusRule)
     {
+        if ($season->is_locked) {
+            return $this->lockedRedirect($season);
+        }
+
         $bonusRule = $season->preseasonBonusRules()
             ->whereKey($bonusRule->id)
             ->firstOrFail();
@@ -225,6 +249,10 @@ class SeasonPreseasonController extends Controller
 
     public function syncToGlobal(Season $season)
     {
+        if ($season->is_locked) {
+            return $this->lockedRedirect($season);
+        }
+
         DB::transaction(function () use ($season) {
             $season->load([
                 'preseasonQuestions',
@@ -337,5 +365,12 @@ class SeasonPreseasonController extends Controller
         return redirect()
             ->route('admin.seasons.preseason.edit', $season)
             ->with('success', 'La configuration avant-saison de cette saison a été appliquée aux paramètres globaux.');
+    }
+
+    private function lockedRedirect(Season $season)
+    {
+        return redirect()
+            ->route('admin.seasons.preseason.edit', $season)
+            ->with('error', 'Cette saison est verrouillée : la configuration avant-saison ne peut plus être modifiée.');
     }
 }

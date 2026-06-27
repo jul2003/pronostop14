@@ -9,9 +9,25 @@ use App\Models\PreseasonPredictionTemplate;
 use App\Models\ScoringProfile;
 use App\Models\ScoringRuleTemplate;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 
 class SettingController extends Controller
 {
+    private const JOURNEE_RULE_CODE_LABELS = [
+        'home_win' => 'Résultat juste — victoire domicile / équipe 1',
+        'away_win' => 'Résultat juste — victoire extérieur / équipe 2',
+        'draw' => 'Résultat juste — match nul',
+        'tries_exact' => 'Nombre d’essais exact',
+        'tries_near' => 'Nombre d’essais à +/- 1',
+        'bonus_correct' => 'Bonus pronostiqué juste',
+        'bonus_wrong' => 'Bonus pronostiqué faux',
+        'perfect_round' => 'Bonus journée parfaite',
+    ];
+
+    private const PRESEASON_RULE_CODE_LABELS = [
+        'correct' => 'Réponse exacte',
+    ];
+
     public function index()
     {
         $profiles = ScoringProfile::with('rules')
@@ -231,11 +247,14 @@ class SettingController extends Controller
             'profile' => null,
             'returnTo' => $request->query('return_to'),
             'defaultCategory' => $request->query('category', 'journee'),
+            'ruleCodeLabelsByCategory' => $this->ruleCodeLabelsByCategory(),
         ]);
     }
 
     public function storeScoringProfile(Request $request)
     {
+        $category = $request->input('category', 'journee');
+
         $data = $request->validate([
             'code' => ['required', 'string', 'max:255', 'unique:scoring_profiles,code'],
             'category' => ['required', 'in:journee,preseason'],
@@ -243,7 +262,12 @@ class SettingController extends Controller
             'description' => ['nullable', 'string'],
             'position' => ['nullable', 'integer'],
             'rules' => ['nullable', 'array'],
-            'rules.*.code' => ['required', 'string', 'max:255'],
+            'rules.*.code' => [
+                'required',
+                'string',
+                Rule::in($this->allowedRuleCodesForCategory($category)),
+                'distinct',
+            ],
             'rules.*.label' => ['required', 'string', 'max:255'],
             'rules.*.points' => ['required', 'integer'],
             'rules.*.position' => ['nullable', 'integer'],
@@ -280,12 +304,17 @@ class SettingController extends Controller
 
     public function editScoringProfile(Request $request, ScoringProfile $profile)
     {
-        $profile->load('rules');
+        $profile->load([
+            'rules' => function ($query) {
+                $query->orderBy('position');
+            },
+        ]);
 
         return view('admin.settings.scoring-profile-form', [
             'profile' => $profile,
             'returnTo' => $request->query('return_to'),
             'defaultCategory' => $profile->category,
+            'ruleCodeLabelsByCategory' => $this->ruleCodeLabelsByCategory(),
         ]);
     }
 
@@ -296,7 +325,12 @@ class SettingController extends Controller
             'description' => ['nullable', 'string'],
             'position' => ['nullable', 'integer'],
             'rules' => ['nullable', 'array'],
-            'rules.*.code' => ['required', 'string', 'max:255'],
+            'rules.*.code' => [
+                'required',
+                'string',
+                Rule::in($this->allowedRuleCodesForCategory($profile->category)),
+                'distinct',
+            ],
             'rules.*.label' => ['required', 'string', 'max:255'],
             'rules.*.points' => ['required', 'integer'],
             'rules.*.position' => ['nullable', 'integer'],
@@ -329,5 +363,26 @@ class SettingController extends Controller
         return redirect()
             ->route($route)
             ->with('success', 'Barème mis à jour.');
+    }
+
+    private function allowedRuleCodesForCategory(string $category): array
+    {
+        return array_keys($this->ruleCodeLabelsForCategory($category));
+    }
+
+    private function ruleCodeLabelsForCategory(string $category): array
+    {
+        return match ($category) {
+            'preseason' => self::PRESEASON_RULE_CODE_LABELS,
+            default => self::JOURNEE_RULE_CODE_LABELS,
+        };
+    }
+
+    private function ruleCodeLabelsByCategory(): array
+    {
+        return [
+            'journee' => self::JOURNEE_RULE_CODE_LABELS,
+            'preseason' => self::PRESEASON_RULE_CODE_LABELS,
+        ];
     }
 }

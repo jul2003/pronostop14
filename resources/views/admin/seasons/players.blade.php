@@ -22,9 +22,38 @@
     </h2>
 
     <p class="text-muted mb-0">
-        Sélectionne les utilisateurs qui participent à cette saison, puis déplace les joueurs sélectionnés pour définir leur ordre d’affichage.
+        @if($season->is_locked)
+            Cette saison est verrouillée. Les joueurs sont consultables uniquement.
+        @else
+            Sélectionne les utilisateurs qui participent à cette saison, puis déplace les joueurs sélectionnés pour définir leur ordre d’affichage.
+        @endif
     </p>
 </div>
+
+@if($season->is_locked)
+    <div class="alert alert-warning">
+        <div class="fw-bold">
+            Saison verrouillée
+        </div>
+
+        <div>
+            Les joueurs de cette saison ne peuvent plus être modifiés.
+            Pour corriger la liste des joueurs, il faut d’abord déverrouiller la saison depuis sa page d’édition.
+        </div>
+    </div>
+@endif
+
+@if($errors->any())
+    <div class="alert alert-danger">
+        {{ $errors->first() }}
+    </div>
+@endif
+
+@if(session('error'))
+    <div class="alert alert-danger">
+        {{ session('error') }}
+    </div>
+@endif
 
 @if(session('success'))
     <div class="alert alert-success">
@@ -56,11 +85,17 @@
                                        name="players[]"
                                        value="{{ $user->id }}"
                                        class="form-check-input"
-                                       @checked(in_array($user->id, $selectedPlayers))>
+                                       @checked(in_array($user->id, $selectedPlayers))
+                                       @disabled($season->is_locked)>
                             </td>
 
                             <td class="fw-bold" style="color: {{ $user->color ?? '#06142f' }}">
-                                <span class="drag-handle text-muted me-2" style="cursor: grab;">☰</span>
+                                @if($season->is_locked)
+                                    <span class="text-muted me-2">☰</span>
+                                @else
+                                    <span class="drag-handle text-muted me-2" style="cursor: grab;">☰</span>
+                                @endif
+
                                 {{ $user->nickname ?? $user->name }}
                             </td>
 
@@ -90,44 +125,48 @@
         </div>
     </div>
 
-    <button class="btn btn-warning rounded-pill fw-bold mt-4 px-4">
-        Enregistrer les joueurs
-    </button>
+    @unless($season->is_locked)
+        <button class="btn btn-warning rounded-pill fw-bold mt-4 px-4">
+            Enregistrer les joueurs
+        </button>
+    @endunless
 </form>
 
 @endsection
 
 @push('scripts')
-<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+    @unless($season->is_locked)
+        <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
 
-<script>
-    window.addEventListener('load', function () {
-        const list = document.getElementById('playersList');
+        <script>
+            window.addEventListener('load', function () {
+                const list = document.getElementById('playersList');
 
-        if (!list || !window.Sortable) {
-            return;
-        }
+                if (!list || !window.Sortable) {
+                    return;
+                }
 
-        new window.Sortable(list, {
-            animation: 150,
-            handle: '.drag-handle',
-            ghostClass: 'opacity-50',
+                new window.Sortable(list, {
+                    animation: 150,
+                    handle: '.drag-handle',
+                    ghostClass: 'opacity-50',
 
-            onEnd: function () {
-                const players = [...list.querySelectorAll('tr')]
-                    .filter(row => row.querySelector('input[type="checkbox"]').checked)
-                    .map(row => row.dataset.id);
+                    onEnd: function () {
+                        const players = [...list.querySelectorAll('tr')]
+                            .filter(row => row.querySelector('input[type="checkbox"]').checked)
+                            .map(row => row.dataset.id);
 
-                fetch("{{ route('admin.seasons.players.reorder', $season) }}", {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                        fetch("{{ route('admin.seasons.players.reorder', $season) }}", {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                            },
+                            body: JSON.stringify({ players }),
+                        });
                     },
-                    body: JSON.stringify({ players }),
                 });
-            },
-        });
-    });
-</script>
+            });
+        </script>
+    @endunless
 @endpush

@@ -21,9 +21,22 @@
     </p>
 </div>
 
+@if($season->is_locked)
+    <div class="alert alert-info">
+        Cette saison est verrouillée. Les résultats avant-saison sont consultables uniquement.
+        Pour les modifier, il faut d’abord déverrouiller la saison depuis sa page d’édition.
+    </div>
+@endif
+
 @if($errors->any())
     <div class="alert alert-danger">
         {{ $errors->first() }}
+    </div>
+@endif
+
+@if(session('error'))
+    <div class="alert alert-danger">
+        {{ session('error') }}
     </div>
 @endif
 
@@ -42,6 +55,7 @@
 @else
 
     <form method="POST"
+          id="preseason-results-form"
           action="{{ route('admin.seasons.preseason-results.update', $season) }}">
         @csrf
         @method('PUT')
@@ -90,10 +104,12 @@
                                         <input type="text"
                                                name="results[{{ $question->id }}][text_answer]"
                                                value="{{ old("results.{$question->id}.text_answer", $question->result_text_answer) }}"
-                                               class="form-control">
+                                               class="form-control"
+                                               @disabled($season->is_locked)>
                                     @else
                                         <select name="results[{{ $question->id }}][club_id]"
-                                                class="form-select">
+                                                class="form-select"
+                                                @disabled($season->is_locked)>
                                             <option value="">
                                                 Non renseigné
                                             </option>
@@ -126,12 +142,72 @@
             </div>
         </div>
 
-        <div class="d-flex justify-content-end mt-4">
-            <button type="submit"
-                    class="btn btn-warning rounded-pill fw-bold px-4">
-                Enregistrer et recalculer
-            </button>
-        </div>
+        @unless($season->is_locked)
+            <div class="d-flex flex-column flex-lg-row justify-content-end gap-2 mt-4">
+                <button type="submit"
+                        name="lock_season"
+                        value="0"
+                        class="btn btn-warning rounded-pill fw-bold px-4">
+                    Enregistrer et recalculer
+                </button>
+
+                <button type="button"
+                        class="btn btn-outline-danger rounded-pill fw-bold px-4"
+                        data-bs-toggle="modal"
+                        data-bs-target="#lockSeasonModal">
+                    Enregistrer, recalculer et verrouiller la saison
+                </button>
+            </div>
+
+            <div class="modal fade"
+                 id="lockSeasonModal"
+                 tabindex="-1"
+                 aria-labelledby="lockSeasonModalLabel"
+                 aria-hidden="true">
+                <div class="modal-dialog modal-dialog-centered">
+                    <div class="modal-content rounded-4">
+                        <div class="modal-header">
+                            <h5 class="modal-title fw-bold"
+                                id="lockSeasonModalLabel">
+                                Verrouiller la saison ?
+                            </h5>
+
+                            <button type="button"
+                                    class="btn-close"
+                                    data-bs-dismiss="modal"
+                                    aria-label="Fermer"></button>
+                        </div>
+
+                        <div class="modal-body">
+                            <p class="mb-3">
+                                Cette action va enregistrer les résultats avant-saison, recalculer les points, puis verrouiller la saison.
+                            </p>
+
+                            <div class="alert alert-warning mb-0">
+                                Une fois verrouillée, la saison passera en consultation seule :
+                                clubs, joueurs, paramètres, résultats et configuration ne seront plus modifiables tant que la saison n’est pas déverrouillée.
+                            </div>
+                        </div>
+
+                        <div class="modal-footer">
+                            <button type="button"
+                                    class="btn btn-outline-secondary rounded-pill fw-bold"
+                                    data-bs-dismiss="modal">
+                                Annuler
+                            </button>
+
+                            <button type="submit"
+                                    name="lock_season"
+                                    value="1"
+                                    form="preseason-results-form"
+                                    class="btn btn-danger rounded-pill fw-bold">
+                                Confirmer et verrouiller
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        @endunless
     </form>
 
 @endif

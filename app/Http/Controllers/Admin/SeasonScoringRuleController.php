@@ -28,6 +28,12 @@ class SeasonScoringRuleController extends Controller
 
     public function update(Request $request, Season $season)
     {
+        if ($season->is_locked) {
+            return redirect()
+                ->route('admin.seasons.scoring.edit', $season)
+                ->with('error', 'Cette saison est verrouillée : le barème ne peut plus être modifié.');
+        }
+
         $data = $request->validate([
             'rules' => ['required', 'array'],
             'rules.*.points' => ['required', 'integer'],

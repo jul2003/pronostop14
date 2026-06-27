@@ -61,6 +61,7 @@ class SeasonController extends Controller
                 'name' => $data['name'],
                 'slug' => Str::slug($data['name']),
                 'is_active' => $request->boolean('is_active'),
+                'is_locked' => false,
                 'top14_clubs_count' => $data['top14_clubs_count'],
                 'prod2_clubs_count' => $data['prod2_clubs_count'],
                 'journee_scoring_setup_hash' => $journeeHash,
@@ -133,6 +134,12 @@ class SeasonController extends Controller
 
     public function syncClubs(Request $request, Season $season)
     {
+        if ($season->is_locked) {
+            return redirect()
+                ->route('admin.seasons.clubs', $season)
+                ->with('error', 'Cette saison est verrouillée : les clubs ne peuvent plus être modifiés.');
+        }
+
         $data = $request->validate([
             'top14_clubs' => ['nullable', 'array'],
             'top14_clubs.*' => ['integer', 'exists:clubs,id'],
@@ -189,6 +196,28 @@ class SeasonController extends Controller
 
     public function update(Request $request, Season $season)
     {
+        if ($request->boolean('unlock_season')) {
+            if (! $season->is_locked) {
+                return redirect()
+                    ->route('admin.seasons.edit', $season)
+                    ->with('error', 'Cette saison est déjà déverrouillée.');
+            }
+
+            $season->update([
+                'is_locked' => false,
+            ]);
+
+            return redirect()
+                ->route('admin.seasons.edit', $season)
+                ->with('success', 'Saison déverrouillée.');
+        }
+
+        if ($season->is_locked) {
+            return redirect()
+                ->route('admin.seasons.edit', $season)
+                ->with('error', 'Cette saison est verrouillée : seule l’action de déverrouillage est autorisée.');
+        }
+
         $data = $request->validate([
             'name' => [
                 'required',
@@ -222,6 +251,12 @@ class SeasonController extends Controller
 
     public function destroy(Season $season)
     {
+        if ($season->is_locked) {
+            return redirect()
+                ->route('admin.seasons.index')
+                ->with('error', 'Cette saison est verrouillée : elle ne peut pas être supprimée.');
+        }
+
         $season->delete();
 
         return redirect()
@@ -231,6 +266,12 @@ class SeasonController extends Controller
 
     public function generateJournees(Season $season, SeasonJourneeGenerator $generator)
     {
+        if ($season->is_locked) {
+            return back()->withErrors([
+                'season' => 'Cette saison est verrouillée : les journées ne peuvent plus être générées.',
+            ]);
+        }
+
         $top14Count = $season->clubs()
             ->wherePivot('competition', 'top14')
             ->count();
@@ -275,6 +316,12 @@ class SeasonController extends Controller
         Season $season,
         PreseasonDeadlineService $preseasonDeadlineService
     ) {
+        if ($season->is_locked) {
+            return redirect()
+                ->route('admin.seasons.players', $season)
+                ->with('error', 'Cette saison est verrouillée : les joueurs ne peuvent plus être modifiés.');
+        }
+
         $data = $request->validate([
             'players' => ['nullable', 'array'],
             'players.*' => ['integer', 'exists:users,id'],
@@ -309,6 +356,13 @@ class SeasonController extends Controller
 
     public function reorderPlayers(Request $request, Season $season)
     {
+        if ($season->is_locked) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Cette saison est verrouillée : les joueurs ne peuvent plus être réordonnés.',
+            ], 403);
+        }
+
         $data = $request->validate([
             'players' => ['required', 'array'],
             'players.*' => ['integer', 'exists:users,id'],

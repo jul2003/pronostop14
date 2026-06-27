@@ -2,6 +2,13 @@
 
 @section('content')
 
+@php
+    $currentAppDate = app(\App\Services\AppDateService::class)
+        ->now()
+        ->copy()
+        ->startOfDay();
+@endphp
+
 @include('admin.partials.back-link', [
     'href' => route('admin.seasons.edit', $season),
     'label' => 'Retour à la saison',
@@ -17,13 +24,37 @@
     </h2>
 
     <p class="text-muted mb-0">
-        Gère les journées, matchs, résultats et paramètres avant-saison de cette saison.
+        @if($season->is_locked)
+            Cette saison est verrouillée. Les journées sont consultables uniquement.
+        @else
+            Gère les journées, les dates limites, les matchs et les résultats de cette saison.
+            À partir de la date de début d’une journée, seuls les résultats restent accessibles.
+        @endif
     </p>
 </div>
+
+@if($season->is_locked)
+    <div class="alert alert-warning">
+        <div class="fw-bold">
+            Saison verrouillée
+        </div>
+
+        <div>
+            Les journées, dates et matchs de cette saison ne peuvent plus être modifiés.
+            Les résultats restent accessibles en consultation.
+        </div>
+    </div>
+@endif
 
 @if($errors->any())
     <div class="alert alert-danger">
         {{ $errors->first() }}
+    </div>
+@endif
+
+@if(session('error'))
+    <div class="alert alert-danger">
+        {{ session('error') }}
     </div>
 @endif
 
@@ -40,15 +71,22 @@
             Aucune journée n’a encore été générée pour cette saison.
         </div>
 
-        <form method="POST"
-              action="{{ route('admin.seasons.generateJournees', $season) }}">
-            @csrf
-
-            <button type="submit"
-                    class="btn btn-warning rounded-pill fw-bold px-4">
+        @if($season->is_locked)
+            <span class="btn btn-warning rounded-pill fw-bold px-4 disabled"
+                  aria-disabled="true">
                 Générer les journées
-            </button>
-        </form>
+            </span>
+        @else
+            <form method="POST"
+                  action="{{ route('admin.seasons.generateJournees', $season) }}">
+                @csrf
+
+                <button type="submit"
+                        class="btn btn-warning rounded-pill fw-bold px-4">
+                    Générer les journées
+                </button>
+            </form>
+        @endif
     </div>
 
 @else
@@ -69,6 +107,17 @@
 
                 <tbody>
                     @foreach($journees as $journee)
+                        @php
+                            $journeeDate = $journee->starts_at
+                                ? $journee->starts_at->copy()->startOfDay()
+                                : null;
+
+                            $journeeIsLockedByDate = $journeeDate !== null
+                                && $currentAppDate->greaterThanOrEqualTo($journeeDate);
+
+                            $preparationIsLocked = $season->is_locked || $journeeIsLockedByDate;
+                        @endphp
+
                         <tr>
                             <td class="fw-bold">
                                 {{ $journee->number }}
@@ -82,6 +131,16 @@
                                 <div class="text-muted small">
                                     {{ $journee->slug }}
                                 </div>
+
+                                @if($season->is_locked)
+                                    <div class="text-muted small mt-1">
+                                        Saison verrouillée : consultation uniquement.
+                                    </div>
+                                @elseif($journeeIsLockedByDate)
+                                    <div class="text-muted small mt-1">
+                                        Journée commencée : seuls les résultats restent accessibles.
+                                    </div>
+                                @endif
                             </td>
 
                             <td>
@@ -109,27 +168,39 @@
                             </td>
 
                             <td class="text-end">
-                                <div class="d-flex justify-content-end flex-wrap gap-2">
-                                    <a href="{{ route('admin.seasons.journees.edit', [$season, $journee]) }}"
-                                       class="btn btn-sm btn-outline-secondary rounded-pill fw-bold">
-                                        Modifier
-                                    </a>
+                                <div class="d-inline-grid gap-2"
+                                     style="grid-template-columns: 92px 82px 92px;">
+                                    @if($preparationIsLocked)
+                                        <span class="btn btn-sm btn-outline-secondary rounded-pill fw-bold disabled"
+                                              aria-disabled="true">
+                                            Modifier
+                                        </span>
+                                    @else
+                                        <a href="{{ route('admin.seasons.journees.edit', [$season, $journee]) }}"
+                                           class="btn btn-sm btn-outline-secondary rounded-pill fw-bold">
+                                            Modifier
+                                        </a>
+                                    @endif
 
                                     @if($journee->type === 'preseason')
-                                        <a href="{{ route('admin.seasons.preseason.edit', $season) }}"
-                                           class="btn btn-sm btn-outline-primary rounded-pill fw-bold">
-                                            Questions avant-saison
-                                        </a>
+                                        <span></span>
 
                                         <a href="{{ route('admin.seasons.preseason-results.edit', $season) }}"
                                            class="btn btn-sm btn-outline-warning rounded-pill fw-bold">
-                                            Résultats avant-saison
+                                            Résultats
                                         </a>
                                     @else
-                                        <a href="{{ route('admin.seasons.journees.matches', [$season, $journee]) }}"
-                                           class="btn btn-sm btn-outline-primary rounded-pill fw-bold">
-                                            Matchs
-                                        </a>
+                                        @if($preparationIsLocked)
+                                            <span class="btn btn-sm btn-outline-primary rounded-pill fw-bold disabled"
+                                                  aria-disabled="true">
+                                                Matchs
+                                            </span>
+                                        @else
+                                            <a href="{{ route('admin.seasons.journees.matches', [$season, $journee]) }}"
+                                               class="btn btn-sm btn-outline-primary rounded-pill fw-bold">
+                                                Matchs
+                                            </a>
+                                        @endif
 
                                         <a href="{{ route('admin.seasons.journees.results', [$season, $journee]) }}"
                                            class="btn btn-sm btn-outline-warning rounded-pill fw-bold">

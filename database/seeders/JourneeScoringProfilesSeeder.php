@@ -28,7 +28,6 @@ class JourneeScoringProfilesSeeder extends Seeder
             ['code' => 'tries_near', 'label' => 'Nombre d’essais à +/- 1', 'points' => 1, 'position' => 40],
             ['code' => 'bonus_correct', 'label' => 'Bonus pronostiqué juste', 'points' => 2, 'position' => 50],
             ['code' => 'bonus_wrong', 'label' => 'Bonus pronostiqué faux', 'points' => -1, 'position' => 60],
-            ['code' => 'perfect_round', 'label' => 'Bonus journée parfaite', 'points' => 0, 'position' => 70],
         ];
 
         $neutralNoDrawRules = [
@@ -38,7 +37,6 @@ class JourneeScoringProfilesSeeder extends Seeder
             ['code' => 'tries_near', 'label' => 'Nombre d’essais à +/- 1', 'points' => 1, 'position' => 40],
             ['code' => 'bonus_correct', 'label' => 'Bonus pronostiqué juste', 'points' => 2, 'position' => 50],
             ['code' => 'bonus_wrong', 'label' => 'Bonus pronostiqué faux', 'points' => -1, 'position' => 60],
-            ['code' => 'perfect_round', 'label' => 'Bonus journée parfaite', 'points' => 0, 'position' => 70],
         ];
 
         $profiles = [

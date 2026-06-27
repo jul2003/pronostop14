@@ -22,9 +22,32 @@
     </h2>
 
     <p class="text-muted mb-0">
-        Modifie les points attribués pour cette saison, profil par profil.
+        @if($season->is_locked)
+            Cette saison est verrouillée. Le barème est consultable uniquement.
+        @else
+            Modifie les points attribués pour cette saison, profil par profil.
+        @endif
     </p>
 </div>
+
+@if($season->is_locked)
+    <div class="alert alert-warning">
+        <div class="fw-bold">
+            Saison verrouillée
+        </div>
+
+        <div>
+            Le barème de cette saison ne peut plus être modifié.
+            Pour corriger le barème, il faut d’abord déverrouiller la saison depuis sa page d’édition.
+        </div>
+    </div>
+@endif
+
+@if(session('error'))
+    <div class="alert alert-danger">
+        {{ session('error') }}
+    </div>
+@endif
 
 @if(session('success'))
     <div class="alert alert-success">
@@ -100,7 +123,8 @@
                                                        name="rules[{{ $rule->id }}][points]"
                                                        value="{{ old("rules.$rule->id.points", $rule->points) }}"
                                                        class="form-control text-center"
-                                                       required>
+                                                       required
+                                                       @disabled($season->is_locked)>
                                             </td>
                                         </tr>
                                     @endforeach
@@ -111,9 +135,11 @@
                 @endforeach
             </div>
 
-            <button class="btn btn-warning rounded-pill fw-bold mt-4 px-4">
-                Enregistrer le barème
-            </button>
+            @unless($season->is_locked)
+                <button class="btn btn-warning rounded-pill fw-bold mt-4 px-4">
+                    Enregistrer le barème
+                </button>
+            @endunless
         </form>
     @endif
 </div>

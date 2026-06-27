@@ -14,10 +14,12 @@ class Season extends Model
         'prod2_clubs_count',
         'journee_scoring_setup_hash',
         'preseason_setup_hash',
+        'is_locked',
     ];
 
     protected $casts = [
         'is_active' => 'boolean',
+        'is_locked' => 'boolean',
     ];
 
     public function getRouteKeyName(): string

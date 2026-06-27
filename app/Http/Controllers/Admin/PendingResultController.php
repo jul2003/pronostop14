@@ -4,18 +4,21 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Season;
+use App\Models\SeasonPreseasonQuestion;
 use App\Services\AppDateService;
 
 class PendingResultController extends Controller
 {
     public function index(AppDateService $dateService)
     {
+        $now = $dateService->now();
+
         $season = Season::where('is_active', true)
             ->with([
-                'journees' => function ($query) use ($dateService) {
+                'journees' => function ($query) use ($now) {
                     $query->where('type', '!=', 'preseason')
                         ->whereNotNull('prediction_deadline')
-                        ->where('prediction_deadline', '<=', $dateService->now())
+                        ->where('prediction_deadline', '<=', $now)
                         ->withCount([
                             'matches',
                             'matches as finished_matches_count' => function ($query) {
@@ -28,6 +31,11 @@ class PendingResultController extends Controller
             ->first();
 
         $journees = collect();
+
+        $preseasonJournee = null;
+        $preseasonQuestionsCount = 0;
+        $preseasonResultsCount = 0;
+        $preseasonNeedsResults = false;
 
         if ($season) {
             $journees = $season->journees
@@ -45,11 +53,39 @@ class PendingResultController extends Controller
                     return (int) $journee->finished_matches_count < $expectedMatchesCount;
                 })
                 ->values();
+
+            $preseasonJournee = $season->journees()
+                ->where('type', 'preseason')
+                ->whereNotNull('prediction_deadline')
+                ->where('prediction_deadline', '<=', $now)
+                ->first();
+
+            if ($preseasonJournee) {
+                $preseasonQuestions = SeasonPreseasonQuestion::where('season_id', $season->id)
+                    ->where('is_active', true)
+                    ->orderBy('position')
+                    ->get();
+
+                $preseasonQuestionsCount = $preseasonQuestions->count();
+
+                $preseasonResultsCount = $preseasonQuestions
+                    ->filter(function (SeasonPreseasonQuestion $question) {
+                        return $question->hasOfficialResult();
+                    })
+                    ->count();
+
+                $preseasonNeedsResults = $preseasonQuestionsCount > 0
+                    && $preseasonResultsCount < $preseasonQuestionsCount;
+            }
         }
 
         return view('admin.pending-results.index', [
             'season' => $season,
             'journees' => $journees,
+            'preseasonJournee' => $preseasonJournee,
+            'preseasonQuestionsCount' => $preseasonQuestionsCount,
+            'preseasonResultsCount' => $preseasonResultsCount,
+            'preseasonNeedsResults' => $preseasonNeedsResults,
         ]);
     }
 }

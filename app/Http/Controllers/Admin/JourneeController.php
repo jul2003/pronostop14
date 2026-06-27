@@ -5,8 +5,9 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Journee;
 use App\Models\Season;
-use Illuminate\Http\Request;
+use App\Services\AppDateService;
 use Carbon\Carbon;
+use Illuminate\Http\Request;
 
 class JourneeController extends Controller
 {
@@ -42,6 +43,18 @@ class JourneeController extends Controller
     {
         abort_if($journee->season_id !== $season->id, 404);
 
+        if ($season->is_locked) {
+            return redirect()
+                ->route('admin.seasons.journees', $season)
+                ->with('error', 'Cette saison est verrouillée : les journées ne peuvent plus être modifiées.');
+        }
+
+        if ($this->preparationIsLocked($journee)) {
+            return redirect()
+                ->route('admin.seasons.journees', $season)
+                ->with('error', 'Cette journée a commencé : seuls les résultats restent accessibles.');
+        }
+
         return view('admin.journees.edit', [
             'season' => $season,
             'journee' => $journee,
@@ -52,18 +65,53 @@ class JourneeController extends Controller
     {
         abort_if($journee->season_id !== $season->id, 404);
 
+        if ($season->is_locked) {
+            return redirect()
+                ->route('admin.seasons.journees', $season)
+                ->with('error', 'Cette saison est verrouillée : les journées ne peuvent plus être modifiées.');
+        }
+
+        if ($this->preparationIsLocked($journee)) {
+            return redirect()
+                ->route('admin.seasons.journees', $season)
+                ->with('error', 'Cette journée a commencé : seuls les résultats restent accessibles.');
+        }
+
         $data = $request->validate([
+            'starts_at' => ['nullable', 'date'],
             'prediction_deadline' => ['nullable', 'date'],
         ]);
 
         $journee->update([
+            'starts_at' => $request->filled('starts_at')
+                ? Carbon::parse($data['starts_at'])->startOfDay()
+                : null,
+
             'prediction_deadline' => $request->filled('prediction_deadline')
-                ? Carbon::parse($request->prediction_deadline)->endOfDay()
+                ? Carbon::parse($data['prediction_deadline'])->endOfDay()
                 : null,
         ]);
 
         return redirect()
             ->route('admin.seasons.journees', $season)
-            ->with('success', 'Date limite mise à jour.');
+            ->with('success', 'Journée mise à jour.');
+    }
+
+    private function preparationIsLocked(Journee $journee): bool
+    {
+        if (! $journee->starts_at) {
+            return false;
+        }
+
+        $currentAppDate = app(AppDateService::class)
+            ->now()
+            ->copy()
+            ->startOfDay();
+
+        $journeeStartDate = $journee->starts_at
+            ->copy()
+            ->startOfDay();
+
+        return $currentAppDate->greaterThanOrEqualTo($journeeStartDate);
     }
 }

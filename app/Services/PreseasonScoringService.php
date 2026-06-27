@@ -7,6 +7,7 @@ use App\Models\SeasonPreseasonPrediction;
 use App\Models\SeasonPreseasonQuestion;
 use App\Models\SeasonPreseasonUserBonusScore;
 use App\Models\User;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
@@ -35,7 +36,7 @@ class PreseasonScoringService
             ->get();
 
         foreach ($questions as $question) {
-            $this->recalculateQuestionPrediction($season, $user, $question);
+            $this->recalculateQuestionPrediction($season, $user, $question, $questions);
         }
 
         $this->recalculateUserBonuses($season, $user);
@@ -44,7 +45,8 @@ class PreseasonScoringService
     private function recalculateQuestionPrediction(
         Season $season,
         User $user,
-        SeasonPreseasonQuestion $question
+        SeasonPreseasonQuestion $question,
+        Collection $questions
     ): void {
         $prediction = SeasonPreseasonPrediction::where('season_id', $season->id)
             ->where('user_id', $user->id)
@@ -52,6 +54,19 @@ class PreseasonScoringService
             ->first();
 
         if (! $prediction) {
+            return;
+        }
+
+        $group = $this->questionResultGroup($question);
+
+        if ($group) {
+            $this->recalculateGroupedClubPrediction(
+                $prediction,
+                $question,
+                $questions,
+                $group
+            );
+
             return;
         }
 
@@ -69,6 +84,65 @@ class PreseasonScoringService
         $prediction->update([
             'is_correct' => $isCorrect,
             'points' => $isCorrect ? (int) $question->points : 0,
+        ]);
+    }
+
+    private function recalculateGroupedClubPrediction(
+        SeasonPreseasonPrediction $prediction,
+        SeasonPreseasonQuestion $question,
+        Collection $questions,
+        string $group
+    ): void {
+        if ($prediction->club_id === null) {
+            $prediction->update([
+                'is_correct' => null,
+                'points' => 0,
+            ]);
+
+            return;
+        }
+
+        $groupQuestions = $questions
+            ->filter(function (SeasonPreseasonQuestion $candidate) use ($group) {
+                return $this->questionResultGroup($candidate) === $group;
+            })
+            ->values();
+
+        $officialClubIds = $groupQuestions
+            ->filter(function (SeasonPreseasonQuestion $candidate) {
+                return $candidate->hasOfficialResult()
+                    && $candidate->result_club_id !== null;
+            })
+            ->pluck('result_club_id')
+            ->map(fn ($clubId) => (int) $clubId)
+            ->unique()
+            ->values();
+
+        if ($officialClubIds->isEmpty()) {
+            $prediction->update([
+                'is_correct' => null,
+                'points' => 0,
+            ]);
+
+            return;
+        }
+
+        $isCorrect = $officialClubIds->contains((int) $prediction->club_id);
+
+        if ($isCorrect) {
+            $prediction->update([
+                'is_correct' => true,
+                'points' => (int) $question->points,
+            ]);
+
+            return;
+        }
+
+        $groupResultsAreComplete = $officialClubIds->count() >= $groupQuestions->count();
+
+        $prediction->update([
+            'is_correct' => $groupResultsAreComplete ? false : null,
+            'points' => 0,
         ]);
     }
 
@@ -127,6 +201,29 @@ class PreseasonScoringService
                 ]
             );
         }
+    }
+
+    private function questionResultGroup(SeasonPreseasonQuestion $question): ?string
+    {
+        $label = $this->normalizeLabel($question->label);
+
+        if (str_contains($label, 'demi') && str_contains($label, 'top 14')) {
+            return 'top14_semifinalists';
+        }
+
+        if (str_contains($label, 'demi') && str_contains($label, 'pro d2')) {
+            return 'prod2_semifinalists';
+        }
+
+        return null;
+    }
+
+    private function normalizeLabel(?string $value): string
+    {
+        return Str::of(Str::ascii($value ?? ''))
+            ->trim()
+            ->lower()
+            ->toString();
     }
 
     private function normalizeText(?string $value): string
