@@ -19,6 +19,11 @@ class ScoringProfile extends Model
         'stop_on_wrong_result' => 'boolean',
     ];
 
+    public function getRouteKeyName(): string
+    {
+        return 'code';
+    }
+
     public function rules()
     {
         return $this->hasMany(ScoringRuleTemplate::class)

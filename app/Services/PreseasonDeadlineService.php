@@ -20,7 +20,8 @@ class PreseasonDeadlineService
             return Carbon::parse($personalDeadline);
         }
 
-        return $this->firstRegularJourneeDeadline($season);
+        return $this->preseasonJourneeDeadline($season)
+            ?? $this->firstRegularJourneeDeadline($season);
     }
 
     public function isLockedForUser(Season $season, User $user): bool
@@ -62,6 +63,15 @@ class PreseasonDeadlineService
         }
 
         return $firstDeadline->lte(app(AppDateService::class)->now());
+    }
+
+    private function preseasonJourneeDeadline(Season $season): ?Carbon
+    {
+        $journee = $season->journees()
+            ->where('type', 'preseason')
+            ->first();
+
+        return $journee?->prediction_deadline;
     }
 
     private function firstRegularJourneeDeadline(Season $season): ?Carbon

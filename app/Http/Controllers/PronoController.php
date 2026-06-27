@@ -85,8 +85,6 @@ class PronoController extends Controller
         }
 
         if ($journee->type === 'preseason') {
-            $this->ensurePreseasonHasDeadline($season, $preseasonDeadlineService);
-
             return $this->showPreseason($season, $journee, $preseasonDeadlineService);
         }
 
@@ -123,8 +121,6 @@ class PronoController extends Controller
         }
 
         if ($journee->type === 'preseason') {
-            $this->ensurePreseasonHasDeadline($season, $preseasonDeadlineService);
-
             return $this->storePreseason($request, $season, $journee, $preseasonDeadlineService);
         }
 
@@ -206,7 +202,10 @@ class PronoController extends Controller
             'prod2Clubs' => $prod2Clubs,
             'seasonClubs' => $seasonClubs,
             'preseasonDeadline' => $preseasonDeadline,
-            'isLocked' => $preseasonDeadlineService->isLockedForUser($season, auth()->user()),
+            'isLocked' => $preseasonDeadline
+                ? $preseasonDeadlineService->isLockedForUser($season, auth()->user())
+                : true,
+            'isNotOpen' => $preseasonDeadline === null,
         ]);
     }
 
@@ -216,6 +215,16 @@ class PronoController extends Controller
         Journee $journee,
         PreseasonDeadlineService $preseasonDeadlineService
     ) {
+        $preseasonDeadline = $preseasonDeadlineService->deadlineForUser($season, auth()->user());
+
+        if (! $preseasonDeadline) {
+            return redirect()
+                ->route('pronos.show', [$season, $journee])
+                ->withErrors([
+                    'deadline' => 'Les pronostics avant-saison ne sont pas encore ouverts.',
+                ]);
+        }
+
         if ($preseasonDeadlineService->isLockedForUser($season, auth()->user())) {
             abort(403);
         }
@@ -229,6 +238,8 @@ class PronoController extends Controller
             'answers' => ['required', 'array'],
             'answers.*' => ['nullable', 'string', 'max:255'],
         ]);
+
+        $this->validateUniquePreseasonGroups($questions, $data['answers'] ?? []);
 
         foreach ($questions as $question) {
             $answer = $data['answers'][$question->id] ?? null;
@@ -261,6 +272,42 @@ class PronoController extends Controller
         return redirect()
             ->route('pronos.show', [$season, $journee])
             ->with('success', 'Pronostics avant-saison enregistrés.');
+    }
+
+    private function validateUniquePreseasonGroups($questions, array $answers): void
+    {
+        $groups = [
+            'top14_semifinalists' => fn ($label) => str_contains($label, 'demi')
+                && str_contains($label, 'top 14'),
+
+            'prod2_semifinalists' => fn ($label) => str_contains($label, 'demi')
+                && str_contains($label, 'pro d2'),
+        ];
+
+        foreach ($groups as $matcher) {
+            $questionIds = $questions
+                ->filter(function ($question) use ($matcher) {
+                    return $matcher(mb_strtolower($question->label));
+                })
+                ->pluck('id')
+                ->toArray();
+
+            $selectedClubIds = [];
+
+            foreach ($questionIds as $questionId) {
+                $answer = $answers[$questionId] ?? null;
+
+                if ($answer === null || $answer === '') {
+                    continue;
+                }
+
+                $selectedClubIds[] = (string) $answer;
+            }
+
+            if (count($selectedClubIds) !== count(array_unique($selectedClubIds))) {
+                abort(422, 'Tu ne peux pas sélectionner plusieurs fois le même club dans les demi-finalistes.');
+            }
+        }
     }
 
     private function validatePreseasonAnswer(Season $season, SeasonPreseasonQuestion $question, string $answer): void
@@ -305,15 +352,6 @@ class PronoController extends Controller
     private function ensureJourneeHasDeadline(Journee $journee): void
     {
         if (! $journee->prediction_deadline) {
-            abort(404);
-        }
-    }
-
-    private function ensurePreseasonHasDeadline(
-        Season $season,
-        PreseasonDeadlineService $preseasonDeadlineService
-    ): void {
-        if (! $preseasonDeadlineService->deadlineForUser($season, auth()->user())) {
             abort(404);
         }
     }

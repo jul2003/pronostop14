@@ -22,48 +22,100 @@
     </h2>
 
     <p class="text-muted mb-0">
-        Modifie les points attribués pour cette saison.
+        Modifie les points attribués pour cette saison, profil par profil.
     </p>
 </div>
 
+@if(session('success'))
+    <div class="alert alert-success">
+        {{ session('success') }}
+    </div>
+@endif
+
+@if($errors->any())
+    <div class="alert alert-danger">
+        {{ $errors->first() }}
+    </div>
+@endif
+
 <div class="rugby-card p-4">
-    <form method="POST" action="{{ route('admin.seasons.scoring.update', $season) }}">
-        @csrf
-        @method('PUT')
-
-        <div class="table-responsive">
-            <table class="table align-middle mb-0">
-                <thead class="table-light">
-                    <tr>
-                        <th>Règle</th>
-                        <th class="text-center" style="width: 160px;">Points</th>
-                    </tr>
-                </thead>
-
-                <tbody>
-                    @foreach($rules as $rule)
-                        <tr>
-                            <td class="fw-bold">
-                                {{ $rule->label }}
-                            </td>
-
-                            <td>
-                                <input type="number"
-                                       name="rules[{{ $rule->id }}][points]"
-                                       value="{{ old("rules.$rule->id.points", $rule->points) }}"
-                                       class="form-control text-center"
-                                       required>
-                            </td>
-                        </tr>
-                    @endforeach
-                </tbody>
-            </table>
+    @if($profiles->isEmpty())
+        <div class="alert alert-warning mb-0">
+            Aucun barème n’a été généré pour cette saison.
         </div>
+    @else
+        <form method="POST" action="{{ route('admin.seasons.scoring.update', $season) }}">
+            @csrf
+            @method('PUT')
 
-        <button class="btn btn-warning rounded-pill fw-bold mt-4 px-4">
-            Enregistrer le barème
-        </button>
-    </form>
+            <div class="d-flex flex-column gap-4">
+                @foreach($profiles as $profile)
+                    <div class="border rounded-4 overflow-hidden">
+                        <div class="bg-light px-4 py-3 border-bottom">
+                            <div class="d-flex flex-column flex-lg-row justify-content-between gap-2">
+                                <div>
+                                    <h5 class="fw-bold mb-1">
+                                        {{ $profile->name }}
+                                    </h5>
+
+                                    @if($profile->description)
+                                        <div class="text-muted small">
+                                            {{ $profile->description }}
+                                        </div>
+                                    @endif
+                                </div>
+
+                                <div class="text-muted small">
+                                    Code : {{ $profile->code }}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="table-responsive">
+                            <table class="table align-middle mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Règle</th>
+                                        <th class="text-center" style="width: 160px;">
+                                            Points
+                                        </th>
+                                    </tr>
+                                </thead>
+
+                                <tbody>
+                                    @foreach($profile->rules as $rule)
+                                        <tr>
+                                            <td>
+                                                <div class="fw-bold">
+                                                    {{ $rule->label }}
+                                                </div>
+
+                                                <div class="text-muted small">
+                                                    {{ $rule->code }}
+                                                </div>
+                                            </td>
+
+                                            <td>
+                                                <input type="number"
+                                                       name="rules[{{ $rule->id }}][points]"
+                                                       value="{{ old("rules.$rule->id.points", $rule->points) }}"
+                                                       class="form-control text-center"
+                                                       required>
+                                            </td>
+                                        </tr>
+                                    @endforeach
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                @endforeach
+            </div>
+
+            <button class="btn btn-warning rounded-pill fw-bold mt-4 px-4">
+                Enregistrer le barème
+            </button>
+        </form>
+    @endif
 </div>
 
 @endsection

@@ -24,23 +24,21 @@ class JourneeScoringProfilesSeeder extends Seeder
         $homeAwayNoDrawRules = [
             ['code' => 'home_win', 'label' => 'Résultat juste — victoire domicile', 'points' => 2, 'position' => 10],
             ['code' => 'away_win', 'label' => 'Résultat juste — victoire extérieur', 'points' => 5, 'position' => 20],
-            ['code' => 'draw', 'label' => 'Résultat juste — match nul', 'points' => 0, 'position' => 30],
-            ['code' => 'tries_exact', 'label' => 'Nombre d’essais exact', 'points' => 2, 'position' => 40],
-            ['code' => 'tries_near', 'label' => 'Nombre d’essais à +/- 1', 'points' => 1, 'position' => 50],
-            ['code' => 'bonus_correct', 'label' => 'Bonus pronostiqué juste', 'points' => 2, 'position' => 60],
-            ['code' => 'bonus_wrong', 'label' => 'Bonus pronostiqué faux', 'points' => -1, 'position' => 70],
-            ['code' => 'perfect_round', 'label' => 'Bonus journée parfaite', 'points' => 0, 'position' => 80],
+            ['code' => 'tries_exact', 'label' => 'Nombre d’essais exact', 'points' => 2, 'position' => 30],
+            ['code' => 'tries_near', 'label' => 'Nombre d’essais à +/- 1', 'points' => 1, 'position' => 40],
+            ['code' => 'bonus_correct', 'label' => 'Bonus pronostiqué juste', 'points' => 2, 'position' => 50],
+            ['code' => 'bonus_wrong', 'label' => 'Bonus pronostiqué faux', 'points' => -1, 'position' => 60],
+            ['code' => 'perfect_round', 'label' => 'Bonus journée parfaite', 'points' => 0, 'position' => 70],
         ];
 
         $neutralNoDrawRules = [
             ['code' => 'home_win', 'label' => 'Résultat juste — victoire équipe 1', 'points' => 5, 'position' => 10],
             ['code' => 'away_win', 'label' => 'Résultat juste — victoire équipe 2', 'points' => 5, 'position' => 20],
-            ['code' => 'draw', 'label' => 'Résultat juste — match nul', 'points' => 0, 'position' => 30],
-            ['code' => 'tries_exact', 'label' => 'Nombre d’essais exact', 'points' => 2, 'position' => 40],
-            ['code' => 'tries_near', 'label' => 'Nombre d’essais à +/- 1', 'points' => 1, 'position' => 50],
-            ['code' => 'bonus_correct', 'label' => 'Bonus pronostiqué juste', 'points' => 2, 'position' => 60],
-            ['code' => 'bonus_wrong', 'label' => 'Bonus pronostiqué faux', 'points' => -1, 'position' => 70],
-            ['code' => 'perfect_round', 'label' => 'Bonus journée parfaite', 'points' => 0, 'position' => 80],
+            ['code' => 'tries_exact', 'label' => 'Nombre d’essais exact', 'points' => 2, 'position' => 30],
+            ['code' => 'tries_near', 'label' => 'Nombre d’essais à +/- 1', 'points' => 1, 'position' => 40],
+            ['code' => 'bonus_correct', 'label' => 'Bonus pronostiqué juste', 'points' => 2, 'position' => 50],
+            ['code' => 'bonus_wrong', 'label' => 'Bonus pronostiqué faux', 'points' => -1, 'position' => 60],
+            ['code' => 'perfect_round', 'label' => 'Bonus journée parfaite', 'points' => 0, 'position' => 70],
         ];
 
         $profiles = [

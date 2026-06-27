@@ -8,12 +8,20 @@
     $availableClubs = $clubs->reject(
         fn ($club) => in_array((int) $club->id, $usedClubIds, true)
     );
+
+    $backUrl = route('admin.seasons.journees', $season);
+    $backLabel = 'Retour aux journées';
+
+    if (request('from') === 'upcoming-matches') {
+        $backUrl = route('admin.upcoming-matches.index');
+        $backLabel = 'Retour aux matchs à saisir';
+    }
 @endphp
 
 <div class="mb-4">
-    <a href="{{ route('admin.seasons.journees', $season) }}"
+    <a href="{{ $backUrl }}"
        class="text-decoration-none fw-bold">
-        ← Retour aux journées
+        ← {{ $backLabel }}
     </a>
 
     <div class="mt-3 text-uppercase text-primary fw-bold small">
@@ -73,8 +81,8 @@
                             <div class="d-flex align-items-center gap-2">
 
                                 <img src="{{ $club->logo_url }}"
-                                    alt="{{ $club->name }}"
-                                    class="club-logo">
+                                     alt="{{ $club->name }}"
+                                     class="club-logo">
 
                                 <span>{{ $club->name }}</span>
 

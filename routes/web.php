@@ -11,6 +11,7 @@ use App\Http\Controllers\Admin\SeasonScoringRuleController;
 use App\Http\Controllers\Admin\SettingController;
 use App\Http\Controllers\Admin\UpcomingMatchController;
 use App\Http\Controllers\Admin\UserController;
+use App\Http\Controllers\Admin\SeasonPreseasonResultController;
 use App\Http\Controllers\InitialSetupController;
 use App\Http\Controllers\PlayerProfileController;
 use App\Http\Controllers\PronoController;
@@ -118,6 +119,12 @@ Route::middleware(['auth', 'admin'])->group(function () {
 
     Route::post('/admin/parametres/avant-saison/reorder', [SettingController::class, 'reorderPreseasonTemplates'])
         ->name('admin.settings.preseason-templates.reorder');
+
+    Route::get('/admin/saisons/{season}/avant-saison/resultats', [SeasonPreseasonResultController::class, 'edit'])
+        ->name('admin.seasons.preseason-results.edit');
+
+    Route::put('/admin/saisons/{season}/avant-saison/resultats', [SeasonPreseasonResultController::class, 'update'])
+        ->name('admin.seasons.preseason-results.update');
 
     Route::post('/admin/parametres/bonus-avant-saison', [SettingController::class, 'storePreseasonBonusRuleTemplate'])
         ->name('admin.settings.preseason-bonus-rules.store');

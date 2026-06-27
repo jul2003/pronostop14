@@ -24,7 +24,7 @@
     <div class="d-flex flex-wrap gap-2">
         <a href="{{ route('pronos.index') }}"
            class="btn btn-outline-primary rounded-pill fw-bold">
-            ← Retour aux journées
+            ← Retour aux pronostics
         </a>
 
         <a href="{{ route('rankings.general', $season) }}"
@@ -34,7 +34,18 @@
     </div>
 </div>
 
-@if($isLocked)
+@if($errors->any())
+    <div class="alert alert-danger">
+        {{ $errors->first() }}
+    </div>
+@endif
+
+@if($isNotOpen)
+    <div class="alert alert-info">
+        Les pronostics avant-saison ne sont pas encore ouverts.
+        Une date limite doit être définie sur l’avant-saison ou sur la Journée 1 pour ouvrir cette page aux joueurs.
+    </div>
+@elseif($isLocked)
     <div class="alert alert-warning">
         Les pronostics avant-saison sont clôturés. Consultation uniquement.
     </div>
@@ -103,11 +114,12 @@
                                                name="answers[{{ $question->id }}]"
                                                value="{{ $currentAnswer }}"
                                                class="form-control"
-                                               @disabled($isLocked)>
+                                               @disabled($isLocked || $isNotOpen)>
                                     @else
                                         <select name="answers[{{ $question->id }}]"
-                                                class="form-select"
-                                                @disabled($isLocked)>
+                                                class="form-select preseason-answer-select"
+                                                data-question-label="{{ mb_strtolower($question->label) }}"
+                                                @disabled($isLocked || $isNotOpen)>
                                             <option value="">
                                                 Choisir...
                                             </option>
@@ -128,7 +140,7 @@
             </div>
         </div>
 
-        @unless($isLocked)
+        @unless($isLocked || $isNotOpen)
             <div class="d-flex justify-content-end mt-4">
                 <button type="submit"
                         class="btn btn-warning rounded-pill fw-bold px-4">
@@ -139,5 +151,64 @@
     </form>
 
 @endif
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        function groupForSelect(select) {
+            const label = select.dataset.questionLabel || '';
+
+            if (label.includes('demi') && label.includes('top 14')) {
+                return 'top14_semifinalists';
+            }
+
+            if (label.includes('demi') && label.includes('pro d2')) {
+                return 'prod2_semifinalists';
+            }
+
+            return null;
+        }
+
+        function refreshUniquePreseasonSelections() {
+            const groups = [
+                'top14_semifinalists',
+                'prod2_semifinalists',
+            ];
+
+            groups.forEach(function (group) {
+                const selects = Array.from(document.querySelectorAll('.preseason-answer-select'))
+                    .filter(function (select) {
+                        return groupForSelect(select) === group;
+                    });
+
+                const selectedValues = selects
+                    .map(function (select) {
+                        return select.value;
+                    })
+                    .filter(function (value) {
+                        return value !== '';
+                    });
+
+                selects.forEach(function (select) {
+                    Array.from(select.options).forEach(function (option) {
+                        if (option.value === '') {
+                            option.disabled = false;
+                            return;
+                        }
+
+                        option.disabled =
+                            selectedValues.includes(option.value)
+                            && select.value !== option.value;
+                    });
+                });
+            });
+        }
+
+        document.querySelectorAll('.preseason-answer-select').forEach(function (select) {
+            select.addEventListener('change', refreshUniquePreseasonSelections);
+        });
+
+        refreshUniquePreseasonSelections();
+    });
+</script>
 
 @endsection

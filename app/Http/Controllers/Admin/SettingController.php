@@ -251,14 +251,14 @@ class SettingController extends Controller
             'stop_on_wrong_result' => ['nullable', 'boolean'],
         ]);
 
-            $profile = ScoringProfile::create([
-                'code' => $data['code'],
-                'category' => $data['category'],
-                'name' => $data['name'],
-                'description' => $data['description'] ?? null,
-                'position' => $data['position'] ?? 0,
-                'stop_on_wrong_result' => $request->boolean('stop_on_wrong_result'),
-            ]);
+        $profile = ScoringProfile::create([
+            'code' => $data['code'],
+            'category' => $data['category'],
+            'name' => $data['name'],
+            'description' => $data['description'] ?? null,
+            'position' => $data['position'] ?? 0,
+            'stop_on_wrong_result' => $request->boolean('stop_on_wrong_result'),
+        ]);
 
         foreach ($data['rules'] ?? [] as $rule) {
             $profile->rules()->create([
@@ -269,7 +269,7 @@ class SettingController extends Controller
             ]);
         }
 
-        $route = $data['return_to'] === 'preseason'
+        $route = ($data['return_to'] ?? null) === 'preseason'
             ? 'admin.settings.preseason'
             : 'admin.settings.index';
 
@@ -292,7 +292,6 @@ class SettingController extends Controller
     public function updateScoringProfile(Request $request, ScoringProfile $profile)
     {
         $data = $request->validate([
-            'category' => ['required', 'in:journee,preseason'],
             'name' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string'],
             'position' => ['nullable', 'integer'],
@@ -306,7 +305,6 @@ class SettingController extends Controller
         ]);
 
         $profile->update([
-            'category' => $data['category'],
             'name' => $data['name'],
             'description' => $data['description'] ?? null,
             'position' => $data['position'] ?? 0,
@@ -324,7 +322,7 @@ class SettingController extends Controller
             ]);
         }
 
-        $route = $data['return_to'] === 'preseason'
+        $route = ($data['return_to'] ?? null) === 'preseason'
             ? 'admin.settings.preseason'
             : 'admin.settings.index';
 

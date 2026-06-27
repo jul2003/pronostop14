@@ -13,16 +13,16 @@ class SeasonPreseasonQuestion extends Model
         'label',
         'answer_type',
         'points',
+        'result_club_id',
+        'result_text_answer',
+        'result_recorded_at',
         'position',
         'is_active',
-        'correct_club_id',
-        'correct_text_answer',
-        'corrected_at',
     ];
 
     protected $casts = [
         'is_active' => 'boolean',
-        'corrected_at' => 'datetime',
+        'result_recorded_at' => 'datetime',
     ];
 
     public function season()
@@ -37,12 +37,12 @@ class SeasonPreseasonQuestion extends Model
 
     public function scoringProfile()
     {
-        return $this->belongsTo(ScoringProfile::class);
+        return $this->belongsTo(ScoringProfile::class, 'scoring_profile_id');
     }
 
-    public function correctClub()
+    public function resultClub()
     {
-        return $this->belongsTo(Club::class, 'correct_club_id');
+        return $this->belongsTo(Club::class, 'result_club_id');
     }
 
     public function predictions()
@@ -55,8 +55,17 @@ class SeasonPreseasonQuestion extends Model
         return $this->belongsToMany(
             SeasonPreseasonBonusRule::class,
             'season_preseason_bonus_rule_questions',
-            'question_id',
-            'bonus_rule_id'
-        )->withTimestamps();
+            'season_preseason_question_id',
+            'season_preseason_bonus_rule_id'
+        );
+    }
+
+    public function hasOfficialResult(): bool
+    {
+        if ($this->answer_type === 'free_text') {
+            return filled($this->result_text_answer);
+        }
+
+        return $this->result_club_id !== null;
     }
 }

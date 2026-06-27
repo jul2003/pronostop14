@@ -17,7 +17,7 @@
     </h2>
 
     <p class="text-muted mb-0">
-        Prépare les prochaines journées en saisissant les matchs à venir.
+        Prépare les prochaines journées en saisissant les matchs et les dates limites nécessaires.
     </p>
 </div>
 
@@ -35,7 +35,7 @@
 
                 <p class="text-muted mb-0">
                     Cette page affiche les {{ $journeesToPrepareCount }} prochaine(s) journée(s)
-                    dont les matchs ne sont pas encore complètement saisis.
+                    à préparer, en tenant compte des matchs et des dates limites.
                 </p>
             </div>
 
@@ -48,7 +48,7 @@
 
     @if($journees->isEmpty())
         <div class="alert alert-success">
-            Toutes les journées prévues ont leurs matchs saisis.
+            Toutes les prochaines journées sont préparées.
         </div>
 
         <div class="d-flex justify-content-end">
@@ -76,6 +76,8 @@
                         @foreach($journees as $journee)
                             @php
                                 $expectedMatchesCount = $journee->expectedMatchesCount();
+                                $matchesAreIncomplete = (int) $journee->matches_count < $expectedMatchesCount;
+                                $deadlineIsMissing = $journee->prediction_deadline === null;
                             @endphp
 
                             <tr>
@@ -88,9 +90,15 @@
                                 </td>
 
                                 <td class="text-center">
-                                    <span class="badge bg-secondary">
-                                        {{ $journee->matches_count }}
-                                    </span>
+                                    @if($matchesAreIncomplete)
+                                        <span class="badge bg-warning text-dark">
+                                            {{ $journee->matches_count }} / {{ $expectedMatchesCount }}
+                                        </span>
+                                    @else
+                                        <span class="badge bg-success">
+                                            {{ $journee->matches_count }} / {{ $expectedMatchesCount }}
+                                        </span>
+                                    @endif
                                 </td>
 
                                 <td class="text-center">
@@ -100,18 +108,32 @@
                                 </td>
 
                                 <td class="text-center">
-                                    @if($journee->prediction_deadline)
-                                        {{ $journee->prediction_deadline->format('d/m/Y H:i') }}
+                                    @if($deadlineIsMissing)
+                                        <span class="badge bg-danger">
+                                            Manquante
+                                        </span>
                                     @else
-                                        <span class="text-muted">Non définie</span>
+                                        {{ $journee->prediction_deadline->format('d/m/Y') }}
                                     @endif
                                 </td>
 
                                 <td class="text-end">
-                                    <a href="{{ route('admin.seasons.journees.matches', [$season, $journee]) }}"
-                                       class="btn btn-sm btn-warning rounded-pill fw-bold px-3">
-                                        Saisir les matchs
-                                    </a>
+                                    @if($matchesAreIncomplete)
+                                        <a href="{{ route('admin.seasons.journees.matches', [$season, $journee]) }}?from=upcoming-matches"
+                                           class="btn btn-sm btn-warning rounded-pill fw-bold px-3">
+                                            Saisir les matchs
+                                        </a>
+                                    @elseif($deadlineIsMissing)
+                                        <a href="{{ route('admin.seasons.journees.edit', [$season, $journee]) }}"
+                                           class="btn btn-sm btn-outline-warning rounded-pill fw-bold px-3">
+                                            Modifier la journée
+                                        </a>
+                                    @else
+                                        <a href="{{ route('admin.seasons.journees.edit', [$season, $journee]) }}"
+                                           class="btn btn-sm btn-outline-secondary rounded-pill fw-bold px-3">
+                                            Voir la journée
+                                        </a>
+                                    @endif
                                 </td>
                             </tr>
                         @endforeach
