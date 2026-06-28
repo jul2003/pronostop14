@@ -2,6 +2,11 @@
 
 @section('content')
 
+@php
+    $playerColors = $playerColors ?? \App\Support\PlayerColorPalette::colors();
+    $selectedColor = strtoupper(old('color', '#FFFF00'));
+@endphp
+
 <div class="row justify-content-center">
     <div class="col-lg-6">
         <div class="rugby-card p-4">
@@ -23,7 +28,9 @@
                 @csrf
 
                 <div class="mb-3">
-                    <label class="form-label">Nom</label>
+                    <label class="form-label fw-bold">
+                        Nom
+                    </label>
 
                     <input name="name"
                            value="{{ old('name') }}"
@@ -32,18 +39,26 @@
                 </div>
 
                 <div class="mb-3">
-                    <label class="form-label">Pseudo</label>
+                    <label class="form-label fw-bold">
+                        Pseudo
+                    </label>
 
                     <input name="nickname"
                            value="{{ old('nickname') }}"
                            maxlength="4"
                            pattern="[A-Za-z]{2}[0-9]{2}"
-                           class="form-control"
+                           class="form-control text-uppercase"
                            required>
+
+                    <div class="form-text">
+                        Format : 2 lettres + 2 chiffres, exemple JA64.
+                    </div>
                 </div>
 
                 <div class="mb-3">
-                    <label class="form-label fw-bold">Email professionnel</label>
+                    <label class="form-label fw-bold">
+                        Email professionnel
+                    </label>
 
                     <input name="email_pro"
                            type="email"
@@ -52,7 +67,9 @@
                 </div>
 
                 <div class="mb-3">
-                    <label class="form-label fw-bold">Email personnel</label>
+                    <label class="form-label fw-bold">
+                        Email personnel
+                    </label>
 
                     <input name="email_perso"
                            type="email"
@@ -64,17 +81,51 @@
                     Au moins une des deux adresses est obligatoire.
                 </div>
 
-                <div class="mb-3">
-                    <label class="form-label">Couleur</label>
+                <div class="mb-4">
+                    <label class="form-label fw-bold">
+                        Couleur
+                    </label>
 
-                    <input name="color"
-                           type="color"
-                           value="{{ old('color', '#ffd200') }}"
-                           class="form-control form-control-color">
+                    <div class="form-text mb-3">
+                        Seules les 27 couleurs de la palette contrôlée sont autorisées.
+                    </div>
+
+                    <div class="player-color-palette">
+                        @foreach($playerColors as $color)
+                            <label class="player-color-option"
+                                   title="{{ $color }}">
+                                <input type="radio"
+                                       name="color"
+                                       value="{{ $color }}"
+                                       class="player-color-input"
+                                       required
+                                       @checked($selectedColor === $color)>
+
+                                <span class="player-color-swatch"
+                                      style="background-color: {{ $color }};">
+                                    <span class="player-color-check">
+                                        ✓
+                                    </span>
+                                </span>
+
+                                <span class="visually-hidden">
+                                    {{ $color }}
+                                </span>
+                            </label>
+                        @endforeach
+                    </div>
+
+                    @error('color')
+                        <div class="text-danger small mt-2">
+                            {{ $message }}
+                        </div>
+                    @enderror
                 </div>
 
                 <div class="mb-3">
-                    <label class="form-label">Mot de passe</label>
+                    <label class="form-label fw-bold">
+                        Mot de passe
+                    </label>
 
                     <input name="password"
                            type="password"
@@ -83,7 +134,9 @@
                 </div>
 
                 <div class="mb-4">
-                    <label class="form-label">Confirmation</label>
+                    <label class="form-label fw-bold">
+                        Confirmation
+                    </label>
 
                     <input name="password_confirmation"
                            type="password"
@@ -98,5 +151,66 @@
         </div>
     </div>
 </div>
+
+<style>
+    .player-color-palette {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(42px, 1fr));
+        gap: 0.75rem;
+        max-width: 520px;
+    }
+
+    .player-color-option {
+        position: relative;
+        display: block;
+        cursor: pointer;
+    }
+
+    .player-color-input {
+        position: absolute;
+        opacity: 0;
+        pointer-events: none;
+    }
+
+    .player-color-swatch {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 42px;
+        height: 42px;
+        border-radius: 999px;
+        border: 2px solid rgba(6, 20, 47, 0.2);
+        box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.35);
+        transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+    }
+
+    .player-color-check {
+        display: none;
+        width: 22px;
+        height: 22px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.92);
+        color: #06142f;
+        font-size: 0.9rem;
+        font-weight: 800;
+        line-height: 22px;
+        text-align: center;
+    }
+
+    .player-color-option:hover .player-color-swatch {
+        transform: translateY(-1px);
+        box-shadow: 0 0.4rem 1rem rgba(6, 20, 47, 0.18);
+    }
+
+    .player-color-input:checked + .player-color-swatch {
+        border-color: #06142f;
+        box-shadow: 0 0 0 3px rgba(6, 20, 47, 0.18);
+        transform: scale(1.05);
+    }
+
+    .player-color-input:checked + .player-color-swatch .player-color-check {
+        display: inline-block;
+    }
+</style>
 
 @endsection

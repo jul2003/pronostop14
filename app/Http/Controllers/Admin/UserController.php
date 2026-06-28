@@ -3,15 +3,15 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
 use App\Models\User;
-use Illuminate\Validation\Rule;
-use Illuminate\Support\Facades\Hash;
+use App\Support\PlayerColorPalette;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Validation\Rule;
 
 class UserController extends Controller
 {
-    //
     public function index()
     {
         $users = User::orderByRaw("
@@ -21,15 +21,15 @@ class UserController extends Controller
                 ELSE 3
             END
         ")
-        ->orderBy('nickname')
-        ->get();
+            ->orderBy('nickname')
+            ->get();
 
         return view('admin.users.index', compact('users'));
     }
 
     public function updateRole(Request $request, User $user)
     {
-        if (!auth()->user()->isSuperAdmin()) {
+        if (! auth()->user()->isSuperAdmin()) {
             abort(403);
         }
 
@@ -52,20 +52,28 @@ class UserController extends Controller
 
     public function create()
     {
-        return view('admin.users.create');
+        return view('admin.users.create', [
+            'playerColors' => PlayerColorPalette::colors(),
+        ]);
     }
 
     public function store(Request $request)
     {
+        $request->merge([
+            'color' => strtoupper((string) $request->input('color')),
+            'nickname' => strtoupper((string) $request->input('nickname')),
+        ]);
+
         $data = $request->validate([
             'name' => ['required', 'string', 'max:255'],
+
             'nickname' => [
                 'required',
                 'string',
-                'regex:/^[A-Za-z]{2}[0-9]{2}$/',
+                'regex:/^[A-Z]{2}[0-9]{2}$/',
                 'unique:users,nickname',
             ],
-            //'email' => ['required', 'email', 'unique:users,email'],
+
             'email_pro' => [
                 'nullable',
                 'email',
@@ -79,15 +87,21 @@ class UserController extends Controller
                 'required_without:email_pro',
                 'unique:users,email_perso',
             ],
-            'color' => ['required', 'regex:/^#[0-9A-Fa-f]{6}$/'],
+
+            'color' => [
+                'required',
+                'string',
+                Rule::in(PlayerColorPalette::colors()),
+            ],
+
             'role' => ['required', Rule::in(['player', 'admin'])],
+
             'password' => ['required', 'confirmed', 'min:8'],
         ]);
 
         User::create([
             'name' => $data['name'],
-            'nickname' => strtoupper($data['nickname']),
-            //'email' => $data['email'],
+            'nickname' => $data['nickname'],
             'email' => $data['email_pro'] ?? $data['email_perso'],
             'email_pro' => $data['email_pro'] ?? null,
             'email_perso' => $data['email_perso'] ?? null,
@@ -115,7 +129,7 @@ class UserController extends Controller
 
         return redirect()
             ->route('pronos.index')
-            ->with('success', 'Tu saisis maintenant les pronos de '.$user->display_name.'.');
+            ->with('success', 'Tu saisis maintenant les pronos de ' . $user->display_name . '.');
     }
 
     public function stopImpersonating()

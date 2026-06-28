@@ -3,7 +3,9 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
+use App\Support\PlayerColorPalette;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
 
@@ -15,7 +17,9 @@ class InitialSetupController extends Controller
             abort(404);
         }
 
-        return view('auth.initial-setup');
+        return view('auth.initial-setup', [
+            'playerColors' => PlayerColorPalette::colors(),
+        ]);
     }
 
     public function store(Request $request)
@@ -24,15 +28,21 @@ class InitialSetupController extends Controller
             abort(404);
         }
 
+        $request->merge([
+            'nickname' => strtoupper((string) $request->input('nickname')),
+            'color' => strtoupper((string) $request->input('color')),
+        ]);
+
         $data = $request->validate([
             'name' => ['required', 'string', 'max:255'],
+
             'nickname' => [
                 'required',
                 'string',
-                'regex:/^[A-Za-z]{2}[0-9]{2}$/',
+                'regex:/^[A-Z]{2}[0-9]{2}$/',
                 'unique:users,nickname',
             ],
-            //'email' => ['required', 'email', 'unique:users,email'],
+
             'email_pro' => [
                 'nullable',
                 'email',
@@ -46,14 +56,20 @@ class InitialSetupController extends Controller
                 'required_without:email_pro',
                 'unique:users,email_perso',
             ],
-            'color' => ['required', 'regex:/^#[0-9A-Fa-f]{6}$/', 'unique:users,color'],
+
+            'color' => [
+                'required',
+                'string',
+                Rule::in(PlayerColorPalette::colors()),
+                'unique:users,color',
+            ],
+
             'password' => ['required', 'confirmed', 'min:8'],
         ]);
 
-        User::create([
+        $user = User::create([
             'name' => $data['name'],
             'nickname' => $data['nickname'],
-            //'email' => $data['email'],
             'email' => $data['email_pro'] ?? $data['email_perso'],
             'email_pro' => $data['email_pro'] ?? null,
             'email_perso' => $data['email_perso'] ?? null,
@@ -62,7 +78,12 @@ class InitialSetupController extends Controller
             'password' => Hash::make($data['password']),
         ]);
 
-        return redirect()->route('login')
-            ->with('status', 'Compte super admin créé. Tu peux te connecter.');
+        Auth::login($user);
+
+        $request->session()->regenerate();
+
+        return redirect()
+            ->route('admin.index')
+            ->with('success', 'Compte super admin créé. Tu es maintenant connecté.');
     }
 }

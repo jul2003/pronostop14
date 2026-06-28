@@ -37,7 +37,7 @@ class PendingResultController extends Controller
         $preseasonResultsCount = 0;
         $preseasonNeedsResults = false;
 
-        if ($season) {
+        if ($season && ! $season->is_locked) {
             $journees = $season->journees
                 ->filter(function ($journee) {
                     $expectedMatchesCount = $journee->expectedMatchesCount();

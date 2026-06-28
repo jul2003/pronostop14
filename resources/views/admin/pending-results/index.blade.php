@@ -34,18 +34,41 @@
                 </h3>
 
                 <p class="text-muted mb-0">
-                    Cette page affiche les journées dont la deadline est passée et dont la saisie des résultats est incomplète.
+                    @if($season->is_locked)
+                        Cette saison est verrouillée. Les résultats ne peuvent plus être modifiés.
+                    @else
+                        Cette page affiche les journées dont la deadline est passée et dont la saisie des résultats est incomplète.
+                    @endif
                 </p>
             </div>
 
-            <a href="{{ route('admin.seasons.journees', $season) }}"
-               class="btn btn-sm btn-outline-secondary rounded-pill fw-bold">
-                Voir toutes les journées
-            </a>
+            <div class="d-flex flex-wrap gap-2">
+                @if($season->is_locked)
+                    <span class="badge text-bg-danger rounded-pill align-self-center">
+                        Saison verrouillée
+                    </span>
+                @endif
+
+                <a href="{{ route('admin.seasons.journees', $season) }}"
+                   class="btn btn-sm btn-outline-secondary rounded-pill fw-bold">
+                    Voir toutes les journées
+                </a>
+            </div>
         </div>
     </div>
 
-    @if(! $preseasonNeedsResults && $journees->isEmpty())
+    @if($season->is_locked)
+        <div class="alert alert-warning">
+            <div class="fw-bold">
+                Saison verrouillée
+            </div>
+
+            <div>
+                Aucun résultat n’est proposé à la saisie, car la saison est figée.
+                Pour corriger un résultat, il faut d’abord déverrouiller la saison depuis sa page d’édition.
+            </div>
+        </div>
+    @elseif(! $preseasonNeedsResults && $journees->isEmpty())
         <div class="alert alert-success">
             Aucun résultat à saisir pour le moment.
         </div>

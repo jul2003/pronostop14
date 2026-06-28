@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Support\PlayerColorPalette;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
@@ -9,18 +10,25 @@ class PlayerProfileController extends Controller
 {
     public function edit()
     {
-        return view('profile.player');
+        return view('profile.player', [
+            'playerColors' => PlayerColorPalette::colors(),
+        ]);
     }
 
     public function update(Request $request)
     {
         $user = $request->user();
 
+        $request->merge([
+            'nickname' => strtoupper((string) $request->input('nickname')),
+            'color' => strtoupper((string) $request->input('color')),
+        ]);
+
         $data = $request->validate([
             'nickname' => [
                 'required',
                 'string',
-                'regex:/^[A-Za-z]{2}[0-9]{2}$/',
+                'regex:/^[A-Z]{2}[0-9]{2}$/',
                 Rule::unique('users', 'nickname')->ignore($user->id),
             ],
 
@@ -40,7 +48,8 @@ class PlayerProfileController extends Controller
 
             'color' => [
                 'required',
-                'regex:/^#[0-9A-Fa-f]{6}$/',
+                'string',
+                Rule::in(PlayerColorPalette::colors()),
                 Rule::unique('users', 'color')->ignore($user->id),
             ],
         ]);
