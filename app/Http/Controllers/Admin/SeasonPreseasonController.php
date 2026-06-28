@@ -14,8 +14,10 @@ use Illuminate\Support\Facades\DB;
 
 class SeasonPreseasonController extends Controller
 {
-    public function edit(Season $season)
+    public function edit(?Season $season = null)
     {
+        $season = $this->resolveSeason($season);
+
         $season->load([
             'preseasonQuestions',
             'preseasonBonusRules.questions',
@@ -372,5 +374,14 @@ class SeasonPreseasonController extends Controller
         return redirect()
             ->route('admin.seasons.preseason.edit', $season)
             ->with('error', 'Cette saison est verrouillée : la configuration avant-saison ne peut plus être modifiée.');
+    }
+
+    private function resolveSeason(?Season $season = null): Season
+    {
+        if ($season) {
+            return $season;
+        }
+
+        return Season::where('is_active', true)->firstOrFail();
     }
 }

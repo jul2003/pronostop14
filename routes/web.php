@@ -7,11 +7,11 @@ use App\Http\Controllers\Admin\MatchController;
 use App\Http\Controllers\Admin\PendingResultController;
 use App\Http\Controllers\Admin\SeasonController;
 use App\Http\Controllers\Admin\SeasonPreseasonController;
+use App\Http\Controllers\Admin\SeasonPreseasonResultController;
 use App\Http\Controllers\Admin\SeasonScoringRuleController;
 use App\Http\Controllers\Admin\SettingController;
 use App\Http\Controllers\Admin\UpcomingMatchController;
 use App\Http\Controllers\Admin\UserController;
-use App\Http\Controllers\Admin\SeasonPreseasonResultController;
 use App\Http\Controllers\InitialSetupController;
 use App\Http\Controllers\PlayerProfileController;
 use App\Http\Controllers\PronoController;
@@ -120,12 +120,6 @@ Route::middleware(['auth', 'admin'])->group(function () {
     Route::post('/admin/parametres/avant-saison/reorder', [SettingController::class, 'reorderPreseasonTemplates'])
         ->name('admin.settings.preseason-templates.reorder');
 
-    Route::get('/admin/saisons/{season}/avant-saison/resultats', [SeasonPreseasonResultController::class, 'edit'])
-        ->name('admin.seasons.preseason-results.edit');
-
-    Route::put('/admin/saisons/{season}/avant-saison/resultats', [SeasonPreseasonResultController::class, 'update'])
-        ->name('admin.seasons.preseason-results.update');
-
     Route::post('/admin/parametres/bonus-avant-saison', [SettingController::class, 'storePreseasonBonusRuleTemplate'])
         ->name('admin.settings.preseason-bonus-rules.store');
 
@@ -176,6 +170,43 @@ Route::middleware(['auth', 'admin'])->group(function () {
 
     Route::post('/admin/saisons', [SeasonController::class, 'store'])
         ->name('admin.seasons.store');
+
+    /*
+    |--------------------------------------------------------------------------
+    | Saison active par défaut
+    |--------------------------------------------------------------------------
+    |
+    | Ces routes permettent d'accéder aux pages principales de la saison active
+    | sans préciser le slug de saison dans l'URL.
+    |
+    | Exemple :
+    | /admin/saisons/edit
+    | équivaut à :
+    | /admin/saisons/2025-2026/edit
+    | si 2025-2026 est la saison active.
+    |
+    */
+
+    Route::get('/admin/saisons/edit', [SeasonController::class, 'edit'])
+        ->name('admin.seasons.active.edit');
+
+    Route::get('/admin/saisons/clubs', [SeasonController::class, 'clubs'])
+        ->name('admin.seasons.active.clubs');
+
+    Route::get('/admin/saisons/joueurs', [SeasonController::class, 'players'])
+        ->name('admin.seasons.active.players');
+
+    Route::get('/admin/saisons/bareme', [SeasonScoringRuleController::class, 'edit'])
+        ->name('admin.seasons.active.scoring.edit');
+
+    Route::get('/admin/saisons/journees', [JourneeController::class, 'season'])
+        ->name('admin.seasons.active.journees');
+
+    Route::get('/admin/saisons/avant-saison', [SeasonPreseasonController::class, 'edit'])
+        ->name('admin.seasons.active.preseason.edit');
+
+    Route::get('/admin/saisons/avant-saison/resultats', [SeasonPreseasonResultController::class, 'edit'])
+        ->name('admin.seasons.active.preseason-results.edit');
 
     Route::get('/admin/saisons/{season}/edit', [SeasonController::class, 'edit'])
         ->name('admin.seasons.edit');
@@ -242,6 +273,12 @@ Route::middleware(['auth', 'admin'])->group(function () {
 
     Route::post('/admin/saisons/{season}/avant-saison/appliquer-aux-parametres-globaux', [SeasonPreseasonController::class, 'syncToGlobal'])
         ->name('admin.seasons.preseason.sync-to-global');
+
+    Route::get('/admin/saisons/{season}/avant-saison/resultats', [SeasonPreseasonResultController::class, 'edit'])
+        ->name('admin.seasons.preseason-results.edit');
+
+    Route::put('/admin/saisons/{season}/avant-saison/resultats', [SeasonPreseasonResultController::class, 'update'])
+        ->name('admin.seasons.preseason-results.update');
 
     Route::get('/admin/saisons/{season}/journees/{journee}/matches', [MatchController::class, 'manage'])
         ->name('admin.seasons.journees.matches');

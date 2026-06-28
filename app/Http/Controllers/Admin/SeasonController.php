@@ -110,8 +110,10 @@ class SeasonController extends Controller
             ->with('success', 'Saison créée.');
     }
 
-    public function clubs(Season $season)
+    public function clubs(?Season $season = null)
     {
+        $season = $this->resolveSeason($season);
+
         $clubs = Club::orderBy('name')->get();
 
         $selectedTop14 = $season->clubs()
@@ -189,8 +191,10 @@ class SeasonController extends Controller
             ->with('success', 'Clubs participants enregistrés.');
     }
 
-    public function edit(Season $season)
+    public function edit(?Season $season = null)
     {
+        $season = $this->resolveSeason($season);
+
         return view('admin.seasons.edit', compact('season'));
     }
 
@@ -293,8 +297,10 @@ class SeasonController extends Controller
         return back()->with('success', 'Journées générées.');
     }
 
-    public function players(Season $season)
+    public function players(?Season $season = null)
     {
+        $season = $this->resolveSeason($season);
+
         $users = User::whereIn('role', ['player', 'admin', 'super_admin'])
             ->orderBy('nickname')
             ->orderBy('name')
@@ -377,5 +383,14 @@ class SeasonController extends Controller
         return response()->json([
             'success' => true,
         ]);
+    }
+
+    private function resolveSeason(?Season $season = null): Season
+    {
+        if ($season) {
+            return $season;
+        }
+
+        return Season::where('is_active', true)->firstOrFail();
     }
 }

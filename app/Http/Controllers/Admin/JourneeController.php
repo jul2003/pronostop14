@@ -16,8 +16,10 @@ class JourneeController extends Controller
         return redirect()->route('admin.seasons.index');
     }
 
-    public function season(Season $season)
+    public function season(?Season $season = null)
     {
+        $season = $this->resolveSeason($season);
+
         $journees = $season->journees()
             ->orderByRaw("
                 CASE
@@ -113,5 +115,14 @@ class JourneeController extends Controller
             ->startOfDay();
 
         return $currentAppDate->greaterThanOrEqualTo($journeeStartDate);
+    }
+
+    private function resolveSeason(?Season $season = null): Season
+    {
+        if ($season) {
+            return $season;
+        }
+
+        return Season::where('is_active', true)->firstOrFail();
     }
 }

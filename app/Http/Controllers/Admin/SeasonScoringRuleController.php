@@ -9,8 +9,10 @@ use Illuminate\Http\Request;
 
 class SeasonScoringRuleController extends Controller
 {
-    public function edit(Season $season)
+    public function edit(?Season $season = null)
     {
+        $season = $this->resolveSeason($season);
+
         $profiles = SeasonScoringProfile::where('season_id', $season->id)
             ->with([
                 'rules' => function ($query) {
@@ -50,5 +52,14 @@ class SeasonScoringRuleController extends Controller
         return redirect()
             ->route('admin.seasons.scoring.edit', $season)
             ->with('success', 'Barème enregistré.');
+    }
+
+    private function resolveSeason(?Season $season = null): Season
+    {
+        if ($season) {
+            return $season;
+        }
+
+        return Season::where('is_active', true)->firstOrFail();
     }
 }

@@ -10,8 +10,10 @@ use Illuminate\Http\Request;
 
 class SeasonPreseasonResultController extends Controller
 {
-    public function edit(Season $season)
+    public function edit(?Season $season = null)
     {
+        $season = $this->resolveSeason($season);
+
         $questions = $season->preseasonQuestions()
             ->where('is_active', true)
             ->with('resultClub')
@@ -128,5 +130,14 @@ class SeasonPreseasonResultController extends Controller
         if (! $query->exists()) {
             abort(422, 'Club invalide pour cette question.');
         }
+    }
+
+    private function resolveSeason(?Season $season = null): Season
+    {
+        if ($season) {
+            return $season;
+        }
+
+        return Season::where('is_active', true)->firstOrFail();
     }
 }
