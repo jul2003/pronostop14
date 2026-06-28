@@ -79,6 +79,8 @@ class SettingController extends Controller
             'preseason' => ['nullable', 'array'],
             'preseason.*.label' => ['required', 'string', 'max:255'],
             'preseason.*.answer_type' => ['required', 'in:top14_club,prod2_club,season_club,free_text'],
+            'preseason.*.correction_group' => ['nullable', 'string', 'max:100'],
+            'preseason.*.correction_mode' => ['nullable', Rule::in(['unordered'])],
             'preseason.*.scoring_profile_id' => ['required', 'exists:scoring_profiles,id'],
             'preseason.*.position' => ['nullable', 'integer'],
             'preseason.*.is_active' => ['nullable', 'boolean'],
@@ -100,9 +102,16 @@ class SettingController extends Controller
         }
 
         foreach ($data['preseason'] ?? [] as $templateId => $templateData) {
+            $correctionGroup = $this->normalizeCorrectionGroup($templateData['correction_group'] ?? null);
+
             PreseasonPredictionTemplate::whereKey($templateId)->update([
                 'label' => $templateData['label'],
                 'answer_type' => $templateData['answer_type'],
+                'correction_group' => $correctionGroup,
+                'correction_mode' => $this->correctionModeForGroup(
+                    $correctionGroup,
+                    $templateData['correction_mode'] ?? null
+                ),
                 'scoring_profile_id' => $templateData['scoring_profile_id'],
                 'position' => $templateData['position'] ?? 0,
                 'is_active' => isset($templateData['is_active']),
@@ -117,13 +126,22 @@ class SettingController extends Controller
         $data = $request->validate([
             'label' => ['required', 'string', 'max:255'],
             'answer_type' => ['required', 'in:top14_club,prod2_club,season_club,free_text'],
+            'correction_group' => ['nullable', 'string', 'max:100'],
+            'correction_mode' => ['nullable', Rule::in(['unordered'])],
             'scoring_profile_id' => ['required', 'exists:scoring_profiles,id'],
             'is_active' => ['nullable', 'boolean'],
         ]);
 
+        $correctionGroup = $this->normalizeCorrectionGroup($data['correction_group'] ?? null);
+
         PreseasonPredictionTemplate::create([
             'label' => $data['label'],
             'answer_type' => $data['answer_type'],
+            'correction_group' => $correctionGroup,
+            'correction_mode' => $this->correctionModeForGroup(
+                $correctionGroup,
+                $data['correction_mode'] ?? null
+            ),
             'scoring_profile_id' => $data['scoring_profile_id'],
             'position' => (PreseasonPredictionTemplate::max('position') ?? 0) + 10,
             'is_active' => isset($data['is_active']),
@@ -363,6 +381,26 @@ class SettingController extends Controller
         return redirect()
             ->route($route)
             ->with('success', 'Barème mis à jour.');
+    }
+
+    private function normalizeCorrectionGroup(?string $value): ?string
+    {
+        $value = trim((string) $value);
+
+        if ($value === '') {
+            return null;
+        }
+
+        return $value;
+    }
+
+    private function correctionModeForGroup(?string $correctionGroup, ?string $correctionMode): ?string
+    {
+        if (! filled($correctionGroup)) {
+            return null;
+        }
+
+        return $correctionMode ?: null;
     }
 
     private function allowedRuleCodesForCategory(string $category): array

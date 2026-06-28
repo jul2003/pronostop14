@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Season;
+use App\Models\SeasonPreseasonCorrectionGroup;
 use App\Models\SeasonPreseasonPrediction;
 use App\Models\SeasonPreseasonQuestion;
 use App\Models\SeasonPreseasonUserBonusScore;
@@ -19,6 +20,7 @@ class PreseasonScoringService
             $season->load([
                 'players',
                 'preseasonQuestions',
+                'preseasonCorrectionGroups.questions',
                 'preseasonBonusRules.questions',
             ]);
 
@@ -35,10 +37,21 @@ class PreseasonScoringService
             ->orderBy('position')
             ->get();
 
-        $groupedQuestionIds = $this->recalculateUnorderedCorrectionGroups(
+        $correctionGroups = $season->preseasonCorrectionGroups()
+            ->where('is_active', true)
+            ->with([
+                'questions' => function ($query) {
+                    $query->where('is_active', true)
+                        ->orderBy('position');
+                },
+            ])
+            ->orderBy('position')
+            ->get();
+
+        $groupedQuestionIds = $this->recalculateCorrectionGroups(
             $season,
             $user,
-            $questions
+            $correctionGroups
         );
 
         foreach ($questions as $question) {
@@ -83,22 +96,27 @@ class PreseasonScoringService
         ]);
     }
 
-    private function recalculateUnorderedCorrectionGroups(
+    private function recalculateCorrectionGroups(
         Season $season,
         User $user,
-        Collection $questions
+        Collection $correctionGroups
     ): Collection {
-        $groupedQuestions = $questions
-            ->filter(fn (SeasonPreseasonQuestion $question) => $question->usesUnorderedCorrectionGroup())
-            ->groupBy('correction_group');
-
         $processedQuestionIds = collect();
 
-        foreach ($groupedQuestions as $questionsInGroup) {
-            $this->recalculateUnorderedCorrectionGroup(
+        foreach ($correctionGroups as $correctionGroup) {
+            $questionsInGroup = $correctionGroup->questions
+                ->filter(fn (SeasonPreseasonQuestion $question) => $question->answer_type !== 'free_text')
+                ->values();
+
+            if ($questionsInGroup->isEmpty()) {
+                continue;
+            }
+
+            $this->recalculateCorrectionGroup(
                 $season,
                 $user,
-                $questionsInGroup->values()
+                $correctionGroup,
+                $questionsInGroup
             );
 
             $processedQuestionIds = $processedQuestionIds->merge(
@@ -111,9 +129,10 @@ class PreseasonScoringService
             ->values();
     }
 
-    private function recalculateUnorderedCorrectionGroup(
+    private function recalculateCorrectionGroup(
         Season $season,
         User $user,
+        SeasonPreseasonCorrectionGroup $correctionGroup,
         Collection $questionsInGroup
     ): void {
         $questionIds = $questionsInGroup

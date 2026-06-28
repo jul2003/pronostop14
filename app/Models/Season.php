@@ -84,6 +84,12 @@ class Season extends Model
             ->orderBy('position');
     }
 
+    public function preseasonCorrectionGroups()
+    {
+        return $this->hasMany(SeasonPreseasonCorrectionGroup::class)
+            ->orderBy('position');
+    }
+
     public function preseasonPredictions()
     {
         return $this->hasMany(SeasonPreseasonPrediction::class);

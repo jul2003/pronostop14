@@ -11,6 +11,7 @@ use App\Models\SeasonPreseasonBonusRule;
 use App\Models\SeasonPreseasonQuestion;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 
 class SeasonPreseasonController extends Controller
 {
@@ -46,6 +47,8 @@ class SeasonPreseasonController extends Controller
             'questions' => ['nullable', 'array'],
             'questions.*.label' => ['required', 'string', 'max:255'],
             'questions.*.answer_type' => ['required', 'string', 'max:50'],
+            'questions.*.correction_group' => ['nullable', 'string', 'max:100'],
+            'questions.*.correction_mode' => ['nullable', Rule::in(['unordered'])],
             'questions.*.scoring_profile_id' => ['nullable', 'integer', 'exists:scoring_profiles,id'],
             'questions.*.points' => ['required', 'integer'],
             'questions.*.position' => ['required', 'integer', 'min:0'],
@@ -62,9 +65,16 @@ class SeasonPreseasonController extends Controller
                     continue;
                 }
 
+                $correctionGroup = $this->normalizeCorrectionGroup($questionData['correction_group'] ?? null);
+
                 $question->update([
                     'label' => $questionData['label'],
                     'answer_type' => $questionData['answer_type'],
+                    'correction_group' => $correctionGroup,
+                    'correction_mode' => $this->correctionModeForGroup(
+                        $correctionGroup,
+                        $questionData['correction_mode'] ?? null
+                    ),
                     'scoring_profile_id' => $questionData['scoring_profile_id'] ?? null,
                     'points' => $questionData['points'],
                     'position' => $questionData['position'],
@@ -87,17 +97,26 @@ class SeasonPreseasonController extends Controller
         $data = $request->validate([
             'label' => ['required', 'string', 'max:255'],
             'answer_type' => ['required', 'string', 'max:50'],
+            'correction_group' => ['nullable', 'string', 'max:100'],
+            'correction_mode' => ['nullable', Rule::in(['unordered'])],
             'scoring_profile_id' => ['nullable', 'integer', 'exists:scoring_profiles,id'],
             'points' => ['required', 'integer'],
             'position' => ['required', 'integer', 'min:0'],
             'is_active' => ['nullable', 'boolean'],
         ]);
 
+        $correctionGroup = $this->normalizeCorrectionGroup($data['correction_group'] ?? null);
+
         $season->preseasonQuestions()->create([
             'source_template_id' => null,
             'scoring_profile_id' => $data['scoring_profile_id'] ?? null,
             'label' => $data['label'],
             'answer_type' => $data['answer_type'],
+            'correction_group' => $correctionGroup,
+            'correction_mode' => $this->correctionModeForGroup(
+                $correctionGroup,
+                $data['correction_mode'] ?? null
+            ),
             'points' => $data['points'],
             'position' => $data['position'],
             'is_active' => $request->boolean('is_active'),
@@ -296,6 +315,8 @@ class SeasonPreseasonController extends Controller
                 $template->fill([
                     'label' => $question->label,
                     'answer_type' => $question->answer_type,
+                    'correction_group' => $question->correction_group,
+                    'correction_mode' => $question->correction_mode,
                     'scoring_profile_id' => $question->scoring_profile_id,
                     'position' => $question->position,
                     'is_active' => $question->is_active,
@@ -374,6 +395,26 @@ class SeasonPreseasonController extends Controller
         return redirect()
             ->route('admin.seasons.preseason.edit', $season)
             ->with('error', 'Cette saison est verrouillée : la configuration avant-saison ne peut plus être modifiée.');
+    }
+
+    private function normalizeCorrectionGroup(?string $value): ?string
+    {
+        $value = trim((string) $value);
+
+        if ($value === '') {
+            return null;
+        }
+
+        return $value;
+    }
+
+    private function correctionModeForGroup(?string $correctionGroup, ?string $correctionMode): ?string
+    {
+        if (! filled($correctionGroup)) {
+            return null;
+        }
+
+        return $correctionMode ?: null;
     }
 
     private function resolveSeason(?Season $season = null): Season

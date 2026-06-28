@@ -62,6 +62,16 @@ class SeasonPreseasonQuestion extends Model
         );
     }
 
+    public function correctionGroups()
+    {
+        return $this->belongsToMany(
+            SeasonPreseasonCorrectionGroup::class,
+            'season_preseason_correction_group_questions',
+            'season_preseason_question_id',
+            'season_preseason_correction_group_id'
+        )->withTimestamps();
+    }
+
     public function hasOfficialResult(): bool
     {
         if ($this->answer_type === 'free_text') {
@@ -69,12 +79,5 @@ class SeasonPreseasonQuestion extends Model
         }
 
         return $this->result_club_id !== null;
-    }
-
-    public function usesUnorderedCorrectionGroup(): bool
-    {
-        return filled($this->correction_group)
-            && $this->correction_mode === 'unordered'
-            && $this->answer_type !== 'free_text';
     }
 }

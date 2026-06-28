@@ -24,4 +24,14 @@ class PreseasonPredictionTemplate extends Model
     {
         return $this->belongsTo(ScoringProfile::class, 'scoring_profile_id');
     }
+
+    public function correctionGroups()
+    {
+        return $this->belongsToMany(
+            PreseasonCorrectionGroupTemplate::class,
+            'preseason_correction_group_template_questions',
+            'preseason_prediction_template_id',
+            'preseason_correction_group_template_id'
+        )->withTimestamps();
+    }
 }

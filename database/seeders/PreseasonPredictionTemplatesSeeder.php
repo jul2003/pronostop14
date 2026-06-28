@@ -27,32 +27,38 @@ class PreseasonPredictionTemplatesSeeder extends Seeder
                 'profile_code' => 'preseason_champion_automne_top14',
                 'position' => 20,
             ],
-
             [
                 'label' => 'Demi-finaliste TOP 14',
                 'answer_type' => 'top14_club',
                 'profile_code' => 'preseason_demi_finaliste_top14',
+                'correction_group' => 'top14_semifinalists',
+                'correction_mode' => 'unordered',
                 'position' => 30,
             ],
             [
                 'label' => 'Demi-finaliste TOP 14',
                 'answer_type' => 'top14_club',
                 'profile_code' => 'preseason_demi_finaliste_top14',
+                'correction_group' => 'top14_semifinalists',
+                'correction_mode' => 'unordered',
                 'position' => 40,
             ],
             [
                 'label' => 'Demi-finaliste TOP 14',
                 'answer_type' => 'top14_club',
                 'profile_code' => 'preseason_demi_finaliste_top14',
+                'correction_group' => 'top14_semifinalists',
+                'correction_mode' => 'unordered',
                 'position' => 50,
             ],
             [
                 'label' => 'Demi-finaliste TOP 14',
                 'answer_type' => 'top14_club',
                 'profile_code' => 'preseason_demi_finaliste_top14',
+                'correction_group' => 'top14_semifinalists',
+                'correction_mode' => 'unordered',
                 'position' => 60,
             ],
-
             [
                 'label' => 'Relégué TOP 14',
                 'answer_type' => 'top14_club',
@@ -77,32 +83,38 @@ class PreseasonPredictionTemplatesSeeder extends Seeder
                 'profile_code' => 'preseason_champion_prod2',
                 'position' => 100,
             ],
-
             [
                 'label' => 'Demi-finaliste PRO D2',
                 'answer_type' => 'prod2_club',
                 'profile_code' => 'preseason_demi_finaliste_prod2',
+                'correction_group' => 'prod2_semifinalists',
+                'correction_mode' => 'unordered',
                 'position' => 110,
             ],
             [
                 'label' => 'Demi-finaliste PRO D2',
                 'answer_type' => 'prod2_club',
                 'profile_code' => 'preseason_demi_finaliste_prod2',
+                'correction_group' => 'prod2_semifinalists',
+                'correction_mode' => 'unordered',
                 'position' => 120,
             ],
             [
                 'label' => 'Demi-finaliste PRO D2',
                 'answer_type' => 'prod2_club',
                 'profile_code' => 'preseason_demi_finaliste_prod2',
+                'correction_group' => 'prod2_semifinalists',
+                'correction_mode' => 'unordered',
                 'position' => 130,
             ],
             [
                 'label' => 'Demi-finaliste PRO D2',
                 'answer_type' => 'prod2_club',
                 'profile_code' => 'preseason_demi_finaliste_prod2',
+                'correction_group' => 'prod2_semifinalists',
+                'correction_mode' => 'unordered',
                 'position' => 140,
             ],
-
             [
                 'label' => 'Meilleur buteur TOP 14',
                 'answer_type' => 'free_text',
@@ -131,6 +143,8 @@ class PreseasonPredictionTemplatesSeeder extends Seeder
                 ],
                 [
                     'answer_type' => $template['answer_type'],
+                    'correction_group' => $template['correction_group'] ?? null,
+                    'correction_mode' => $template['correction_mode'] ?? null,
                     'scoring_profile_id' => $profile->id,
                     'is_active' => true,
                 ]
