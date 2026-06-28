@@ -10,6 +10,7 @@ class PreseasonPredictionTemplate extends Model
         'label',
         'answer_type',
         'correction_group',
+        'correction_mode',
         'scoring_profile_id',
         'position',
         'is_active',

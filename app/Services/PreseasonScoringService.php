@@ -35,8 +35,18 @@ class PreseasonScoringService
             ->orderBy('position')
             ->get();
 
+        $groupedQuestionIds = $this->recalculateUnorderedCorrectionGroups(
+            $season,
+            $user,
+            $questions
+        );
+
         foreach ($questions as $question) {
-            $this->recalculateQuestionPrediction($season, $user, $question, $questions);
+            if ($groupedQuestionIds->contains($question->id)) {
+                continue;
+            }
+
+            $this->recalculateQuestionPrediction($season, $user, $question);
         }
 
         $this->recalculateUserBonuses($season, $user);
@@ -45,8 +55,7 @@ class PreseasonScoringService
     private function recalculateQuestionPrediction(
         Season $season,
         User $user,
-        SeasonPreseasonQuestion $question,
-        Collection $questions
+        SeasonPreseasonQuestion $question
     ): void {
         $prediction = SeasonPreseasonPrediction::where('season_id', $season->id)
             ->where('user_id', $user->id)
@@ -54,19 +63,6 @@ class PreseasonScoringService
             ->first();
 
         if (! $prediction) {
-            return;
-        }
-
-        $group = $this->questionResultGroup($question);
-
-        if ($group) {
-            $this->recalculateGroupedClubPrediction(
-                $prediction,
-                $question,
-                $questions,
-                $group
-            );
-
             return;
         }
 
@@ -87,63 +83,125 @@ class PreseasonScoringService
         ]);
     }
 
-    private function recalculateGroupedClubPrediction(
-        SeasonPreseasonPrediction $prediction,
-        SeasonPreseasonQuestion $question,
-        Collection $questions,
-        string $group
-    ): void {
-        if ($prediction->club_id === null) {
-            $prediction->update([
-                'is_correct' => null,
-                'points' => 0,
-            ]);
+    private function recalculateUnorderedCorrectionGroups(
+        Season $season,
+        User $user,
+        Collection $questions
+    ): Collection {
+        $groupedQuestions = $questions
+            ->filter(fn (SeasonPreseasonQuestion $question) => $question->usesUnorderedCorrectionGroup())
+            ->groupBy('correction_group');
 
+        $processedQuestionIds = collect();
+
+        foreach ($groupedQuestions as $questionsInGroup) {
+            $this->recalculateUnorderedCorrectionGroup(
+                $season,
+                $user,
+                $questionsInGroup->values()
+            );
+
+            $processedQuestionIds = $processedQuestionIds->merge(
+                $questionsInGroup->pluck('id')
+            );
+        }
+
+        return $processedQuestionIds
+            ->unique()
+            ->values();
+    }
+
+    private function recalculateUnorderedCorrectionGroup(
+        Season $season,
+        User $user,
+        Collection $questionsInGroup
+    ): void {
+        $questionIds = $questionsInGroup
+            ->pluck('id')
+            ->values()
+            ->all();
+
+        $predictions = SeasonPreseasonPrediction::where('season_id', $season->id)
+            ->where('user_id', $user->id)
+            ->whereIn('question_id', $questionIds)
+            ->get()
+            ->keyBy('question_id');
+
+        if ($predictions->isEmpty()) {
             return;
         }
 
-        $groupQuestions = $questions
-            ->filter(function (SeasonPreseasonQuestion $candidate) use ($group) {
-                return $this->questionResultGroup($candidate) === $group;
-            })
-            ->values();
-
-        $officialClubIds = $groupQuestions
-            ->filter(function (SeasonPreseasonQuestion $candidate) {
-                return $candidate->hasOfficialResult()
-                    && $candidate->result_club_id !== null;
-            })
+        $officialClubIds = $questionsInGroup
+            ->filter(fn (SeasonPreseasonQuestion $question) => $question->result_club_id !== null)
             ->pluck('result_club_id')
             ->map(fn ($clubId) => (int) $clubId)
             ->unique()
             ->values();
 
+        $groupResultsAreComplete = $questionsInGroup->every(
+            fn (SeasonPreseasonQuestion $question) => $question->hasOfficialResult()
+                && $question->result_club_id !== null
+        );
+
         if ($officialClubIds->isEmpty()) {
+            foreach ($predictions as $prediction) {
+                $prediction->update([
+                    'is_correct' => null,
+                    'points' => 0,
+                ]);
+            }
+
+            return;
+        }
+
+        $alreadyAwardedClubIds = collect();
+
+        foreach ($questionsInGroup as $question) {
+            $prediction = $predictions->get($question->id);
+
+            if (! $prediction) {
+                continue;
+            }
+
+            if ($prediction->club_id === null) {
+                $prediction->update([
+                    'is_correct' => null,
+                    'points' => 0,
+                ]);
+
+                continue;
+            }
+
+            $predictedClubId = (int) $prediction->club_id;
+
+            if (
+                $officialClubIds->contains($predictedClubId)
+                && ! $alreadyAwardedClubIds->contains($predictedClubId)
+            ) {
+                $prediction->update([
+                    'is_correct' => true,
+                    'points' => (int) $question->points,
+                ]);
+
+                $alreadyAwardedClubIds->push($predictedClubId);
+
+                continue;
+            }
+
+            if ($officialClubIds->contains($predictedClubId)) {
+                $prediction->update([
+                    'is_correct' => false,
+                    'points' => 0,
+                ]);
+
+                continue;
+            }
+
             $prediction->update([
-                'is_correct' => null,
+                'is_correct' => $groupResultsAreComplete ? false : null,
                 'points' => 0,
             ]);
-
-            return;
         }
-
-        $isCorrect = $officialClubIds->contains((int) $prediction->club_id);
-
-        if ($isCorrect) {
-            $prediction->update([
-                'is_correct' => true,
-                'points' => (int) $question->points,
-            ]);
-
-            return;
-        }
-
-        $groupResultsAreComplete = $officialClubIds->count() >= $groupQuestions->count();
-
-        $prediction->update([
-            'is_correct' => $groupResultsAreComplete ? false : null,
-            'points' => 0,
-        ]);
     }
 
     private function predictionIsCorrect(
@@ -201,29 +259,6 @@ class PreseasonScoringService
                 ]
             );
         }
-    }
-
-    private function questionResultGroup(SeasonPreseasonQuestion $question): ?string
-    {
-        $label = $this->normalizeLabel($question->label);
-
-        if (str_contains($label, 'demi') && str_contains($label, 'top 14')) {
-            return 'top14_semifinalists';
-        }
-
-        if (str_contains($label, 'demi') && str_contains($label, 'pro d2')) {
-            return 'prod2_semifinalists';
-        }
-
-        return null;
-    }
-
-    private function normalizeLabel(?string $value): string
-    {
-        return Str::of(Str::ascii($value ?? ''))
-            ->trim()
-            ->lower()
-            ->toString();
     }
 
     private function normalizeText(?string $value): string

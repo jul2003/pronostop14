@@ -12,6 +12,8 @@ class SeasonPreseasonQuestion extends Model
         'scoring_profile_id',
         'label',
         'answer_type',
+        'correction_group',
+        'correction_mode',
         'points',
         'result_club_id',
         'result_text_answer',
@@ -67,5 +69,12 @@ class SeasonPreseasonQuestion extends Model
         }
 
         return $this->result_club_id !== null;
+    }
+
+    public function usesUnorderedCorrectionGroup(): bool
+    {
+        return filled($this->correction_group)
+            && $this->correction_mode === 'unordered'
+            && $this->answer_type !== 'free_text';
     }
 }

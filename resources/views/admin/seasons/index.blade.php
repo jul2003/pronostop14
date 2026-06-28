@@ -107,7 +107,7 @@
 
                             <td class="text-end">
                                 <div class="d-flex justify-content-end flex-wrap gap-2">
-                                    <a href="{{ route('admin.seasons.edit', $activeSeason) }}"
+                                    <a href="{{ route('admin.seasons.active.edit') }}"
                                        class="btn btn-sm btn-outline-dark rounded-pill">
                                         Modifier
                                     </a>
@@ -121,18 +121,18 @@
                                             Clubs
                                         </span>
                                     @else
-                                        <a href="{{ route('admin.seasons.players', $activeSeason) }}"
+                                        <a href="{{ route('admin.seasons.active.players') }}"
                                            class="btn btn-sm btn-outline-primary rounded-pill">
                                             Joueurs
                                         </a>
 
-                                        <a href="{{ route('admin.seasons.clubs', $activeSeason) }}"
+                                        <a href="{{ route('admin.seasons.active.clubs') }}"
                                            class="btn btn-sm btn-outline-primary rounded-pill">
                                             Clubs
                                         </a>
                                     @endif
 
-                                    <a href="{{ route('admin.seasons.journees', $activeSeason) }}"
+                                    <a href="{{ route('admin.seasons.active.journees') }}"
                                        class="btn btn-sm btn-outline-secondary rounded-pill">
                                         Journées
                                     </a>
@@ -150,12 +150,12 @@
                                             Générer journées
                                         </span>
                                     @else
-                                        <a href="{{ route('admin.seasons.scoring.edit', $activeSeason) }}"
+                                        <a href="{{ route('admin.seasons.active.scoring.edit') }}"
                                            class="btn btn-sm btn-outline-success rounded-pill">
                                             Barème
                                         </a>
 
-                                        <a href="{{ route('admin.seasons.preseason.edit', $activeSeason) }}"
+                                        <a href="{{ route('admin.seasons.active.preseason.edit') }}"
                                            class="btn btn-sm btn-outline-success rounded-pill">
                                             Avant-saison
                                         </a>
