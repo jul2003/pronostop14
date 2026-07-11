@@ -24,5 +24,9 @@ class DatabaseSeeder extends Seeder
             PreseasonBonusRuleTemplatesSeeder::class,
             AppSettingsSeeder::class,
         ]);
+
+        if (app()->environment('local') && env('SEED_DEMO_DATA', true)) {
+            $this->call(DemoPronostopSeeder::class);
+        }
     }
 }
