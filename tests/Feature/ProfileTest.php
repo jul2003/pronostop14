@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\User;
+use App\Support\PlayerColorPalette;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -10,90 +11,97 @@ class ProfileTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_profile_page_is_displayed(): void
+    public function test_player_profile_page_is_displayed(): void
     {
         $user = User::factory()->create();
 
         $response = $this
             ->actingAs($user)
-            ->get('/profile');
+            ->get('/mon-profil');
 
         $response->assertOk();
     }
 
-    public function test_profile_information_can_be_updated(): void
+    public function test_player_profile_information_can_be_updated(): void
     {
-        $user = User::factory()->create();
+        $user = User::factory()->create([
+            'nickname' => 'AA01',
+            'email' => 'old.profile@example.com',
+            'email_pro' => 'old.profile@example.com',
+            'email_perso' => null,
+            'color' => PlayerColorPalette::colors()[0],
+        ]);
+
+        $newColor = PlayerColorPalette::colors()[1];
 
         $response = $this
             ->actingAs($user)
-            ->patch('/profile', [
-                'name' => 'Test User',
-                'email' => 'test@example.com',
+            ->put('/mon-profil', [
+                'nickname' => 'BB02',
+                'email_pro' => 'new.profile@example.com',
+                'email_perso' => null,
+                'color' => $newColor,
             ]);
 
         $response
             ->assertSessionHasNoErrors()
-            ->assertRedirect('/profile');
+            ->assertRedirect();
 
         $user->refresh();
 
-        $this->assertSame('Test User', $user->name);
-        $this->assertSame('test@example.com', $user->email);
-        $this->assertNull($user->email_verified_at);
+        $this->assertSame('BB02', $user->nickname);
+        $this->assertSame('new.profile@example.com', $user->email_pro);
+        $this->assertNull($user->email_perso);
+        $this->assertSame($newColor, $user->color);
     }
 
-    public function test_email_verification_status_is_unchanged_when_the_email_address_is_unchanged(): void
+    public function test_player_profile_requires_at_least_one_email(): void
     {
-        $user = User::factory()->create();
+        $user = User::factory()->create([
+            'nickname' => 'CC03',
+            'email' => 'profile.required@example.com',
+            'email_pro' => 'profile.required@example.com',
+            'email_perso' => null,
+            'color' => PlayerColorPalette::colors()[2],
+        ]);
 
         $response = $this
             ->actingAs($user)
-            ->patch('/profile', [
-                'name' => 'Test User',
-                'email' => $user->email,
+            ->from('/mon-profil')
+            ->put('/mon-profil', [
+                'nickname' => 'CC03',
+                'email_pro' => null,
+                'email_perso' => null,
+                'color' => PlayerColorPalette::colors()[2],
             ]);
 
         $response
-            ->assertSessionHasNoErrors()
-            ->assertRedirect('/profile');
-
-        $this->assertNotNull($user->refresh()->email_verified_at);
+            ->assertSessionHasErrors(['email_pro', 'email_perso'])
+            ->assertRedirect('/mon-profil');
     }
 
-    public function test_user_can_delete_their_account(): void
+    public function test_player_profile_rejects_a_color_outside_the_palette(): void
     {
-        $user = User::factory()->create();
+        $user = User::factory()->create([
+            'nickname' => 'DD04',
+            'email' => 'profile.color@example.com',
+            'email_pro' => 'profile.color@example.com',
+            'email_perso' => null,
+            'color' => PlayerColorPalette::colors()[3],
+        ]);
 
         $response = $this
             ->actingAs($user)
-            ->delete('/profile', [
-                'password' => 'password',
+            ->from('/mon-profil')
+            ->put('/mon-profil', [
+                'nickname' => 'DD04',
+                'email_pro' => 'profile.color@example.com',
+                'email_perso' => null,
+                'color' => '#123456',
             ]);
 
         $response
-            ->assertSessionHasNoErrors()
-            ->assertRedirect('/');
-
-        $this->assertGuest();
-        $this->assertNull($user->fresh());
-    }
-
-    public function test_correct_password_must_be_provided_to_delete_account(): void
-    {
-        $user = User::factory()->create();
-
-        $response = $this
-            ->actingAs($user)
-            ->from('/profile')
-            ->delete('/profile', [
-                'password' => 'wrong-password',
-            ]);
-
-        $response
-            ->assertSessionHasErrorsIn('userDeletion', 'password')
-            ->assertRedirect('/profile');
-
-        $this->assertNotNull($user->fresh());
+            ->assertSessionHasErrors(['color'])
+            ->assertRedirect('/mon-profil');
     }
 }
