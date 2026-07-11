@@ -17,8 +17,27 @@
     $npmVulnerabilities = data_get($audit, 'npm.audit.json.metadata.vulnerabilities', []);
     $npmVulnerabilitiesTotal = $npmVulnerabilities['total'] ?? null;
 
+    $gitBranchOutput = $commandText(data_get($audit, 'git.branch', []));
+    $currentBranch = $gitBranchOutput ?: 'branche-inconnue';
+    $maintenanceBranch = str_starts_with($currentBranch, 'maintenance/')
+        ? $currentBranch
+        : 'maintenance/dependances';
+
     $gitStatusOutput = $commandText(data_get($audit, 'git.status', []));
     $gitIsClean = $gitStatusOutput === '';
+
+    $composerAvailable = $commandOk(data_get($audit, 'composer.version', []));
+    $nodeAvailable = $commandOk(data_get($audit, 'node.version', []));
+    $npmAvailable = $commandOk(data_get($audit, 'node.npm', []));
+
+    $composerAuditOk = $composerAuditCount === 0 && $commandOk(data_get($audit, 'composer.audit', []));
+    $npmAuditOk = $npmVulnerabilitiesTotal !== null && (int) $npmVulnerabilitiesTotal === 0;
+
+    $maintenanceAuditLooksOk = $composerAvailable
+        && $nodeAvailable
+        && $npmAvailable
+        && $composerAuditOk
+        && $npmAuditOk;
 @endphp
 
 <div id="page-top" class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4">
@@ -61,6 +80,134 @@
     </div>
 @endif
 
+<div class="rugby-card p-4 mb-4">
+    <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-3">
+        <div>
+            <h3 class="h5 fw-bold mb-1">
+                Verdict rapide
+            </h3>
+
+            <p class="text-muted mb-0">
+                Résumé de l’état détecté par l’audit maintenance.
+            </p>
+        </div>
+
+        @if($maintenanceAuditLooksOk)
+            <span class="badge rounded-pill text-bg-success px-3 py-2">
+                Audit favorable
+            </span>
+        @else
+            <span class="badge rounded-pill text-bg-warning px-3 py-2">
+                Vérifications nécessaires
+            </span>
+        @endif
+    </div>
+
+    <div class="row g-3">
+        <div class="col-md-6 col-xl-3">
+            <div class="border rounded-4 p-3 h-100">
+                <div class="text-muted small fw-bold text-uppercase mb-1">
+                    Composer
+                </div>
+
+                @if($composerAvailable)
+                    <span class="badge rounded-pill text-bg-success">
+                        Disponible
+                    </span>
+                @else
+                    <span class="badge rounded-pill text-bg-danger">
+                        Indisponible
+                    </span>
+                @endif
+            </div>
+        </div>
+
+        <div class="col-md-6 col-xl-3">
+            <div class="border rounded-4 p-3 h-100">
+                <div class="text-muted small fw-bold text-uppercase mb-1">
+                    Audit Composer
+                </div>
+
+                @if($composerAuditOk)
+                    <span class="badge rounded-pill text-bg-success">
+                        OK
+                    </span>
+                @else
+                    <span class="badge rounded-pill text-bg-danger">
+                        À corriger
+                    </span>
+                @endif
+
+                <div class="text-muted small mt-2">
+                    {{ $composerAuditCount }} alerte(s)
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6 col-xl-3">
+            <div class="border rounded-4 p-3 h-100">
+                <div class="text-muted small fw-bold text-uppercase mb-1">
+                    Node / NPM
+                </div>
+
+                @if($nodeAvailable && $npmAvailable)
+                    <span class="badge rounded-pill text-bg-success">
+                        Disponible
+                    </span>
+                @else
+                    <span class="badge rounded-pill text-bg-danger">
+                        Indisponible
+                    </span>
+                @endif
+            </div>
+        </div>
+
+        <div class="col-md-6 col-xl-3">
+            <div class="border rounded-4 p-3 h-100">
+                <div class="text-muted small fw-bold text-uppercase mb-1">
+                    Audit NPM
+                </div>
+
+                @if($npmAuditOk)
+                    <span class="badge rounded-pill text-bg-success">
+                        OK
+                    </span>
+                @elseif($npmVulnerabilitiesTotal === null)
+                    <span class="badge rounded-pill text-bg-secondary">
+                        Indisponible
+                    </span>
+                @else
+                    <span class="badge rounded-pill text-bg-danger">
+                        À corriger
+                    </span>
+                @endif
+
+                <div class="text-muted small mt-2">
+                    {{ $npmVulnerabilitiesTotal ?? 'Non calculé' }} alerte(s)
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="alert {{ $maintenanceAuditLooksOk ? 'alert-success' : 'alert-warning' }} mt-4 mb-0">
+        @if($maintenanceAuditLooksOk)
+            <div class="fw-bold">
+                L’audit ne détecte pas de blocage évident.
+            </div>
+
+            Tu peux suivre la procédure “Si tout est OK” après avoir vérifié que
+            <code>php artisan test</code> et <code>npm run build</code> passent bien dans le terminal.
+        @else
+            <div class="fw-bold">
+                Ne merge pas encore sans vérifier.
+            </div>
+
+            Corrige d’abord les alertes affichées plus bas, puis relance
+            <code>php artisan test</code> et <code>npm run build</code>.
+        @endif
+    </div>
+</div>
+
 <div class="row g-4 mb-4">
     <div class="col-md-6 col-xl-3">
         <div class="rugby-card p-4 h-100">
@@ -75,6 +222,12 @@
             <div class="text-muted small mt-2">
                 SAPI : {{ data_get($audit, 'php.sapi') }}
             </div>
+
+            @if(data_get($audit, 'php.binary'))
+                <div class="text-muted small mt-1">
+                    Binaire : {{ data_get($audit, 'php.binary') }}
+                </div>
+            @endif
         </div>
     </div>
 
@@ -166,7 +319,7 @@
                         </div>
 
                         <div class="fw-bold">
-                            {{ $commandText(data_get($audit, 'git.branch', [])) ?: 'Indisponible' }}
+                            {{ $currentBranch }}
                         </div>
                     </div>
                 </div>
@@ -518,23 +671,159 @@
 
     <div class="col-12">
         <div class="rugby-card p-4">
-            <h3 class="h5 fw-bold mb-3">
-                Commandes conseillées
-            </h3>
+            <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-3">
+                <div>
+                    <h3 class="h5 fw-bold mb-1">
+                        Procédure après mise à jour
+                    </h3>
 
-            <p class="text-muted">
-                Tant que les mises à jour automatiques ne sont pas ajoutées, voici les commandes à lancer manuellement.
-            </p>
+                    <p class="text-muted mb-0">
+                        À suivre après avoir lancé les mises à jour Composer/NPM sur une branche de maintenance.
+                    </p>
+                </div>
 
-            <pre class="bg-dark text-white rounded-4 p-3 small mb-0"><code>git status
-git checkout -b maintenance/dependances
+                <span class="badge rounded-pill text-bg-primary px-3 py-2">
+                    Branche actuelle : {{ $currentBranch }}
+                </span>
+            </div>
 
-composer update laravel/framework --with-dependencies
-composer update phpunit/phpunit --with-dependencies
+            <div class="alert alert-secondary">
+                <div class="fw-bold">
+                    Commandes de validation à lancer avant toute fusion
+                </div>
 
+                <pre class="bg-dark text-white rounded-4 p-3 small mt-3 mb-0"><code>php artisan optimize:clear
+php artisan test
+npm run build</code></pre>
+            </div>
+
+            <div class="row g-4">
+                <div class="col-lg-6">
+                    <div class="border border-success rounded-4 p-4 h-100">
+                        <div class="d-flex align-items-center gap-2 mb-2">
+                            <span class="badge rounded-pill text-bg-success">
+                                OK
+                            </span>
+
+                            <h4 class="h6 fw-bold mb-0">
+                                Si tout passe
+                            </h4>
+                        </div>
+
+                        <p class="text-muted small">
+                            Tests OK, build OK, application vérifiée rapidement dans le navigateur.
+                        </p>
+
+                        <pre class="bg-dark text-white rounded-4 p-3 small mb-0"><code>git status
+git add .
+git commit -m "Update dependencies and maintenance checks"
+
+git checkout main
+git merge {{ $maintenanceBranch }}
+
+php artisan test
+npm run build
+
+git branch -d {{ $maintenanceBranch }}
+git push origin main</code></pre>
+                    </div>
+                </div>
+
+                <div class="col-lg-6">
+                    <div class="border border-warning rounded-4 p-4 h-100">
+                        <div class="d-flex align-items-center gap-2 mb-2">
+                            <span class="badge rounded-pill text-bg-warning">
+                                Pas OK
+                            </span>
+
+                            <h4 class="h6 fw-bold mb-0">
+                                Si ça casse avant commit
+                            </h4>
+                        </div>
+
+                        <p class="text-muted small">
+                            À utiliser seulement si tu veux jeter les modifications de la branche de maintenance.
+                        </p>
+
+                        <pre class="bg-dark text-white rounded-4 p-3 small mb-0"><code>git status
+git reset --hard
+git clean -fd
+
+git checkout main
+git branch -D {{ $maintenanceBranch }}
+
+composer install
+npm install
+php artisan optimize:clear</code></pre>
+                    </div>
+                </div>
+
+                <div class="col-lg-6">
+                    <div class="border border-danger rounded-4 p-4 h-100">
+                        <div class="d-flex align-items-center gap-2 mb-2">
+                            <span class="badge rounded-pill text-bg-danger">
+                                Rollback
+                            </span>
+
+                            <h4 class="h6 fw-bold mb-0">
+                                Si le merge est fait mais pas encore poussé
+                            </h4>
+                        </div>
+
+                        <p class="text-muted small">
+                            Revenir à l’état de <code>main</code> avant le merge local.
+                        </p>
+
+                        <pre class="bg-dark text-white rounded-4 p-3 small mb-0"><code>git checkout main
+git reset --hard ORIG_HEAD
+
+composer install
+npm install
 php artisan optimize:clear
 php artisan test
 npm run build</code></pre>
+                    </div>
+                </div>
+
+                <div class="col-lg-6">
+                    <div class="border border-danger rounded-4 p-4 h-100">
+                        <div class="d-flex align-items-center gap-2 mb-2">
+                            <span class="badge rounded-pill text-bg-danger">
+                                Après push
+                            </span>
+
+                            <h4 class="h6 fw-bold mb-0">
+                                Si c’est déjà poussé sur GitHub
+                            </h4>
+                        </div>
+
+                        <p class="text-muted small">
+                            Ne fais pas de <code>reset --hard</code> sur une branche déjà partagée.
+                            Il faut créer un commit de revert.
+                        </p>
+
+                        <pre class="bg-dark text-white rounded-4 p-3 small mb-0"><code>git checkout main
+git pull origin main
+
+git log --oneline
+
+git revert &lt;SHA_DU_COMMIT_A_ANNULER&gt;
+php artisan test
+npm run build
+
+git push origin main</code></pre>
+                    </div>
+                </div>
+            </div>
+
+            <div class="alert alert-warning mt-4 mb-0">
+                <div class="fw-bold">
+                    Attention
+                </div>
+
+                <code>git reset --hard</code> et <code>git clean -fd</code> suppriment les modifications locales non commités.
+                À utiliser uniquement sur une branche de maintenance quand tu es sûr de vouloir tout jeter.
+            </div>
         </div>
     </div>
 </div>
