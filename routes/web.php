@@ -71,6 +71,19 @@ Route::middleware('auth')->group(function () {
         ->name('rankings.general');
     Route::get('/classements/{season}/{journee}', [RankingController::class, 'journee'])
         ->name('rankings.journee');
+
+    Route::get('/saisons/resultats', function () {
+        $season = Season::where('is_active', true)->first();
+
+        if (! $season) {
+            return redirect()
+                ->route('home')
+                ->with('error', 'Aucune saison active pour le moment.');
+        }
+
+        return redirect()->route('seasons.results', $season);
+    })->name('seasons.active.results');
+
     Route::get('/saisons/{season}/journees/{journee}/resultats', [RankingController::class, 'journeeResults'])
         ->name('journees.results');
     Route::get('/saisons/{season}/resultats', [RankingController::class, 'seasonResults'])
@@ -158,15 +171,6 @@ Route::middleware(['auth', 'admin'])->group(function () {
     Route::post('/admin/saisons', [SeasonController::class, 'store'])
         ->name('admin.seasons.store');
 
-    /*
-    |--------------------------------------------------------------------------
-    | Saison active par defaut
-    |--------------------------------------------------------------------------
-    |
-    | Ces routes permettent d'acceder aux pages principales de la saison active
-    | sans preciser le slug de saison dans l'URL.
-    |
-    */
     Route::get('/admin/saisons/edit', [SeasonController::class, 'edit'])
         ->name('admin.seasons.active.edit');
     Route::get('/admin/saisons/clubs', [SeasonController::class, 'clubs'])

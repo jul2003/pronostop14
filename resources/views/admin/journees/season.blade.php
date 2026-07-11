@@ -10,8 +10,8 @@
 @endphp
 
 @include('admin.partials.back-link', [
-    'href' => route('admin.seasons.edit', $season),
-    'label' => 'Retour à la saison',
+    'href' => route('admin.seasons.index'),
+    'label' => 'Retour aux saisons',
 ])
 
 <div class="mb-4">

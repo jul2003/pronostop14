@@ -1,11 +1,13 @@
 @extends('layouts.pronos')
 
 @section('content')
+
+@include('admin.partials.back-link', [
+    'href' => route('admin.seasons.index'),
+    'label' => 'Retour aux saisons',
+])
+
 <div id="page-top" class="mb-4">
-    <a href="{{ route('admin.seasons.journees', $season) }}"
-       class="text-decoration-none fw-bold">
-        ← Retour aux journées
-    </a>
 
     <div class="mt-3 text-uppercase text-primary fw-bold small">
         Administration

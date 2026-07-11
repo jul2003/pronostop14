@@ -2,70 +2,83 @@
 
 @section('content')
 
-<div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-start gap-3 mb-4">
+<div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4">
     <div>
-        <h2 class="fw-bold mb-1">
-            Pronostics à saisir
-        </h2>
-
-        <p class="text-muted mb-0">
-            Retrouve ici uniquement les pronostics encore ouverts que tu dois compléter.
-        </p>
+        <div class="text-uppercase text-primary fw-bold small">
+            Mes pronostics
+        </div>
 
         <h2 class="fw-bold mb-1">
             {{ $journee->name }}
         </h2>
 
-        <div class="text-muted">
+        <p class="text-muted mb-0">
             {{ $season->name }}
-
             @if($journee->prediction_deadline)
-                · limite : {{ $journee->prediction_deadline->format('d/m/Y') }}
+                · limite : {{ $journee->prediction_deadline->format('d/m/Y H:i') }}
             @endif
-        </div>
+        </p>
     </div>
 
     <div class="d-flex flex-wrap gap-2">
         <a href="{{ route('pronos.index') }}"
-           class="btn btn-outline-primary rounded-pill fw-bold">
+           class="btn btn-outline-secondary rounded-pill fw-bold px-4">
             ← Retour aux journées
         </a>
 
-        <a href="{{ route('rankings.journee', [$season, $journee]) }}"
-           class="btn btn-outline-primary rounded-pill fw-bold">
-            Classement journée
+        <a href="{{ route('seasons.active.results') }}"
+           class="btn btn-outline-primary rounded-pill fw-bold px-4">
+            Résultats & points
         </a>
+
+        @if($isLocked)
+            <a href="{{ route('rankings.journee', [$season, $journee]) }}"
+               class="btn btn-warning rounded-pill fw-bold px-4">
+                Classement journée
+            </a>
+        @endif
     </div>
 </div>
 
+@if(session('success'))
+    <div class="alert alert-success">
+        {{ session('success') }}
+    </div>
+@endif
+
+@if($errors->any())
+    <div class="alert alert-danger">
+        {{ $errors->first() }}
+    </div>
+@endif
+
 @if($isLocked)
-    <div class="alert alert-warning">
+    <div class="alert alert-info">
         Les pronostics sont clôturés. Consultation uniquement.
+        Le classement de la journée est maintenant disponible.
     </div>
 @endif
 
 @if($matches->isEmpty())
-
-    <div class="alert alert-info">
-        Aucun match disponible pour cette journée.
+    <div class="rugby-card p-4">
+        <div class="alert alert-info mb-0">
+            Aucun match disponible pour cette journée.
+        </div>
     </div>
-
 @else
-
-    <form method="POST"
-          action="{{ route('pronos.store', [$season, $journee]) }}">
+    <form method="POST" action="{{ route('pronos.store', [$season, $journee]) }}">
         @csrf
 
         <div class="rugby-card p-0 overflow-hidden">
             <div class="table-responsive">
-                <table class="table table-hover align-middle mb-0 prono-table">
+                <table class="table table-hover align-middle mb-0">
                     <thead class="table-light">
                         <tr>
                             <th>Match</th>
-                            <th class="text-center">Résultat</th>
-                            <th class="text-center">Essais</th>
-                            <th class="text-center">Bonus dom.</th>
-                            <th class="text-center">Bonus ext.</th>
+                            <th class="text-center" style="width: 190px;">Résultat</th>
+                            <th class="text-center" style="width: 140px;">Essais</th>
+                            <th class="text-center" style="width: 150px;">Bonus dom.</th>
+                            <th class="text-center" style="width: 150px;">Bonus ext.</th>
                         </tr>
                     </thead>
 
@@ -73,107 +86,95 @@
                         @foreach($matches as $match)
                             @php
                                 $prono = $match->pronos->first();
+
+                                $resultValue = old(
+                                    "pronos.{$match->id}.predicted_result",
+                                    $prono?->predicted_result
+                                );
+
+                                $triesValue = old(
+                                    "pronos.{$match->id}.predicted_tries",
+                                    $prono?->predicted_tries
+                                );
+
+                                $homeBonusValue = old(
+                                    "pronos.{$match->id}.predicted_home_bonus",
+                                    $prono?->predicted_home_bonus ?: '-'
+                                );
+
+                                $awayBonusValue = old(
+                                    "pronos.{$match->id}.predicted_away_bonus",
+                                    $prono?->predicted_away_bonus ?: '-'
+                                );
                             @endphp
 
                             <tr>
-                                <td class="match-cell">
-                                    <div class="match-line">
+                                <td>
+                                    <div class="fw-bold">
+                                        {{ $match->homeClub->name }}
+                                    </div>
 
-                                        <div class="match-home">
-                                            <img src="{{ $match->homeClub->logo_url }}"
-                                                alt="{{ $match->homeClub->name }}"
-                                                class="club-logo-small">
+                                    <div class="text-muted small">
+                                        contre
+                                    </div>
 
-                                            <span>
-                                                {{ $match->homeClub->name }}
-                                            </span>
-                                        </div>
-
-                                        <div class="match-separator">
-                                            -
-                                        </div>
-
-                                        <div class="match-away">
-                                            <img src="{{ $match->awayClub->logo_url }}"
-                                                alt="{{ $match->awayClub->name }}"
-                                                class="club-logo-small">
-
-                                            <span>
-                                                {{ $match->awayClub->name }}
-                                            </span>
-                                        </div>
-
+                                    <div class="fw-bold">
+                                        {{ $match->awayClub->name }}
                                     </div>
                                 </td>
 
-                                <td class="text-center">
-                                    <div class="prono-choice-group">
+                                <td>
+                                    <select name="pronos[{{ $match->id }}][predicted_result]"
+                                            class="form-select"
+                                            @disabled($isLocked)
+                                            required>
+                                        <option value="">
+                                            Choisir...
+                                        </option>
+
                                         @foreach($journee->resultOptionShortLabels() as $value => $label)
-                                            <input type="radio"
-                                                id="result_{{ $match->id }}_{{ $value }}"
-                                                name="pronos[{{ $match->id }}][predicted_result]"
-                                                value="{{ $value }}"
-                                                class="prono-choice-input"
-                                                @checked($prono?->predicted_result === $value)
-                                                @disabled($isLocked)
-                                                required>
-
-                                            <label for="result_{{ $match->id }}_{{ $value }}"
-                                                class="prono-choice-label"
-                                                title="{{ $journee->resultOptionLabel($value) }}">
+                                            <option value="{{ $value }}"
+                                                    @selected($resultValue === $value)>
                                                 {{ $label }}
-                                            </label>
+                                            </option>
                                         @endforeach
-                                    </div>
+                                    </select>
                                 </td>
 
-                                <td class="text-center">
-                                    <input type="text"
-                                           inputmode="numeric"
-                                           pattern="[0-9]*"
+                                <td>
+                                    <input type="number"
+                                           min="0"
                                            name="pronos[{{ $match->id }}][predicted_tries]"
-                                           value="{{ $prono?->predicted_tries }}"
-                                           class="form-control form-control-sm prono-tries-input mx-auto"
-                                           required
-                                           @disabled($isLocked)>
+                                           value="{{ $triesValue }}"
+                                           class="form-control text-center"
+                                           @disabled($isLocked)
+                                           required>
                                 </td>
 
-                                <td class="text-center">
-                                    <div class="prono-choice-group">
-                                        @foreach(['o' => 'O', '-' => '-', 'd' => 'D'] as $value => $label)
-                                            <input type="radio"
-                                                   id="home_bonus_{{ $match->id }}_{{ $value }}"
-                                                   name="pronos[{{ $match->id }}][predicted_home_bonus]"
-                                                   value="{{ $value }}"
-                                                   class="prono-choice-input"
-                                                   @checked($prono?->predicted_home_bonus === $value)
-                                                   @disabled($isLocked)>
-
-                                            <label for="home_bonus_{{ $match->id }}_{{ $value }}"
-                                                   class="prono-choice-label">
+                                <td>
+                                    <select name="pronos[{{ $match->id }}][predicted_home_bonus]"
+                                            class="form-select"
+                                            @disabled($isLocked)>
+                                        @foreach(['o' => 'Offensif', '-' => '-', 'd' => 'Défensif'] as $value => $label)
+                                            <option value="{{ $value }}"
+                                                    @selected($homeBonusValue === $value)>
                                                 {{ $label }}
-                                            </label>
+                                            </option>
                                         @endforeach
-                                    </div>
+                                    </select>
                                 </td>
 
-                                <td class="text-center">
-                                    <div class="prono-choice-group">
-                                        @foreach(['o' => 'O', '-' => '-', 'd' => 'D'] as $value => $label)
-                                            <input type="radio"
-                                                   id="away_bonus_{{ $match->id }}_{{ $value }}"
-                                                   name="pronos[{{ $match->id }}][predicted_away_bonus]"
-                                                   value="{{ $value }}"
-                                                   class="prono-choice-input"
-                                                   @checked($prono?->predicted_away_bonus === $value)
-                                                   @disabled($isLocked)>
-
-                                            <label for="away_bonus_{{ $match->id }}_{{ $value }}"
-                                                   class="prono-choice-label">
+                                <td>
+                                    <select name="pronos[{{ $match->id }}][predicted_away_bonus]"
+                                            class="form-select"
+                                            @disabled($isLocked)>
+                                        @foreach(['o' => 'Offensif', '-' => '-', 'd' => 'Défensif'] as $value => $label)
+                                            <option value="{{ $value }}"
+                                                    @selected($awayBonusValue === $value)>
                                                 {{ $label }}
-                                            </label>
+                                            </option>
                                         @endforeach
-                                    </div>
+                                    </select>
                                 </td>
                             </tr>
                         @endforeach
@@ -183,36 +184,11 @@
         </div>
 
         @unless($isLocked)
-            <div class="mt-4">
-                <button type="submit"
-                        class="btn btn-warning rounded-pill fw-bold px-4">
-                    Enregistrer mes pronostics
-                </button>
-            </div>
+            <button class="btn btn-warning rounded-pill fw-bold mt-4 px-4">
+                Enregistrer mes pronostics
+            </button>
         @endunless
     </form>
-
 @endif
-
-<script>
-    document.querySelectorAll('.prono-choice-input').forEach(input => {
-        input.addEventListener('click', function () {
-            if (this.dataset.wasChecked === 'true') {
-                this.checked = false;
-                this.dataset.wasChecked = 'false';
-            } else {
-                document
-                    .querySelectorAll(`input[name="${this.name}"]`)
-                    .forEach(radio => radio.dataset.wasChecked = 'false');
-
-                this.dataset.wasChecked = 'true';
-            }
-        });
-    });
-
-    document.querySelectorAll('.prono-choice-input:checked').forEach(input => {
-        input.dataset.wasChecked = 'true';
-    });
-</script>
 
 @endsection

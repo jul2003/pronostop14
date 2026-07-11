@@ -16,15 +16,11 @@
 @endphp
 
 @include('admin.partials.back-link', [
-    'href' => route('admin.seasons.edit', $season),
-    'label' => 'Retour à la saison',
+    'href' => route('admin.seasons.index'),
+    'label' => 'Retour aux saisons',
 ])
 
 <div class="mb-4">
-    <a href="{{ route('admin.seasons.index') }}"
-       class="text-decoration-none fw-bold">
-        ← Retour aux saisons
-    </a>
 
     <div class="mt-3 text-uppercase text-primary fw-bold small">
         Administration
