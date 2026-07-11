@@ -56,9 +56,9 @@ class LoginRequest extends FormRequest
 
         RateLimiter::clear($this->throttleKey());
 
-        auth()->user()->update([
+        $user->forceFill([
             'last_login_at' => now(),
-        ]);
+        ])->save();
     }
 
     public function ensureIsNotRateLimited(): void

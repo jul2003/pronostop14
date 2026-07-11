@@ -4,14 +4,16 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\PreseasonBonusRuleTemplate;
+use App\Models\PreseasonCorrectionGroupTemplate;
 use App\Models\PreseasonPredictionTemplate;
 use App\Models\ScoringProfile;
 use App\Models\Season;
 use App\Models\SeasonPreseasonBonusRule;
+use App\Models\SeasonPreseasonCorrectionGroup;
 use App\Models\SeasonPreseasonQuestion;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Validation\Rule;
+use Illuminate\Support\Str;
 
 class SeasonPreseasonController extends Controller
 {
@@ -20,7 +22,9 @@ class SeasonPreseasonController extends Controller
         $season = $this->resolveSeason($season);
 
         $season->load([
-            'preseasonQuestions',
+            'preseasonQuestions.scoringProfile',
+            'preseasonQuestions.correctionGroups',
+            'preseasonCorrectionGroups.questions',
             'preseasonBonusRules.questions',
         ]);
 
@@ -32,6 +36,7 @@ class SeasonPreseasonController extends Controller
         return view('admin.seasons.preseason', [
             'season' => $season,
             'questions' => $season->preseasonQuestions,
+            'correctionGroups' => $season->preseasonCorrectionGroups,
             'bonusRules' => $season->preseasonBonusRules,
             'scoringProfiles' => $scoringProfiles,
         ]);
@@ -47,8 +52,6 @@ class SeasonPreseasonController extends Controller
             'questions' => ['nullable', 'array'],
             'questions.*.label' => ['required', 'string', 'max:255'],
             'questions.*.answer_type' => ['required', 'string', 'max:50'],
-            'questions.*.correction_group' => ['nullable', 'string', 'max:100'],
-            'questions.*.correction_mode' => ['nullable', Rule::in(['unordered'])],
             'questions.*.scoring_profile_id' => ['nullable', 'integer', 'exists:scoring_profiles,id'],
             'questions.*.points' => ['required', 'integer'],
             'questions.*.position' => ['required', 'integer', 'min:0'],
@@ -65,16 +68,9 @@ class SeasonPreseasonController extends Controller
                     continue;
                 }
 
-                $correctionGroup = $this->normalizeCorrectionGroup($questionData['correction_group'] ?? null);
-
                 $question->update([
                     'label' => $questionData['label'],
                     'answer_type' => $questionData['answer_type'],
-                    'correction_group' => $correctionGroup,
-                    'correction_mode' => $this->correctionModeForGroup(
-                        $correctionGroup,
-                        $questionData['correction_mode'] ?? null
-                    ),
                     'scoring_profile_id' => $questionData['scoring_profile_id'] ?? null,
                     'points' => $questionData['points'],
                     'position' => $questionData['position'],
@@ -85,7 +81,7 @@ class SeasonPreseasonController extends Controller
 
         return redirect()
             ->route('admin.seasons.preseason.edit', $season)
-            ->with('success', 'Questions avant-saison enregistrées.');
+            ->with('success', 'Questions avant-saison enregistrees.');
     }
 
     public function storeQuestion(Request $request, Season $season)
@@ -97,26 +93,17 @@ class SeasonPreseasonController extends Controller
         $data = $request->validate([
             'label' => ['required', 'string', 'max:255'],
             'answer_type' => ['required', 'string', 'max:50'],
-            'correction_group' => ['nullable', 'string', 'max:100'],
-            'correction_mode' => ['nullable', Rule::in(['unordered'])],
             'scoring_profile_id' => ['nullable', 'integer', 'exists:scoring_profiles,id'],
             'points' => ['required', 'integer'],
             'position' => ['required', 'integer', 'min:0'],
             'is_active' => ['nullable', 'boolean'],
         ]);
 
-        $correctionGroup = $this->normalizeCorrectionGroup($data['correction_group'] ?? null);
-
         $season->preseasonQuestions()->create([
             'source_template_id' => null,
             'scoring_profile_id' => $data['scoring_profile_id'] ?? null,
             'label' => $data['label'],
             'answer_type' => $data['answer_type'],
-            'correction_group' => $correctionGroup,
-            'correction_mode' => $this->correctionModeForGroup(
-                $correctionGroup,
-                $data['correction_mode'] ?? null
-            ),
             'points' => $data['points'],
             'position' => $data['position'],
             'is_active' => $request->boolean('is_active'),
@@ -124,7 +111,7 @@ class SeasonPreseasonController extends Controller
 
         return redirect()
             ->route('admin.seasons.preseason.edit', $season)
-            ->with('success', 'Question avant-saison ajoutée.');
+            ->with('success', 'Question avant-saison ajoutee.');
     }
 
     public function destroyQuestion(Season $season, SeasonPreseasonQuestion $question)
@@ -142,12 +129,135 @@ class SeasonPreseasonController extends Controller
                 ->where('season_preseason_question_id', $question->id)
                 ->delete();
 
+            DB::table('season_preseason_correction_group_questions')
+                ->where('season_preseason_question_id', $question->id)
+                ->delete();
+
             $question->delete();
         });
 
         return redirect()
             ->route('admin.seasons.preseason.edit', $season)
-            ->with('success', 'Question avant-saison supprimée.');
+            ->with('success', 'Question avant-saison supprimee.');
+    }
+
+    public function updateCorrectionGroups(Request $request, Season $season)
+    {
+        if ($season->is_locked) {
+            return $this->lockedRedirect($season);
+        }
+
+        $data = $request->validate([
+            'correction_groups' => ['nullable', 'array'],
+            'correction_groups.*.label' => ['required', 'string', 'max:255'],
+            'correction_groups.*.code' => ['nullable', 'string', 'max:100'],
+            'correction_groups.*.position' => ['required', 'integer', 'min:0'],
+            'correction_groups.*.is_active' => ['nullable', 'boolean'],
+            'correction_groups.*.question_ids' => ['required', 'array', 'min:1'],
+            'correction_groups.*.question_ids.*' => ['integer', 'exists:season_preseason_questions,id'],
+        ]);
+
+        DB::transaction(function () use ($season, $data) {
+            $seasonQuestionIds = $season->preseasonQuestions()
+                ->pluck('id')
+                ->toArray();
+
+            foreach ($data['correction_groups'] ?? [] as $correctionGroupId => $correctionGroupData) {
+                $correctionGroup = $season->preseasonCorrectionGroups()
+                    ->whereKey($correctionGroupId)
+                    ->first();
+
+                if (! $correctionGroup) {
+                    continue;
+                }
+
+                $correctionGroup->update([
+                    'label' => $correctionGroupData['label'],
+                    'code' => $this->uniqueSeasonCorrectionGroupCode(
+                        $season,
+                        $correctionGroupData['code'] ?? null,
+                        $correctionGroupData['label'],
+                        $correctionGroup->id
+                    ),
+                    'position' => $correctionGroupData['position'],
+                    'is_active' => (bool) ($correctionGroupData['is_active'] ?? false),
+                ]);
+
+                $questionIds = collect($correctionGroupData['question_ids'] ?? [])
+                    ->map(fn ($id) => (int) $id)
+                    ->filter(fn ($id) => in_array($id, $seasonQuestionIds, true))
+                    ->values()
+                    ->all();
+
+                $correctionGroup->questions()->sync($questionIds);
+            }
+        });
+
+        return redirect()
+            ->route('admin.seasons.preseason.edit', $season)
+            ->with('success', 'Groupes de correction enregistres.');
+    }
+
+    public function storeCorrectionGroup(Request $request, Season $season)
+    {
+        if ($season->is_locked) {
+            return $this->lockedRedirect($season);
+        }
+
+        $data = $request->validate([
+            'label' => ['required', 'string', 'max:255'],
+            'code' => ['nullable', 'string', 'max:100'],
+            'position' => ['required', 'integer', 'min:0'],
+            'is_active' => ['nullable', 'boolean'],
+            'question_ids' => ['required', 'array', 'min:1'],
+            'question_ids.*' => ['integer', 'exists:season_preseason_questions,id'],
+        ]);
+
+        DB::transaction(function () use ($request, $season, $data) {
+            $correctionGroup = $season->preseasonCorrectionGroups()->create([
+                'source_template_id' => null,
+                'label' => $data['label'],
+                'code' => $this->uniqueSeasonCorrectionGroupCode($season, $data['code'] ?? null, $data['label']),
+                'position' => $data['position'],
+                'is_active' => $request->boolean('is_active'),
+            ]);
+
+            $seasonQuestionIds = $season->preseasonQuestions()
+                ->pluck('id')
+                ->toArray();
+
+            $questionIds = collect($data['question_ids'] ?? [])
+                ->map(fn ($id) => (int) $id)
+                ->filter(fn ($id) => in_array($id, $seasonQuestionIds, true))
+                ->values()
+                ->all();
+
+            $correctionGroup->questions()->sync($questionIds);
+        });
+
+        return redirect()
+            ->route('admin.seasons.preseason.edit', $season)
+            ->with('success', 'Groupe de correction ajoute.');
+    }
+
+    public function destroyCorrectionGroup(Season $season, SeasonPreseasonCorrectionGroup $correctionGroup)
+    {
+        if ($season->is_locked) {
+            return $this->lockedRedirect($season);
+        }
+
+        $correctionGroup = $season->preseasonCorrectionGroups()
+            ->whereKey($correctionGroup->id)
+            ->firstOrFail();
+
+        DB::transaction(function () use ($correctionGroup) {
+            $correctionGroup->questions()->detach();
+            $correctionGroup->delete();
+        });
+
+        return redirect()
+            ->route('admin.seasons.preseason.edit', $season)
+            ->with('success', 'Groupe de correction supprime.');
     }
 
     public function updateBonusRules(Request $request, Season $season)
@@ -201,7 +311,7 @@ class SeasonPreseasonController extends Controller
 
         return redirect()
             ->route('admin.seasons.preseason.edit', $season)
-            ->with('success', 'Bonus avant-saison enregistrés.');
+            ->with('success', 'Bonus avant-saison enregistres.');
     }
 
     public function storeBonusRule(Request $request, Season $season)
@@ -245,7 +355,7 @@ class SeasonPreseasonController extends Controller
 
         return redirect()
             ->route('admin.seasons.preseason.edit', $season)
-            ->with('success', 'Bonus avant-saison ajouté.');
+            ->with('success', 'Bonus avant-saison ajoute.');
     }
 
     public function destroyBonusRule(Season $season, SeasonPreseasonBonusRule $bonusRule)
@@ -265,7 +375,7 @@ class SeasonPreseasonController extends Controller
 
         return redirect()
             ->route('admin.seasons.preseason.edit', $season)
-            ->with('success', 'Bonus avant-saison supprimé.');
+            ->with('success', 'Bonus avant-saison supprime.');
     }
 
     public function syncToGlobal(Season $season)
@@ -277,6 +387,7 @@ class SeasonPreseasonController extends Controller
         DB::transaction(function () use ($season) {
             $season->load([
                 'preseasonQuestions',
+                'preseasonCorrectionGroups.questions',
                 'preseasonBonusRules.questions',
             ]);
 
@@ -302,11 +413,9 @@ class SeasonPreseasonController extends Controller
                     }
                 }
 
-                if ($question->source_template_id) {
-                    $template = PreseasonPredictionTemplate::find($question->source_template_id);
-                } else {
-                    $template = null;
-                }
+                $template = $question->source_template_id
+                    ? PreseasonPredictionTemplate::find($question->source_template_id)
+                    : null;
 
                 if (! $template) {
                     $template = new PreseasonPredictionTemplate();
@@ -315,13 +424,10 @@ class SeasonPreseasonController extends Controller
                 $template->fill([
                     'label' => $question->label,
                     'answer_type' => $question->answer_type,
-                    'correction_group' => $question->correction_group,
-                    'correction_mode' => $question->correction_mode,
                     'scoring_profile_id' => $question->scoring_profile_id,
                     'position' => $question->position,
                     'is_active' => $question->is_active,
                 ]);
-
                 $template->save();
 
                 if (! $question->source_template_id) {
@@ -335,18 +441,78 @@ class SeasonPreseasonController extends Controller
 
             $globalTemplateIdsToKeep = array_values($seasonQuestionToGlobalTemplateIds);
 
-            PreseasonPredictionTemplate::query()
+            $obsoleteGlobalTemplateIds = PreseasonPredictionTemplate::query()
                 ->whereNotIn('id', $globalTemplateIdsToKeep ?: [0])
-                ->delete();
+                ->pluck('id');
+
+            if ($obsoleteGlobalTemplateIds->isNotEmpty()) {
+                DB::table('preseason_bonus_rule_template_questions')
+                    ->whereIn('preseason_prediction_template_id', $obsoleteGlobalTemplateIds)
+                    ->delete();
+
+                DB::table('preseason_correction_group_template_questions')
+                    ->whereIn('preseason_prediction_template_id', $obsoleteGlobalTemplateIds)
+                    ->delete();
+
+                PreseasonPredictionTemplate::query()
+                    ->whereIn('id', $obsoleteGlobalTemplateIds)
+                    ->delete();
+            }
+
+            $seasonCorrectionGroupToGlobalTemplateIds = [];
+
+            foreach ($season->preseasonCorrectionGroups()->with('questions')->orderBy('position')->get() as $correctionGroup) {
+                $correctionGroupTemplate = $correctionGroup->source_template_id
+                    ? PreseasonCorrectionGroupTemplate::find($correctionGroup->source_template_id)
+                    : null;
+
+                if (! $correctionGroupTemplate) {
+                    $correctionGroupTemplate = new PreseasonCorrectionGroupTemplate();
+                }
+
+                $correctionGroupTemplate->fill([
+                    'label' => $correctionGroup->label,
+                    'code' => $this->uniqueGlobalCorrectionGroupCode(
+                        $correctionGroup->code,
+                        $correctionGroup->label,
+                        $correctionGroupTemplate->exists ? $correctionGroupTemplate->id : null
+                    ),
+                    'position' => $correctionGroup->position,
+                    'is_active' => $correctionGroup->is_active,
+                ]);
+                $correctionGroupTemplate->save();
+
+                if (! $correctionGroup->source_template_id) {
+                    $correctionGroup->update([
+                        'source_template_id' => $correctionGroupTemplate->id,
+                    ]);
+                }
+
+                $globalQuestionIds = $correctionGroup->questions
+                    ->pluck('id')
+                    ->map(fn ($seasonQuestionId) => $seasonQuestionToGlobalTemplateIds[$seasonQuestionId] ?? null)
+                    ->filter()
+                    ->values()
+                    ->all();
+
+                $correctionGroupTemplate->questions()->sync($globalQuestionIds);
+                $seasonCorrectionGroupToGlobalTemplateIds[] = $correctionGroupTemplate->id;
+            }
+
+            PreseasonCorrectionGroupTemplate::query()
+                ->whereNotIn('id', $seasonCorrectionGroupToGlobalTemplateIds ?: [0])
+                ->get()
+                ->each(function (PreseasonCorrectionGroupTemplate $correctionGroupTemplate) {
+                    $correctionGroupTemplate->questions()->detach();
+                    $correctionGroupTemplate->delete();
+                });
 
             $seasonBonusToGlobalTemplateIds = [];
 
             foreach ($season->preseasonBonusRules()->with('questions')->orderBy('position')->get() as $bonusRule) {
-                if ($bonusRule->source_template_id) {
-                    $bonusTemplate = PreseasonBonusRuleTemplate::find($bonusRule->source_template_id);
-                } else {
-                    $bonusTemplate = null;
-                }
+                $bonusTemplate = $bonusRule->source_template_id
+                    ? PreseasonBonusRuleTemplate::find($bonusRule->source_template_id)
+                    : null;
 
                 if (! $bonusTemplate) {
                     $bonusTemplate = new PreseasonBonusRuleTemplate();
@@ -359,7 +525,6 @@ class SeasonPreseasonController extends Controller
                     'is_active' => $bonusRule->is_active,
                     'stop_after_match' => $bonusRule->stop_after_match,
                 ]);
-
                 $bonusTemplate->save();
 
                 if (! $bonusRule->source_template_id) {
@@ -376,45 +541,63 @@ class SeasonPreseasonController extends Controller
                     ->all();
 
                 $bonusTemplate->questions()->sync($globalQuestionIds);
-
                 $seasonBonusToGlobalTemplateIds[] = $bonusTemplate->id;
             }
 
             PreseasonBonusRuleTemplate::query()
                 ->whereNotIn('id', $seasonBonusToGlobalTemplateIds ?: [0])
-                ->delete();
+                ->get()
+                ->each(function (PreseasonBonusRuleTemplate $bonusTemplate) {
+                    $bonusTemplate->questions()->detach();
+                    $bonusTemplate->delete();
+                });
         });
 
         return redirect()
             ->route('admin.seasons.preseason.edit', $season)
-            ->with('success', 'La configuration avant-saison de cette saison a été appliquée aux paramètres globaux.');
+            ->with('success', 'La configuration avant-saison de cette saison a ete appliquee aux parametres globaux.');
     }
 
     private function lockedRedirect(Season $season)
     {
         return redirect()
             ->route('admin.seasons.preseason.edit', $season)
-            ->with('error', 'Cette saison est verrouillée : la configuration avant-saison ne peut plus être modifiée.');
+            ->with('error', 'Cette saison est verrouillee : la configuration avant-saison ne peut plus etre modifiee.');
     }
 
-    private function normalizeCorrectionGroup(?string $value): ?string
+    private function uniqueSeasonCorrectionGroupCode(Season $season, ?string $requestedCode, string $label, ?int $ignoreId = null): string
     {
-        $value = trim((string) $value);
+        $baseCode = Str::slug($requestedCode ?: $label, '_') ?: 'groupe_correction';
+        $code = $baseCode;
+        $suffix = 2;
 
-        if ($value === '') {
-            return null;
+        while (SeasonPreseasonCorrectionGroup::query()
+            ->where('season_id', $season->id)
+            ->where('code', $code)
+            ->when($ignoreId, fn ($query) => $query->where('id', '!=', $ignoreId))
+            ->exists()) {
+            $code = $baseCode.'_'.$suffix;
+            $suffix++;
         }
 
-        return $value;
+        return $code;
     }
 
-    private function correctionModeForGroup(?string $correctionGroup, ?string $correctionMode): ?string
+    private function uniqueGlobalCorrectionGroupCode(?string $requestedCode, string $label, ?int $ignoreId = null): string
     {
-        if (! filled($correctionGroup)) {
-            return null;
+        $baseCode = Str::slug($requestedCode ?: $label, '_') ?: 'groupe_correction';
+        $code = $baseCode;
+        $suffix = 2;
+
+        while (PreseasonCorrectionGroupTemplate::query()
+            ->where('code', $code)
+            ->when($ignoreId, fn ($query) => $query->where('id', '!=', $ignoreId))
+            ->exists()) {
+            $code = $baseCode.'_'.$suffix;
+            $suffix++;
         }
 
-        return $correctionMode ?: null;
+        return $code;
     }
 
     private function resolveSeason(?Season $season = null): Season

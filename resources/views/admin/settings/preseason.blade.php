@@ -1,26 +1,22 @@
 @extends('layouts.pronos')
 
 @section('content')
+<div class="mb-4">
+    <a href="{{ route('admin.index') }}" class="text-decoration-none fw-bold">
+        ← Retour administration
+    </a>
 
-@include('admin.partials.back-link', [
-    'href' => route('admin.settings.index'),
-    'label' => 'Retour administration',
-])
-
-<div class="d-flex justify-content-between align-items-start gap-3 mb-4">
-    <div>
-        <div class="text-uppercase text-primary fw-bold small">
-            Administration
-        </div>
-
-        <h2 class="fw-bold mb-1">
-            Paramètres avant-saison
-        </h2>
-
-        <p class="text-muted mb-0">
-            Gère les barèmes, les questions et les bonus utilisés pour les pronostics avant-saison.
-        </p>
+    <div class="mt-3 text-uppercase text-primary fw-bold small">
+        Administration
     </div>
+
+    <h2 class="fw-bold mb-1">
+        Paramètres avant-saison
+    </h2>
+
+    <p class="text-muted mb-0">
+        Gère les barèmes, les questions, les groupes de correction et les bonus utilisés pour les pronostics avant-saison.
+    </p>
 </div>
 
 @if($errors->any())
@@ -35,795 +31,1108 @@
     </div>
 @endif
 
-<div class="rugby-card p-4 mb-4">
-    <div class="d-flex justify-content-between align-items-start gap-3 mb-3">
-        <div>
-            <h3 class="h5 fw-bold mb-1">
-                Barèmes avant-saison
-            </h3>
+<div class="row g-4">
+    <div class="col-12">
+        <div class="rugby-card p-4">
+            <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-3">
+                <div>
+                    <h3 class="h5 fw-bold mb-1">
+                        Barèmes avant-saison
+                    </h3>
 
-            <p class="text-muted mb-0">
-                Barèmes disponibles pour les questions avant-saison.
-            </p>
-        </div>
+                    <p class="text-muted mb-0">
+                        Barèmes disponibles pour les questions avant-saison.
+                    </p>
+                </div>
 
-        <a href="{{ route('admin.settings.scoring-profiles.create', [
-                'category' => 'preseason',
-                'return_to' => 'preseason',
-            ]) }}"
-           class="btn btn-sm btn-warning rounded-pill fw-bold px-3">
-            + Créer un barème
-        </a>
-    </div>
+                <a href="{{ route('admin.settings.scoring-profiles.create', ['return_to' => 'preseason', 'category' => 'preseason']) }}"
+                   class="btn btn-warning rounded-pill fw-bold px-4">
+                    + Créer un barème
+                </a>
+            </div>
 
-    @if($profiles->isEmpty())
-        <div class="alert alert-info mb-0">
-            Aucun barème avant-saison n’est encore configuré.
-        </div>
-    @else
-        <div class="row g-3">
-            @foreach($profiles as $profile)
-                <div class="col-md-6">
-                    <div class="border rounded-4 p-3 h-100">
-                        <div class="d-flex justify-content-between align-items-start gap-2 mb-2">
-                            <div>
-                                <div class="fw-bold">
-                                    {{ $profile->name }}
+            @if($profiles->isEmpty())
+                <div class="alert alert-warning mb-0">
+                    Aucun barème avant-saison n’est encore configuré.
+                </div>
+            @else
+                <div class="row g-3">
+                    @foreach($profiles as $profile)
+                        <div class="col-md-6 col-xl-4">
+                            <div class="border rounded-4 p-3 h-100">
+                                <div class="d-flex justify-content-between align-items-start gap-2">
+                                    <div>
+                                        <div class="fw-bold">
+                                            {{ $profile->name }}
+                                        </div>
+
+                                        <div class="text-muted small">
+                                            {{ $profile->code }}
+                                        </div>
+                                    </div>
+
+                                    <a href="{{ route('admin.settings.scoring-profiles.edit', ['profile' => $profile, 'return_to' => 'preseason']) }}"
+                                       class="btn btn-sm btn-outline-primary rounded-pill">
+                                        Modifier
+                                    </a>
                                 </div>
 
-                                <div class="small text-muted">
-                                    {{ $profile->code }}
+                                @if($profile->description)
+                                    <div class="text-muted small mt-2">
+                                        {{ $profile->description }}
+                                    </div>
+                                @endif
+
+                                <div class="mt-3 d-flex flex-wrap gap-2">
+                                    @foreach($profile->rules as $rule)
+                                        <span class="badge rounded-pill text-bg-light border text-dark">
+                                            {{ $rule->label }} : {{ $rule->points }} pts
+                                        </span>
+                                    @endforeach
                                 </div>
                             </div>
-
-                            <a href="{{ route('admin.settings.scoring-profiles.edit', [
-                                    'profile' => $profile,
-                                    'return_to' => 'preseason',
-                                ]) }}"
-                               class="btn btn-sm btn-outline-primary rounded-pill">
-                                Modifier
-                            </a>
-                        </div>
-
-                        @if($profile->description)
-                            <div class="small text-muted mb-2">
-                                {{ $profile->description }}
-                            </div>
-                        @endif
-
-                        <div class="d-flex flex-wrap gap-2">
-                            @foreach($profile->rules as $rule)
-                                <span class="badge text-bg-light border text-dark rounded-pill">
-                                    {{ $rule->label }} : {{ $rule->points }} pts
-                                </span>
-                            @endforeach
-                        </div>
-                    </div>
-                </div>
-            @endforeach
-        </div>
-    @endif
-</div>
-
-<div class="rugby-card p-4 mb-4">
-    <h3 class="h5 fw-bold mb-1">
-        Questions avant-saison
-    </h3>
-
-    <p class="text-muted mb-4">
-        Les questions sont affichées dans cet ordre aux joueurs. Les groupes de correction permettent de corriger plusieurs questions ensemble, par exemple les demi-finalistes sans tenir compte de l’ordre.
-    </p>
-
-    <datalist id="correction-group-suggestions">
-        <option value="top14_semifinalists">
-        <option value="prod2_semifinalists">
-    </datalist>
-
-    <div class="border rounded-4 p-3 mb-4">
-        <h4 class="h6 fw-bold mb-3">
-            Ajouter une question
-        </h4>
-
-        <form method="POST" action="{{ route('admin.settings.preseason-templates.store') }}">
-            @csrf
-
-            <div class="row g-3 align-items-end">
-                <div class="col-lg-3">
-                    <label class="form-label fw-bold">
-                        Libellé
-                    </label>
-
-                    <input name="label"
-                           value="{{ old('label') }}"
-                           class="form-control"
-                           required>
-                </div>
-
-                <div class="col-lg-2">
-                    <label class="form-label fw-bold">
-                        Type de réponse
-                    </label>
-
-                    <select name="answer_type" class="form-select" required>
-                        <option value="top14_club" @selected(old('answer_type') === 'top14_club')>
-                            Club TOP 14
-                        </option>
-
-                        <option value="prod2_club" @selected(old('answer_type') === 'prod2_club')>
-                            Club PRO D2
-                        </option>
-
-                        <option value="season_club" @selected(old('answer_type') === 'season_club')>
-                            Club de la saison
-                        </option>
-
-                        <option value="free_text" @selected(old('answer_type') === 'free_text')>
-                            Champ libre
-                        </option>
-                    </select>
-                </div>
-
-                <div class="col-lg-2">
-                    <label class="form-label fw-bold">
-                        Groupe de correction
-                    </label>
-
-                    <input name="correction_group"
-                           value="{{ old('correction_group') }}"
-                           list="correction-group-suggestions"
-                           class="form-control"
-                           placeholder="ex: top14_semifinalists">
-
-                    <div class="form-text">
-                        Vide = correction question par question.
-                    </div>
-                </div>
-
-                <div class="col-lg-2">
-                    <label class="form-label fw-bold">
-                        Mode
-                    </label>
-
-                    <select name="correction_mode" class="form-select">
-                        <option value="">
-                            Normal
-                        </option>
-
-                        <option value="unordered" @selected(old('correction_mode') === 'unordered')>
-                            Sans ordre
-                        </option>
-                    </select>
-                </div>
-
-                <div class="col-lg-2">
-                    <label class="form-label fw-bold">
-                        Barème
-                    </label>
-
-                    <select name="scoring_profile_id" class="form-select" required>
-                        @foreach($profiles as $profile)
-                            <option value="{{ $profile->id }}"
-                                    @selected((string) old('scoring_profile_id') === (string) $profile->id)>
-                                {{ $profile->name }}
-                            </option>
-                        @endforeach
-                    </select>
-                </div>
-
-                <div class="col-lg-1">
-                    <div class="form-check mb-2">
-                        <input type="checkbox"
-                               name="is_active"
-                               value="1"
-                               class="form-check-input"
-                               id="new-template-active"
-                               @checked(old('is_active', true))>
-
-                        <label for="new-template-active" class="form-check-label">
-                            Actif
-                        </label>
-                    </div>
-
-                    <button class="btn btn-warning rounded-pill fw-bold w-100">
-                        +
-                    </button>
-                </div>
-            </div>
-        </form>
-    </div>
-
-    @if($preseasonTemplates->isEmpty())
-        <div class="alert alert-info mb-0">
-            Aucune question avant-saison n’est encore configurée.
-        </div>
-    @else
-        <form method="POST" action="{{ route('admin.settings.update') }}">
-            @csrf
-            @method('PUT')
-
-            <div class="table-responsive">
-                <table class="table align-middle">
-                    <thead>
-                        <tr>
-                            <th style="width: 42px;"></th>
-                            <th>Question</th>
-                            <th style="width: 170px;">Type</th>
-                            <th style="width: 220px;">Groupe</th>
-                            <th style="width: 150px;">Mode</th>
-                            <th style="width: 220px;">Barème</th>
-                            <th class="text-center" style="width: 90px;">Position</th>
-                            <th class="text-center" style="width: 80px;">Actif</th>
-                            <th class="text-end" style="width: 110px;">Actions</th>
-                        </tr>
-                    </thead>
-
-                    <tbody id="preseason-templates-list">
-                        @foreach($preseasonTemplates as $template)
-                            <tr class="preseason-template-item"
-                                data-id="{{ $template->id }}">
-                                <td class="text-muted">
-                                    <span class="drag-handle" role="button">
-                                        ↕
-                                    </span>
-                                </td>
-
-                                <td>
-                                    <input name="preseason[{{ $template->id }}][label]"
-                                           value="{{ old("preseason.{$template->id}.label", $template->label) }}"
-                                           class="form-control"
-                                           required>
-                                </td>
-
-                                <td>
-                                    <select name="preseason[{{ $template->id }}][answer_type]"
-                                            class="form-select"
-                                            required>
-                                        <option value="top14_club" @selected(old("preseason.{$template->id}.answer_type", $template->answer_type) === 'top14_club')>
-                                            Club TOP 14
-                                        </option>
-
-                                        <option value="prod2_club" @selected(old("preseason.{$template->id}.answer_type", $template->answer_type) === 'prod2_club')>
-                                            Club PRO D2
-                                        </option>
-
-                                        <option value="season_club" @selected(old("preseason.{$template->id}.answer_type", $template->answer_type) === 'season_club')>
-                                            Club saison
-                                        </option>
-
-                                        <option value="free_text" @selected(old("preseason.{$template->id}.answer_type", $template->answer_type) === 'free_text')>
-                                            Champ libre
-                                        </option>
-                                    </select>
-                                </td>
-
-                                <td>
-                                    <input name="preseason[{{ $template->id }}][correction_group]"
-                                           value="{{ old("preseason.{$template->id}.correction_group", $template->correction_group) }}"
-                                           list="correction-group-suggestions"
-                                           class="form-control"
-                                           placeholder="ex: top14_semifinalists">
-                                </td>
-
-                                <td>
-                                    <select name="preseason[{{ $template->id }}][correction_mode]"
-                                            class="form-select">
-                                        <option value="" @selected(old("preseason.{$template->id}.correction_mode", $template->correction_mode) === null || old("preseason.{$template->id}.correction_mode", $template->correction_mode) === '')>
-                                            Normal
-                                        </option>
-
-                                        <option value="unordered" @selected(old("preseason.{$template->id}.correction_mode", $template->correction_mode) === 'unordered')>
-                                            Sans ordre
-                                        </option>
-                                    </select>
-                                </td>
-
-                                <td>
-                                    <select name="preseason[{{ $template->id }}][scoring_profile_id]"
-                                            class="form-select"
-                                            required>
-                                        @foreach($profiles as $profile)
-                                            <option value="{{ $profile->id }}"
-                                                    @selected((string) old("preseason.{$template->id}.scoring_profile_id", $template->scoring_profile_id) === (string) $profile->id)>
-                                                {{ $profile->name }}
-                                            </option>
-                                        @endforeach
-                                    </select>
-                                </td>
-
-                                <td>
-                                    <input name="preseason[{{ $template->id }}][position]"
-                                           value="{{ old("preseason.{$template->id}.position", $template->position) }}"
-                                           type="number"
-                                           class="form-control text-center template-position-input">
-                                </td>
-
-                                <td class="text-center">
-                                    <input type="checkbox"
-                                           name="preseason[{{ $template->id }}][is_active]"
-                                           value="1"
-                                           class="form-check-input"
-                                           @checked(old("preseason.{$template->id}.is_active", $template->is_active))>
-                                </td>
-
-                                <td class="text-end">
-                                    <button type="button"
-                                            class="btn btn-sm btn-outline-danger rounded-pill js-delete-item"
-                                            data-delete-url="{{ route('admin.settings.preseason-templates.destroy', $template) }}"
-                                            data-delete-label="{{ $template->label }}">
-                                        Supprimer
-                                    </button>
-                                </td>
-                            </tr>
-                        @endforeach
-                    </tbody>
-                </table>
-            </div>
-
-            <button class="btn btn-warning rounded-pill fw-bold px-4">
-                Enregistrer les questions
-            </button>
-        </form>
-    @endif
-</div>
-
-<div class="rugby-card p-4">
-    <h3 class="h5 fw-bold mb-1">
-        Bonus avant-saison
-    </h3>
-
-    <p class="text-muted mb-4">
-        Bonus accordés quand plusieurs pronostics avant-saison sont corrects. L’ordre est important : les bonus sont évalués de haut en bas.
-    </p>
-
-    <div class="border rounded-4 p-3 mb-4">
-        <h4 class="h6 fw-bold mb-3">
-            Ajouter un bonus
-        </h4>
-
-        <form method="POST" action="{{ route('admin.settings.preseason-bonus-rules.store') }}">
-            @csrf
-
-            <div class="row g-3">
-                <div class="col-md-5">
-                    <label class="form-label fw-bold">
-                        Libellé
-                    </label>
-
-                    <input name="label"
-                           value="{{ old('label') }}"
-                           class="form-control"
-                           required>
-                </div>
-
-                <div class="col-md-2">
-                    <label class="form-label fw-bold">
-                        Points
-                    </label>
-
-                    <input name="points"
-                           type="number"
-                           value="{{ old('points', 0) }}"
-                           class="form-control"
-                           required>
-                </div>
-
-                <div class="col-md-2 d-flex align-items-end">
-                    <div class="form-check mb-2">
-                        <input type="checkbox"
-                               name="is_active"
-                               value="1"
-                               id="new-bonus-active"
-                               class="form-check-input"
-                               @checked(old('is_active', true))>
-
-                        <label for="new-bonus-active" class="form-check-label">
-                            Actif
-                        </label>
-                    </div>
-                </div>
-
-                <div class="col-md-3 d-flex align-items-end">
-                    <div class="form-check mb-2">
-                        <input type="checkbox"
-                               name="stop_after_match"
-                               value="1"
-                               id="new-bonus-stop"
-                               class="form-check-input"
-                               @checked(old('stop_after_match'))>
-
-                        <label for="new-bonus-stop" class="form-check-label">
-                            Stop après obtention
-                        </label>
-                    </div>
-                </div>
-            </div>
-
-            <div class="mt-3">
-                <label class="form-label fw-bold">
-                    Questions nécessaires
-                </label>
-
-                <div class="row g-2">
-                    @foreach($preseasonTemplates as $template)
-                        <div class="col-md-6">
-                            <label class="border rounded-3 p-2 d-flex gap-2 align-items-start h-100">
-                                <input type="checkbox"
-                                       name="questions[]"
-                                       value="{{ $template->id }}"
-                                       class="form-check-input mt-1">
-
-                                <span>
-                                    <span class="fw-bold">
-                                        {{ $template->label }}
-                                    </span>
-
-                                    <span class="d-block small text-muted">
-                                        {{ $template->profile->name ?? 'Aucun barème' }}
-
-                                        @if($template->correction_group)
-                                            · {{ $template->correction_group }}
-
-                                            @if($template->correction_mode === 'unordered')
-                                                · sans ordre
-                                            @endif
-                                        @endif
-                                    </span>
-                                </span>
-                            </label>
                         </div>
                     @endforeach
                 </div>
-            </div>
-
-            <button class="btn btn-warning rounded-pill fw-bold px-4 mt-3">
-                Enregistrer le bonus
-            </button>
-        </form>
+            @endif
+        </div>
     </div>
 
-    @if($preseasonBonusRules->isEmpty())
-        <div class="alert alert-info mb-0">
-            Aucun bonus avant-saison n’est encore configuré.
-        </div>
-    @else
-        <div id="preseason-bonus-rules-list" class="d-flex flex-column gap-3">
-            @foreach($preseasonBonusRules as $bonusRule)
-                <div class="border rounded-4 p-3 preseason-bonus-rule-item"
-                     data-id="{{ $bonusRule->id }}">
-                    <form method="POST"
-                          action="{{ route('admin.settings.preseason-bonus-rules.update', $bonusRule) }}">
-                        @csrf
-                        @method('PUT')
+    <div class="col-12">
+        <div class="rugby-card p-4">
+            <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4">
+                <div>
+                    <h3 class="h5 fw-bold mb-1">
+                        Questions avant-saison
+                    </h3>
 
-                        <div class="d-flex justify-content-between align-items-start gap-3 mb-3">
-                            <div>
-                                <div class="d-flex align-items-center gap-2">
-                                    <span class="drag-handle text-muted" role="button">
-                                        ↕
-                                    </span>
+                    <p class="text-muted mb-0">
+                        Les questions sont affichées dans cet ordre aux joueurs. Les groupes de correction sont gérés dans le bloc séparé ci-dessous.
+                    </p>
+                </div>
+            </div>
 
-                                    <h4 class="h6 fw-bold mb-0">
-                                        {{ $bonusRule->label }}
-                                    </h4>
-                                </div>
+            <div class="border rounded-4 p-3 p-md-4 mb-4 bg-light">
+                <h4 class="h6 fw-bold mb-3">
+                    Ajouter une question
+                </h4>
 
-                                <div class="d-flex flex-wrap gap-2 mt-2">
-                                    <span class="badge text-bg-warning rounded-pill">
-                                        +{{ $bonusRule->points }} pts
-                                    </span>
+                <form method="POST" action="{{ route('admin.settings.preseason-templates.store') }}">
+                    @csrf
 
-                                    @if($bonusRule->stop_after_match)
-                                        <span class="badge text-bg-info rounded-pill">
-                                            Stop
-                                        </span>
-                                    @else
-                                        <span class="badge text-bg-light border text-dark rounded-pill">
-                                            Cumulable
-                                        </span>
-                                    @endif
+                    <div class="row g-3 align-items-end">
+                        <div class="col-md-4">
+                            <label class="form-label fw-bold">
+                                Libellé
+                            </label>
 
-                                    @if($bonusRule->is_active)
-                                        <span class="badge text-bg-success rounded-pill">
-                                            Actif
-                                        </span>
-                                    @else
-                                        <span class="badge text-bg-secondary rounded-pill">
-                                            Inactif
-                                        </span>
-                                    @endif
+                            <input type="text"
+                                   name="label"
+                                   class="form-control"
+                                   placeholder="Champion TOP 14"
+                                   value="{{ old('label') }}"
+                                   required>
+                        </div>
 
-                                    <span class="badge text-bg-light border text-dark rounded-pill">
-                                        {{ $bonusRule->questions->count() }} question(s) nécessaire(s)
-                                    </span>
-                                </div>
+                        <div class="col-md-3">
+                            <label class="form-label fw-bold">
+                                Type de réponse
+                            </label>
+
+                            <select name="answer_type"
+                                    class="form-select"
+                                    required>
+                                <option value="top14_club" @selected(old('answer_type') === 'top14_club')>
+                                    Club TOP 14
+                                </option>
+                                <option value="prod2_club" @selected(old('answer_type') === 'prod2_club')>
+                                    Club PRO D2
+                                </option>
+                                <option value="season_club" @selected(old('answer_type') === 'season_club')>
+                                    Club de la saison
+                                </option>
+                                <option value="free_text" @selected(old('answer_type') === 'free_text')>
+                                    Champ libre
+                                </option>
+                            </select>
+                        </div>
+
+                        <div class="col-md-3">
+                            <label class="form-label fw-bold">
+                                Barème
+                            </label>
+
+                            <select name="scoring_profile_id"
+                                    class="form-select"
+                                    required>
+                                @foreach($profiles as $profile)
+                                    <option value="{{ $profile->id }}" @selected((string) old('scoring_profile_id') === (string) $profile->id)>
+                                        {{ $profile->name }}
+                                    </option>
+                                @endforeach
+                            </select>
+                        </div>
+
+                        <div class="col-md-1">
+                            <div class="form-check">
+                                <input type="checkbox"
+                                       name="is_active"
+                                       value="1"
+                                       class="form-check-input"
+                                       id="new_question_active"
+                                       @checked(old('is_active', true))>
+
+                                <label class="form-check-label fw-bold" for="new_question_active">
+                                    Actif
+                                </label>
                             </div>
+                        </div>
 
-                            <button type="button"
-                                    class="btn btn-sm btn-outline-danger rounded-pill js-delete-item"
-                                    data-delete-url="{{ route('admin.settings.preseason-bonus-rules.destroy', $bonusRule) }}"
-                                    data-delete-label="{{ $bonusRule->label }}">
-                                Supprimer
+                        <div class="col-md-1">
+                            <button class="btn btn-warning rounded-pill fw-bold w-100">
+                                +
                             </button>
                         </div>
+                    </div>
+                </form>
+            </div>
 
-                        <div class="row g-3">
-                            <div class="col-md-5">
-                                <label class="form-label fw-bold">
-                                    Libellé
-                                </label>
-
-                                <input name="label"
-                                       value="{{ old("bonus_rules.{$bonusRule->id}.label", $bonusRule->label) }}"
-                                       class="form-control"
-                                       required>
-                            </div>
-
-                            <div class="col-md-2">
-                                <label class="form-label fw-bold">
-                                    Points
-                                </label>
-
-                                <input name="points"
-                                       type="number"
-                                       value="{{ old("bonus_rules.{$bonusRule->id}.points", $bonusRule->points) }}"
-                                       class="form-control"
-                                       required>
-                            </div>
-
-                            <div class="col-md-2">
-                                <label class="form-label fw-bold">
-                                    Position
-                                </label>
-
-                                <input name="position"
-                                       type="number"
-                                       value="{{ old("bonus_rules.{$bonusRule->id}.position", $bonusRule->position) }}"
-                                       class="form-control bonus-position-input">
-                            </div>
-
-                            <div class="col-md-3 d-flex align-items-end gap-4">
-                                <div class="form-check mb-2">
-                                    <input type="checkbox"
-                                           name="is_active"
-                                           value="1"
-                                           id="bonus-active-{{ $bonusRule->id }}"
-                                           class="form-check-input"
-                                           @checked(old("bonus_rules.{$bonusRule->id}.is_active", $bonusRule->is_active))>
-
-                                    <label for="bonus-active-{{ $bonusRule->id }}" class="form-check-label">
-                                        Actif
-                                    </label>
-                                </div>
-
-                                <div class="form-check mb-2">
-                                    <input type="checkbox"
-                                           name="stop_after_match"
-                                           value="1"
-                                           id="bonus-stop-{{ $bonusRule->id }}"
-                                           class="form-check-input"
-                                           @checked(old("bonus_rules.{$bonusRule->id}.stop_after_match", $bonusRule->stop_after_match))>
-
-                                    <label for="bonus-stop-{{ $bonusRule->id }}" class="form-check-label">
-                                        Stop
-                                    </label>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="mt-3">
-                            <div class="fw-bold mb-2">
-                                Questions liées
-                            </div>
-
-                            <div class="row g-2">
-                                @foreach($preseasonTemplates as $template)
-                                    <div class="col-md-6">
-                                        <label class="border rounded-3 p-2 d-flex gap-2 align-items-start h-100">
-                                            <input type="checkbox"
-                                                   name="questions[]"
-                                                   value="{{ $template->id }}"
-                                                   class="form-check-input mt-1"
-                                                   @checked($bonusRule->questions->contains($template->id))>
-
-                                            <span>
-                                                <span class="fw-bold">
-                                                    {{ $template->label }}
-                                                </span>
-
-                                                <span class="d-block small text-muted">
-                                                    {{ $template->profile->name ?? 'Aucun barème' }}
-
-                                                    @if($template->correction_group)
-                                                        · {{ $template->correction_group }}
-
-                                                        @if($template->correction_mode === 'unordered')
-                                                            · sans ordre
-                                                        @endif
-                                                    @endif
-                                                </span>
-                                            </span>
-                                        </label>
-                                    </div>
-                                @endforeach
-                            </div>
-                        </div>
-
-                        <button class="btn btn-outline-primary rounded-pill fw-bold px-4 mt-3">
-                            Enregistrer ce bonus
-                        </button>
-                    </form>
+            @if($preseasonTemplates->isEmpty())
+                <div class="alert alert-warning mb-0">
+                    Aucune question avant-saison n’est encore configurée.
                 </div>
-            @endforeach
+            @else
+                <form method="POST" action="{{ route('admin.settings.update') }}" id="preseasonTemplatesForm">
+                    @csrf
+                    @method('PUT')
+
+                    <div class="table-responsive">
+                        <table class="table align-middle mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th style="width: 60px;"></th>
+                                    <th>Question</th>
+                                    <th style="width: 180px;">Type</th>
+                                    <th style="width: 280px;">Barème</th>
+                                    <th class="text-center" style="width: 90px;">Actif</th>
+                                    <th class="text-end" style="width: 110px;">Actions</th>
+                                </tr>
+                            </thead>
+
+                            <tbody id="preseasonTemplatesList">
+                                @foreach($preseasonTemplates as $template)
+                                    <tr data-id="{{ $template->id }}" draggable="true">
+                                        <td>
+                                            <button type="button"
+                                                    class="btn btn-sm btn-light border drag-handle rounded-pill"
+                                                    title="Déplacer">
+                                                ↕
+                                            </button>
+
+                                            <input type="hidden"
+                                                   name="preseason[{{ $template->id }}][position]"
+                                                   value="{{ old("preseason.{$template->id}.position", $template->position) }}"
+                                                   class="template-position-input">
+                                        </td>
+
+                                        <td>
+                                            <input type="text"
+                                                   name="preseason[{{ $template->id }}][label]"
+                                                   value="{{ old("preseason.{$template->id}.label", $template->label) }}"
+                                                   class="form-control"
+                                                   required>
+
+                                            @if($template->correctionGroups->isNotEmpty())
+                                                <div class="small text-muted mt-2 d-flex flex-wrap gap-1">
+                                                    @foreach($template->correctionGroups as $correctionGroup)
+                                                        <span class="badge rounded-pill text-bg-light border text-dark">
+                                                            {{ $correctionGroup->label }}
+                                                        </span>
+                                                    @endforeach
+                                                </div>
+                                            @endif
+                                        </td>
+
+                                        <td>
+                                            <select name="preseason[{{ $template->id }}][answer_type]"
+                                                    class="form-select"
+                                                    required>
+                                                <option value="top14_club" @selected(old("preseason.{$template->id}.answer_type", $template->answer_type) === 'top14_club')>
+                                                    Club TOP 14
+                                                </option>
+                                                <option value="prod2_club" @selected(old("preseason.{$template->id}.answer_type", $template->answer_type) === 'prod2_club')>
+                                                    Club PRO D2
+                                                </option>
+                                                <option value="season_club" @selected(old("preseason.{$template->id}.answer_type", $template->answer_type) === 'season_club')>
+                                                    Club saison
+                                                </option>
+                                                <option value="free_text" @selected(old("preseason.{$template->id}.answer_type", $template->answer_type) === 'free_text')>
+                                                    Champ libre
+                                                </option>
+                                            </select>
+                                        </td>
+
+                                        <td>
+                                            <select name="preseason[{{ $template->id }}][scoring_profile_id]"
+                                                    class="form-select"
+                                                    required>
+                                                @foreach($profiles as $profile)
+                                                    <option value="{{ $profile->id }}" @selected((string) old("preseason.{$template->id}.scoring_profile_id", $template->scoring_profile_id) === (string) $profile->id)>
+                                                        {{ $profile->name }}
+                                                    </option>
+                                                @endforeach
+                                            </select>
+                                        </td>
+
+                                        <td class="text-center">
+                                            <input type="checkbox"
+                                                   name="preseason[{{ $template->id }}][is_active]"
+                                                   value="1"
+                                                   class="form-check-input"
+                                                   @checked(old("preseason.{$template->id}.is_active", $template->is_active))>
+                                        </td>
+
+                                        <td class="text-end">
+                                            <button type="button"
+                                                    class="btn btn-sm btn-outline-danger rounded-pill"
+                                                    onclick="submitDeleteForm('delete-template-{{ $template->id }}', '{{ addslashes($template->label) }}')">
+                                                Supprimer
+                                            </button>
+                                        </td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <button class="btn btn-primary rounded-pill fw-bold px-4 mt-3">
+                        Enregistrer les questions
+                    </button>
+                </form>
+
+                @foreach($preseasonTemplates as $template)
+                    <form id="delete-template-{{ $template->id }}"
+                          method="POST"
+                          action="{{ route('admin.settings.preseason-templates.destroy', $template) }}"
+                          class="d-none">
+                        @csrf
+                        @method('DELETE')
+                    </form>
+                @endforeach
+            @endif
         </div>
-    @endif
+    </div>
+
+    <div class="col-12">
+        <div class="rugby-card p-4">
+            <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4">
+                <div>
+                    <h3 class="h5 fw-bold mb-1">
+                        Groupes de correction
+                    </h3>
+
+                    <p class="text-muted mb-0">
+                        Un groupe corrige plusieurs questions ensemble, sans tenir compte de l’ordre des réponses. Exemple : les quatre demi-finalistes TOP 14.
+                    </p>
+                </div>
+            </div>
+
+            <div class="border rounded-4 p-3 p-md-4 mb-4 bg-light">
+                <h4 class="h6 fw-bold mb-3">
+                    Ajouter un groupe de correction
+                </h4>
+
+                <form method="POST" action="{{ route('admin.settings.preseason-correction-groups.store') }}">
+                    @csrf
+
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <label class="form-label fw-bold">
+                                Libellé
+                            </label>
+
+                            <input type="text"
+                                   name="label"
+                                   class="form-control"
+                                   placeholder="Demi-finalistes TOP 14"
+                                   value="{{ old('label') }}"
+                                   required>
+                        </div>
+
+                        <div class="col-md-3">
+                            <label class="form-label fw-bold">
+                                Code
+                            </label>
+
+                            <input type="text"
+                                   name="code"
+                                   class="form-control"
+                                   placeholder="top14_semifinalists"
+                                   value="{{ old('code') }}">
+                        </div>
+
+                        <div class="col-md-2 d-flex align-items-end">
+                            <div class="form-check">
+                                <input type="checkbox"
+                                       name="is_active"
+                                       value="1"
+                                       class="form-check-input"
+                                       id="new_correction_group_active"
+                                       @checked(old('is_active', true))>
+
+                                <label class="form-check-label fw-bold" for="new_correction_group_active">
+                                    Actif
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="col-12">
+                            <label class="form-label fw-bold">
+                                Questions du groupe
+                            </label>
+
+                            @if($preseasonTemplates->isEmpty())
+                                <div class="alert alert-warning mb-0">
+                                    Ajoute d’abord des questions avant de créer un groupe de correction.
+                                </div>
+                            @else
+                                <div class="row g-2">
+                                    @foreach($preseasonTemplates as $template)
+                                        <div class="col-md-6 col-xl-4">
+                                            <label class="border rounded-3 p-2 w-100 bg-white d-flex gap-2 align-items-start">
+                                                <input type="checkbox"
+                                                       name="questions[]"
+                                                       value="{{ $template->id }}"
+                                                       class="form-check-input mt-1">
+
+                                                <span>
+                                                    <span class="fw-bold d-block">
+                                                        {{ $template->label }}
+                                                    </span>
+
+                                                    <span class="text-muted small">
+                                                        {{ $template->profile->name ?? 'Aucun barème' }}
+                                                    </span>
+                                                </span>
+                                            </label>
+                                        </div>
+                                    @endforeach
+                                </div>
+                            @endif
+                        </div>
+
+                        <div class="col-12">
+                            <button class="btn btn-warning rounded-pill fw-bold px-4" @disabled($preseasonTemplates->isEmpty())>
+                                Créer le groupe
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+
+            @if($preseasonCorrectionGroups->isEmpty())
+                <div class="alert alert-warning mb-0">
+                    Aucun groupe de correction avant-saison n’est encore configuré.
+                </div>
+            @else
+                <div id="preseasonCorrectionGroupsList" class="d-grid gap-3">
+                    @foreach($preseasonCorrectionGroups as $correctionGroup)
+                        @php
+                            $selectedQuestionIds = collect(old("correction_groups.{$correctionGroup->id}.questions", $correctionGroup->questions->pluck('id')->toArray()))
+                                ->map(fn ($id) => (int) $id);
+                        @endphp
+
+                        <div class="border rounded-4 p-3 p-md-4 bg-white list-group-item"
+                             data-id="{{ $correctionGroup->id }}"
+                             draggable="true">
+                            <form method="POST" action="{{ route('admin.settings.preseason-correction-groups.update', $correctionGroup) }}">
+                                @csrf
+                                @method('PUT')
+
+                                <input type="hidden"
+                                       name="position"
+                                       value="{{ old("correction_groups.{$correctionGroup->id}.position", $correctionGroup->position) }}"
+                                       class="correction-group-position-input">
+
+                                <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-3">
+                                    <div class="d-flex gap-3 align-items-start">
+                                        <button type="button"
+                                                class="btn btn-sm btn-light border drag-handle rounded-pill"
+                                                title="Déplacer">
+                                            ↕
+                                        </button>
+
+                                        <div>
+                                            <div class="d-flex flex-wrap align-items-center gap-2 mb-1">
+                                                <h4 class="h5 fw-bold mb-0">
+                                                    {{ $correctionGroup->label }}
+                                                </h4>
+
+                                                @if($correctionGroup->is_active)
+                                                    <span class="badge rounded-pill text-bg-primary">
+                                                        Actif
+                                                    </span>
+                                                @else
+                                                    <span class="badge rounded-pill text-bg-secondary">
+                                                        Inactif
+                                                    </span>
+                                                @endif
+                                            </div>
+
+                                            <div class="text-muted small">
+                                                {{ $correctionGroup->code }} · {{ $correctionGroup->questions->count() }} question(s)
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <button type="button"
+                                            class="btn btn-sm btn-outline-danger rounded-pill"
+                                            onclick="submitDeleteForm('delete-correction-group-{{ $correctionGroup->id }}', '{{ addslashes($correctionGroup->label) }}')">
+                                        Supprimer
+                                    </button>
+                                </div>
+
+                                <div class="row g-3">
+                                    <div class="col-md-5">
+                                        <label class="form-label fw-bold">
+                                            Libellé
+                                        </label>
+
+                                        <input type="text"
+                                               name="label"
+                                               value="{{ old("correction_groups.{$correctionGroup->id}.label", $correctionGroup->label) }}"
+                                               class="form-control"
+                                               required>
+                                    </div>
+
+                                    <div class="col-md-4">
+                                        <label class="form-label fw-bold">
+                                            Code
+                                        </label>
+
+                                        <input type="text"
+                                               name="code"
+                                               value="{{ old("correction_groups.{$correctionGroup->id}.code", $correctionGroup->code) }}"
+                                               class="form-control">
+                                    </div>
+
+                                    <div class="col-md-3 d-flex align-items-end">
+                                        <div class="form-check">
+                                            <input type="checkbox"
+                                                   name="is_active"
+                                                   value="1"
+                                                   class="form-check-input"
+                                                   id="correction_group_active_{{ $correctionGroup->id }}"
+                                                   @checked(old("correction_groups.{$correctionGroup->id}.is_active", $correctionGroup->is_active))>
+
+                                            <label class="form-check-label fw-bold"
+                                                   for="correction_group_active_{{ $correctionGroup->id }}">
+                                                Actif
+                                            </label>
+                                        </div>
+                                    </div>
+
+                                    <div class="col-12">
+                                        <div class="fw-bold mb-2">
+                                            Questions liées
+                                        </div>
+
+                                        <div class="d-flex flex-wrap gap-2 mb-3">
+                                            @forelse($correctionGroup->questions as $question)
+                                                <span class="badge rounded-pill text-bg-light border text-dark px-3 py-2">
+                                                    {{ $question->label }}
+                                                </span>
+                                            @empty
+                                                <span class="text-muted small">
+                                                    Aucune question liée.
+                                                </span>
+                                            @endforelse
+                                        </div>
+
+                                        <div class="border rounded-4 bg-light overflow-hidden">
+                                            <button type="button"
+                                                    class="btn w-100 text-start p-3 d-flex justify-content-between align-items-center fw-bold"
+                                                    onclick="toggleCorrectionGroupQuestions({{ $correctionGroup->id }})">
+                                                <span>
+                                                    Modifier les questions liées
+                                                </span>
+
+                                                <span id="correction_group_questions_icon_{{ $correctionGroup->id }}">
+                                                    +
+                                                </span>
+                                            </button>
+
+                                            <div id="correction_group_questions_{{ $correctionGroup->id }}"
+                                                 class="p-3 border-top d-none">
+                                                <div class="row g-2">
+                                                    @foreach($preseasonTemplates as $template)
+                                                        <div class="col-md-6 col-xl-4">
+                                                            <label class="border rounded-3 p-2 w-100 bg-white d-flex gap-2 align-items-start">
+                                                                <input type="checkbox"
+                                                                       name="questions[]"
+                                                                       value="{{ $template->id }}"
+                                                                       class="form-check-input mt-1"
+                                                                       @checked($selectedQuestionIds->contains($template->id))>
+
+                                                                <span>
+                                                                    <span class="fw-bold d-block">
+                                                                        {{ $template->label }}
+                                                                    </span>
+
+                                                                    <span class="text-muted small">
+                                                                        {{ $template->profile->name ?? 'Aucun barème' }}
+                                                                    </span>
+                                                                </span>
+                                                            </label>
+                                                        </div>
+                                                    @endforeach
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="col-12">
+                                        <button class="btn btn-primary rounded-pill fw-bold px-4">
+                                            Enregistrer ce groupe
+                                        </button>
+                                    </div>
+                                </div>
+                            </form>
+
+                            <form id="delete-correction-group-{{ $correctionGroup->id }}"
+                                  method="POST"
+                                  action="{{ route('admin.settings.preseason-correction-groups.destroy', $correctionGroup) }}"
+                                  class="d-none">
+                                @csrf
+                                @method('DELETE')
+                            </form>
+                        </div>
+                    @endforeach
+                </div>
+            @endif
+        </div>
+    </div>
+
+    <div class="col-12">
+        <div class="rugby-card p-4">
+            <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4">
+                <div>
+                    <h3 class="h5 fw-bold mb-1">
+                        Bonus avant-saison
+                    </h3>
+
+                    <p class="text-muted mb-0">
+                        Bonus accordés quand plusieurs pronostics avant-saison sont corrects. L’ordre est important : les bonus sont évalués de haut en bas.
+                    </p>
+                </div>
+            </div>
+
+            <div class="border rounded-4 p-3 p-md-4 mb-4 bg-light">
+                <h4 class="h6 fw-bold mb-3">
+                    Ajouter un bonus
+                </h4>
+
+                <form method="POST" action="{{ route('admin.settings.preseason-bonus-rules.store') }}">
+                    @csrf
+
+                    <div class="row g-3">
+                        <div class="col-md-5">
+                            <label class="form-label fw-bold">
+                                Libellé
+                            </label>
+
+                            <input type="text"
+                                   name="label"
+                                   class="form-control"
+                                   placeholder="Bonus demi-finalistes TOP 14"
+                                   value="{{ old('label') }}"
+                                   required>
+                        </div>
+
+                        <div class="col-md-2">
+                            <label class="form-label fw-bold">
+                                Points
+                            </label>
+
+                            <input type="number"
+                                   name="points"
+                                   class="form-control text-center"
+                                   value="{{ old('points', 0) }}"
+                                   required>
+                        </div>
+
+                        <div class="col-md-2 d-flex align-items-end">
+                            <div class="form-check">
+                                <input type="checkbox"
+                                       name="is_active"
+                                       value="1"
+                                       class="form-check-input"
+                                       id="new_bonus_active"
+                                       @checked(old('is_active', true))>
+
+                                <label class="form-check-label fw-bold" for="new_bonus_active">
+                                    Actif
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="col-md-3 d-flex align-items-end">
+                            <div class="form-check">
+                                <input type="checkbox"
+                                       name="stop_after_match"
+                                       value="1"
+                                       class="form-check-input"
+                                       id="new_bonus_stop"
+                                       @checked(old('stop_after_match'))>
+
+                                <label class="form-check-label fw-bold" for="new_bonus_stop">
+                                    Stop après obtention
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="col-12">
+                            <label class="form-label fw-bold">
+                                Questions nécessaires
+                            </label>
+
+                            @if($preseasonTemplates->isEmpty())
+                                <div class="alert alert-warning mb-0">
+                                    Ajoute d’abord des questions avant de créer un bonus.
+                                </div>
+                            @else
+                                <div class="row g-2">
+                                    @foreach($preseasonTemplates as $template)
+                                        <div class="col-md-6 col-xl-4">
+                                            <label class="border rounded-3 p-2 w-100 bg-white d-flex gap-2 align-items-start">
+                                                <input type="checkbox"
+                                                       name="questions[]"
+                                                       value="{{ $template->id }}"
+                                                       class="form-check-input mt-1">
+
+                                                <span>
+                                                    <span class="fw-bold d-block">
+                                                        {{ $template->label }}
+                                                    </span>
+
+                                                    <span class="text-muted small">
+                                                        {{ $template->profile->name ?? 'Aucun barème' }}
+
+                                                        @if($template->correctionGroups->isNotEmpty())
+                                                            · {{ $template->correctionGroups->pluck('label')->join(', ') }}
+                                                        @endif
+                                                    </span>
+                                                </span>
+                                            </label>
+                                        </div>
+                                    @endforeach
+                                </div>
+                            @endif
+                        </div>
+
+                        <div class="col-12">
+                            <button class="btn btn-warning rounded-pill fw-bold px-4" @disabled($preseasonTemplates->isEmpty())>
+                                Enregistrer le bonus
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+
+            @if($preseasonBonusRules->isEmpty())
+                <div class="alert alert-warning mb-0">
+                    Aucun bonus avant-saison n’est encore configuré.
+                </div>
+            @else
+                <div id="preseasonBonusRulesList" class="d-grid gap-3">
+                    @foreach($preseasonBonusRules as $bonusRule)
+                        @php
+                            $selectedQuestionIds = collect(old("bonus_rules.{$bonusRule->id}.questions", $bonusRule->questions->pluck('id')->toArray()))
+                                ->map(fn ($id) => (int) $id);
+                        @endphp
+
+                        <div class="border rounded-4 p-3 p-md-4 bg-white list-group-item"
+                             data-id="{{ $bonusRule->id }}"
+                             draggable="true">
+                            <form method="POST"
+                                  action="{{ route('admin.settings.preseason-bonus-rules.update', $bonusRule) }}">
+                                @csrf
+                                @method('PUT')
+
+                                <input type="hidden"
+                                       name="position"
+                                       value="{{ old("bonus_rules.{$bonusRule->id}.position", $bonusRule->position) }}"
+                                       class="bonus-position-input">
+
+                                <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-3">
+                                    <div class="d-flex gap-3 align-items-start">
+                                        <button type="button"
+                                                class="btn btn-sm btn-light border drag-handle rounded-pill"
+                                                title="Déplacer">
+                                            ↕
+                                        </button>
+
+                                        <div>
+                                            <div class="d-flex flex-wrap align-items-center gap-2 mb-1">
+                                                <h4 class="h5 fw-bold mb-0">
+                                                    {{ $bonusRule->label }}
+                                                </h4>
+
+                                                <span class="badge rounded-pill text-bg-warning">
+                                                    +{{ $bonusRule->points }} pts
+                                                </span>
+
+                                                @if($bonusRule->stop_after_match)
+                                                    <span class="badge rounded-pill text-bg-danger">
+                                                        Stop
+                                                    </span>
+                                                @else
+                                                    <span class="badge rounded-pill text-bg-success">
+                                                        Cumulable
+                                                    </span>
+                                                @endif
+
+                                                @if($bonusRule->is_active)
+                                                    <span class="badge rounded-pill text-bg-primary">
+                                                        Actif
+                                                    </span>
+                                                @else
+                                                    <span class="badge rounded-pill text-bg-secondary">
+                                                        Inactif
+                                                    </span>
+                                                @endif
+                                            </div>
+
+                                            <div class="text-muted small">
+                                                {{ $bonusRule->questions->count() }} question(s) nécessaire(s)
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <button type="button"
+                                            class="btn btn-sm btn-outline-danger rounded-pill"
+                                            onclick="submitDeleteForm('delete-bonus-rule-{{ $bonusRule->id }}', '{{ addslashes($bonusRule->label) }}')">
+                                        Supprimer
+                                    </button>
+                                </div>
+
+                                <div class="row g-3">
+                                    <div class="col-md-5">
+                                        <label class="form-label fw-bold">
+                                            Libellé
+                                        </label>
+
+                                        <input type="text"
+                                               name="label"
+                                               value="{{ old("bonus_rules.{$bonusRule->id}.label", $bonusRule->label) }}"
+                                               class="form-control"
+                                               required>
+                                    </div>
+
+                                    <div class="col-md-2">
+                                        <label class="form-label fw-bold">
+                                            Points
+                                        </label>
+
+                                        <input type="number"
+                                               name="points"
+                                               value="{{ old("bonus_rules.{$bonusRule->id}.points", $bonusRule->points) }}"
+                                               class="form-control text-center"
+                                               required>
+                                    </div>
+
+                                    <div class="col-md-2 d-flex align-items-end">
+                                        <div class="form-check">
+                                            <input type="checkbox"
+                                                   name="is_active"
+                                                   value="1"
+                                                   class="form-check-input"
+                                                   id="bonus_active_{{ $bonusRule->id }}"
+                                                   @checked(old("bonus_rules.{$bonusRule->id}.is_active", $bonusRule->is_active))>
+
+                                            <label class="form-check-label fw-bold"
+                                                   for="bonus_active_{{ $bonusRule->id }}">
+                                                Actif
+                                            </label>
+                                        </div>
+                                    </div>
+
+                                    <div class="col-md-3 d-flex align-items-end">
+                                        <div class="form-check">
+                                            <input type="checkbox"
+                                                   name="stop_after_match"
+                                                   value="1"
+                                                   class="form-check-input"
+                                                   id="bonus_stop_{{ $bonusRule->id }}"
+                                                   @checked(old("bonus_rules.{$bonusRule->id}.stop_after_match", $bonusRule->stop_after_match))>
+
+                                            <label class="form-check-label fw-bold"
+                                                   for="bonus_stop_{{ $bonusRule->id }}">
+                                                Stop après obtention
+                                            </label>
+                                        </div>
+                                    </div>
+
+                                    <div class="col-12">
+                                        <div class="fw-bold mb-2">
+                                            Questions liées
+                                        </div>
+
+                                        <div class="d-flex flex-wrap gap-2 mb-3">
+                                            @forelse($bonusRule->questions as $question)
+                                                <span class="badge rounded-pill text-bg-light border text-dark px-3 py-2">
+                                                    {{ $question->label }}
+                                                </span>
+                                            @empty
+                                                <span class="text-muted small">
+                                                    Aucune question liée.
+                                                </span>
+                                            @endforelse
+                                        </div>
+
+                                        <div class="border rounded-4 bg-light overflow-hidden">
+                                            <button type="button"
+                                                    class="btn w-100 text-start p-3 d-flex justify-content-between align-items-center fw-bold"
+                                                    onclick="toggleBonusQuestions({{ $bonusRule->id }})">
+                                                <span>
+                                                    Modifier les questions liées
+                                                </span>
+
+                                                <span id="bonus_questions_icon_{{ $bonusRule->id }}">
+                                                    +
+                                                </span>
+                                            </button>
+
+                                            <div id="bonus_questions_{{ $bonusRule->id }}"
+                                                 class="p-3 border-top d-none">
+                                                <div class="row g-2">
+                                                    @foreach($preseasonTemplates as $template)
+                                                        <div class="col-md-6 col-xl-4">
+                                                            <label class="border rounded-3 p-2 w-100 bg-white d-flex gap-2 align-items-start">
+                                                                <input type="checkbox"
+                                                                       name="questions[]"
+                                                                       value="{{ $template->id }}"
+                                                                       class="form-check-input mt-1"
+                                                                       @checked($selectedQuestionIds->contains($template->id))>
+
+                                                                <span>
+                                                                    <span class="fw-bold d-block">
+                                                                        {{ $template->label }}
+                                                                    </span>
+
+                                                                    <span class="text-muted small">
+                                                                        {{ $template->profile->name ?? 'Aucun barème' }}
+
+                                                                        @if($template->correctionGroups->isNotEmpty())
+                                                                            · {{ $template->correctionGroups->pluck('label')->join(', ') }}
+                                                                        @endif
+                                                                    </span>
+                                                                </span>
+                                                            </label>
+                                                        </div>
+                                                    @endforeach
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="col-12">
+                                        <button class="btn btn-primary rounded-pill fw-bold px-4">
+                                            Enregistrer ce bonus
+                                        </button>
+                                    </div>
+                                </div>
+                            </form>
+
+                            <form id="delete-bonus-rule-{{ $bonusRule->id }}"
+                                  method="POST"
+                                  action="{{ route('admin.settings.preseason-bonus-rules.destroy', $bonusRule) }}"
+                                  class="d-none">
+                                @csrf
+                                @method('DELETE')
+                            </form>
+                        </div>
+                    @endforeach
+                </div>
+            @endif
+        </div>
+    </div>
 </div>
 
-<div class="modal fade" id="deleteItemModal" tabindex="-1" aria-labelledby="deleteItemModalLabel" aria-hidden="true">
+<div class="modal fade" id="deleteConfirmModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content rounded-4">
             <div class="modal-header">
-                <h5 class="modal-title fw-bold" id="deleteItemModalLabel">
+                <h5 class="modal-title fw-bold">
                     Confirmer la suppression
                 </h5>
 
-                <button type="button"
-                        class="btn-close"
-                        data-bs-dismiss="modal"
-                        aria-label="Fermer"></button>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
             </div>
 
             <div class="modal-body">
-                <p class="mb-0">
-                    Supprimer définitivement :
-                    <span id="deleteItemLabel" class="fw-bold"></span> ?
-                </p>
+                Supprimer définitivement :
+                <strong id="deleteConfirmLabel"></strong>
+                ?
             </div>
 
             <div class="modal-footer">
-                <button type="button"
-                        class="btn btn-outline-secondary rounded-pill"
-                        data-bs-dismiss="modal">
+                <button type="button" class="btn btn-outline-secondary rounded-pill" data-bs-dismiss="modal">
                     Annuler
                 </button>
 
-                <button type="button"
-                        class="btn btn-danger rounded-pill fw-bold"
-                        id="confirmDeleteItemButton">
+                <button type="button" class="btn btn-danger rounded-pill fw-bold" id="deleteConfirmButton">
                     Supprimer
                 </button>
             </div>
         </div>
     </div>
 </div>
-
 @endsection
 
 @push('scripts')
 <script>
-    document.addEventListener('DOMContentLoaded', function () {
-        const csrfToken = @json(csrf_token());
+    let pendingDeleteFormId = null;
 
-        const templateList = document.getElementById('preseason-templates-list');
+    function submitDeleteForm(formId, label) {
+        const form = document.getElementById(formId);
 
-        if (templateList && window.Sortable) {
-            new Sortable(templateList, {
-                handle: '.drag-handle',
-                animation: 150,
-                onEnd: function () {
-                    const templateIds = Array.from(templateList.querySelectorAll('.preseason-template-item'))
-                        .map(function (row, index) {
-                            const positionInput = row.querySelector('.template-position-input');
-
-                            if (positionInput) {
-                                positionInput.value = (index + 1) * 10;
-                            }
-
-                            return row.dataset.id;
-                        });
-
-                    fetch(@json(route('admin.settings.preseason-templates.reorder')), {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'X-CSRF-TOKEN': csrfToken,
-                            'Accept': 'application/json',
-                        },
-                        body: JSON.stringify({
-                            templates: templateIds,
-                        }),
-                    });
-                },
-            });
+        if (!form) {
+            return;
         }
 
-        const bonusList = document.getElementById('preseason-bonus-rules-list');
+        pendingDeleteFormId = formId;
 
-        if (bonusList && window.Sortable) {
-            new Sortable(bonusList, {
-                handle: '.drag-handle',
-                animation: 150,
-                onEnd: function () {
-                    const bonusRuleIds = Array.from(bonusList.querySelectorAll('.preseason-bonus-rule-item'))
-                        .map(function (card, index) {
-                            const positionInput = card.querySelector('.bonus-position-input');
+        const labelElement = document.getElementById('deleteConfirmLabel');
 
-                            if (positionInput) {
-                                positionInput.value = (index + 1) * 10;
-                            }
-
-                            return card.dataset.id;
-                        });
-
-                    fetch(@json(route('admin.settings.preseason-bonus-rules.reorder')), {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'X-CSRF-TOKEN': csrfToken,
-                            'Accept': 'application/json',
-                        },
-                        body: JSON.stringify({
-                            bonus_rules: bonusRuleIds,
-                        }),
-                    });
-                },
-            });
+        if (labelElement) {
+            labelElement.textContent = label || '';
         }
 
-        const deleteModalElement = document.getElementById('deleteItemModal');
-        const deleteLabelElement = document.getElementById('deleteItemLabel');
-        const confirmDeleteButton = document.getElementById('confirmDeleteItemButton');
+        const modalElement = document.getElementById('deleteConfirmModal');
 
-        let deleteUrl = null;
-        let deleteTrigger = null;
+        if (window.bootstrap && modalElement) {
+            bootstrap.Modal.getOrCreateInstance(modalElement).show();
+            return;
+        }
 
-        document.querySelectorAll('.js-delete-item').forEach(function (button) {
-            button.addEventListener('click', function () {
-                deleteUrl = button.dataset.deleteUrl;
-                deleteTrigger = button;
+        if (confirm('Supprimer définitivement : ' + (label || 'cet élément') + ' ?')) {
+            form.submit();
+        }
+    }
 
-                if (deleteLabelElement) {
-                    deleteLabelElement.textContent = button.dataset.deleteLabel || '';
-                }
+    function toggleBonusQuestions(id) {
+        togglePanel('bonus_questions_' + id, 'bonus_questions_icon_' + id);
+    }
 
-                if (deleteModalElement && window.bootstrap) {
-                    bootstrap.Modal.getOrCreateInstance(deleteModalElement).show();
-                }
-            });
+    function toggleCorrectionGroupQuestions(id) {
+        togglePanel('correction_group_questions_' + id, 'correction_group_questions_icon_' + id);
+    }
+
+    function togglePanel(panelId, iconId) {
+        const panel = document.getElementById(panelId);
+        const icon = document.getElementById(iconId);
+
+        if (!panel) {
+            return;
+        }
+
+        panel.classList.toggle('d-none');
+
+        if (icon) {
+            icon.textContent = panel.classList.contains('d-none') ? '+' : '−';
+        }
+    }
+
+    function setupReorderableList(containerSelector, itemSelector, positionSelector) {
+        const container = document.querySelector(containerSelector);
+
+        if (!container) {
+            return;
+        }
+
+        let draggedItem = null;
+
+        container.addEventListener('dragstart', function (event) {
+            const item = event.target.closest(itemSelector);
+
+            if (!item || !event.target.closest('.drag-handle')) {
+                event.preventDefault();
+                return;
+            }
+
+            draggedItem = item;
+            item.classList.add('opacity-50');
+            event.dataTransfer.effectAllowed = 'move';
         });
 
-        if (confirmDeleteButton) {
-            confirmDeleteButton.addEventListener('click', function () {
-                if (! deleteUrl) {
+        container.addEventListener('dragend', function () {
+            if (draggedItem) {
+                draggedItem.classList.remove('opacity-50');
+            }
+
+            draggedItem = null;
+            refreshPositions(container, itemSelector, positionSelector);
+        });
+
+        container.addEventListener('dragover', function (event) {
+            event.preventDefault();
+
+            const target = event.target.closest(itemSelector);
+
+            if (!draggedItem || !target || draggedItem === target) {
+                return;
+            }
+
+            const rectangle = target.getBoundingClientRect();
+            const next = (event.clientY - rectangle.top) / rectangle.height > 0.5;
+
+            container.insertBefore(draggedItem, next ? target.nextSibling : target);
+        });
+
+        refreshPositions(container, itemSelector, positionSelector);
+    }
+
+    function refreshPositions(container, itemSelector, positionSelector) {
+        container.querySelectorAll(itemSelector).forEach(function (item, index) {
+            const positionInput = item.querySelector(positionSelector);
+
+            if (positionInput) {
+                positionInput.value = (index + 1) * 10;
+            }
+        });
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        const deleteButton = document.getElementById('deleteConfirmButton');
+
+        if (deleteButton) {
+            deleteButton.addEventListener('click', function () {
+                if (!pendingDeleteFormId) {
                     return;
                 }
 
-                fetch(deleteUrl, {
-                    method: 'DELETE',
-                    headers: {
-                        'X-CSRF-TOKEN': csrfToken,
-                        'Accept': 'application/json',
-                    },
-                })
-                    .then(function (response) {
-                        if (! response.ok) {
-                            throw new Error('Delete failed');
-                        }
+                const form = document.getElementById(pendingDeleteFormId);
 
-                        const item = deleteTrigger?.closest('.preseason-template-item, .preseason-bonus-rule-item');
+                if (form) {
+                    form.submit();
+                }
+            });
+        }
 
-                        if (item) {
-                            item.remove();
-                        } else {
-                            window.location.reload();
-                        }
+        setupReorderableList('#preseasonTemplatesList', 'tr', '.template-position-input');
+        setupReorderableList('#preseasonCorrectionGroupsList', '.list-group-item', '.correction-group-position-input');
+        setupReorderableList('#preseasonBonusRulesList', '.list-group-item', '.bonus-position-input');
 
-                        if (deleteModalElement && window.bootstrap) {
-                            bootstrap.Modal.getOrCreateInstance(deleteModalElement).hide();
-                        }
-                    })
-                    .catch(function () {
-                        window.location.reload();
-                    });
+        const questionsForm = document.getElementById('preseasonTemplatesForm');
+
+        if (questionsForm) {
+            questionsForm.addEventListener('submit', function () {
+                const container = document.querySelector('#preseasonTemplatesList');
+
+                if (container) {
+                    refreshPositions(container, 'tr', '.template-position-input');
+                }
             });
         }
     });

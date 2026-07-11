@@ -5,27 +5,30 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\JourneeTypeScoringProfile;
 use App\Models\PreseasonBonusRuleTemplate;
+use App\Models\PreseasonCorrectionGroupTemplate;
 use App\Models\PreseasonPredictionTemplate;
 use App\Models\ScoringProfile;
 use App\Models\ScoringRuleTemplate;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 
 class SettingController extends Controller
 {
     private const JOURNEE_RULE_CODE_LABELS = [
-        'home_win' => 'Résultat juste — victoire domicile / équipe 1',
-        'away_win' => 'Résultat juste — victoire extérieur / équipe 2',
-        'draw' => 'Résultat juste — match nul',
-        'tries_exact' => 'Nombre d’essais exact',
-        'tries_near' => 'Nombre d’essais à +/- 1',
-        'bonus_correct' => 'Bonus pronostiqué juste',
-        'bonus_wrong' => 'Bonus pronostiqué faux',
-        'perfect_round' => 'Bonus journée parfaite',
+        'home_win' => 'Resultat juste - victoire domicile / equipe 1',
+        'away_win' => 'Resultat juste - victoire exterieur / equipe 2',
+        'draw' => 'Resultat juste - match nul',
+        'tries_exact' => 'Nombre d essais exact',
+        'tries_near' => 'Nombre d essais a +/- 1',
+        'bonus_correct' => 'Bonus pronostique juste',
+        'bonus_wrong' => 'Bonus pronostique faux',
+        'perfect_round' => 'Bonus journee parfaite',
     ];
 
     private const PRESEASON_RULE_CODE_LABELS = [
-        'correct' => 'Réponse exacte',
+        'correct' => 'Reponse exacte',
     ];
 
     public function index()
@@ -52,7 +55,14 @@ class SettingController extends Controller
             ->orderBy('position')
             ->get();
 
-        $preseasonTemplates = PreseasonPredictionTemplate::with('profile')
+        $preseasonTemplates = PreseasonPredictionTemplate::with([
+            'profile',
+            'correctionGroups',
+        ])
+            ->orderBy('position')
+            ->get();
+
+        $preseasonCorrectionGroups = PreseasonCorrectionGroupTemplate::with('questions')
             ->orderBy('position')
             ->get();
 
@@ -63,6 +73,7 @@ class SettingController extends Controller
         return view('admin.settings.preseason', compact(
             'profiles',
             'preseasonTemplates',
+            'preseasonCorrectionGroups',
             'preseasonBonusRules'
         ));
     }
@@ -72,15 +83,11 @@ class SettingController extends Controller
         $data = $request->validate([
             'rules' => ['nullable', 'array'],
             'rules.*' => ['integer'],
-
             'journee_profiles' => ['nullable', 'array'],
             'journee_profiles.*' => ['nullable', 'exists:scoring_profiles,id'],
-
             'preseason' => ['nullable', 'array'],
             'preseason.*.label' => ['required', 'string', 'max:255'],
             'preseason.*.answer_type' => ['required', 'in:top14_club,prod2_club,season_club,free_text'],
-            'preseason.*.correction_group' => ['nullable', 'string', 'max:100'],
-            'preseason.*.correction_mode' => ['nullable', Rule::in(['unordered'])],
             'preseason.*.scoring_profile_id' => ['required', 'exists:scoring_profiles,id'],
             'preseason.*.position' => ['nullable', 'integer'],
             'preseason.*.is_active' => ['nullable', 'boolean'],
@@ -102,23 +109,16 @@ class SettingController extends Controller
         }
 
         foreach ($data['preseason'] ?? [] as $templateId => $templateData) {
-            $correctionGroup = $this->normalizeCorrectionGroup($templateData['correction_group'] ?? null);
-
             PreseasonPredictionTemplate::whereKey($templateId)->update([
                 'label' => $templateData['label'],
                 'answer_type' => $templateData['answer_type'],
-                'correction_group' => $correctionGroup,
-                'correction_mode' => $this->correctionModeForGroup(
-                    $correctionGroup,
-                    $templateData['correction_mode'] ?? null
-                ),
                 'scoring_profile_id' => $templateData['scoring_profile_id'],
                 'position' => $templateData['position'] ?? 0,
                 'is_active' => isset($templateData['is_active']),
             ]);
         }
 
-        return back()->with('success', 'Paramètres mis à jour.');
+        return back()->with('success', 'Parametres mis a jour.');
     }
 
     public function storePreseasonTemplate(Request $request)
@@ -126,22 +126,13 @@ class SettingController extends Controller
         $data = $request->validate([
             'label' => ['required', 'string', 'max:255'],
             'answer_type' => ['required', 'in:top14_club,prod2_club,season_club,free_text'],
-            'correction_group' => ['nullable', 'string', 'max:100'],
-            'correction_mode' => ['nullable', Rule::in(['unordered'])],
             'scoring_profile_id' => ['required', 'exists:scoring_profiles,id'],
             'is_active' => ['nullable', 'boolean'],
         ]);
 
-        $correctionGroup = $this->normalizeCorrectionGroup($data['correction_group'] ?? null);
-
         PreseasonPredictionTemplate::create([
             'label' => $data['label'],
             'answer_type' => $data['answer_type'],
-            'correction_group' => $correctionGroup,
-            'correction_mode' => $this->correctionModeForGroup(
-                $correctionGroup,
-                $data['correction_mode'] ?? null
-            ),
             'scoring_profile_id' => $data['scoring_profile_id'],
             'position' => (PreseasonPredictionTemplate::max('position') ?? 0) + 10,
             'is_active' => isset($data['is_active']),
@@ -149,16 +140,32 @@ class SettingController extends Controller
 
         return redirect()
             ->route('admin.settings.preseason')
-            ->with('success', 'Question avant-saison créée.');
+            ->with('success', 'Question avant-saison creee.');
     }
 
     public function destroyPreseasonTemplate(PreseasonPredictionTemplate $template)
     {
-        $template->delete();
+        DB::transaction(function () use ($template) {
+            DB::table('preseason_bonus_rule_template_questions')
+                ->where('preseason_prediction_template_id', $template->id)
+                ->delete();
 
-        return response()->json([
-            'success' => true,
-        ]);
+            DB::table('preseason_correction_group_template_questions')
+                ->where('preseason_prediction_template_id', $template->id)
+                ->delete();
+
+            $template->delete();
+        });
+
+        if (request()->expectsJson()) {
+            return response()->json([
+                'success' => true,
+            ]);
+        }
+
+        return redirect()
+            ->route('admin.settings.preseason')
+            ->with('success', 'Question avant-saison supprimee.');
     }
 
     public function reorderPreseasonTemplates(Request $request)
@@ -170,6 +177,104 @@ class SettingController extends Controller
 
         foreach ($data['templates'] as $index => $templateId) {
             PreseasonPredictionTemplate::whereKey($templateId)->update([
+                'position' => ($index + 1) * 10,
+            ]);
+        }
+
+        return response()->json([
+            'success' => true,
+        ]);
+    }
+
+    public function storePreseasonCorrectionGroupTemplate(Request $request)
+    {
+        $data = $request->validate([
+            'label' => ['required', 'string', 'max:255'],
+            'code' => ['nullable', 'string', 'max:100', 'unique:preseason_correction_group_templates,code'],
+            'questions' => ['required', 'array', 'min:1'],
+            'questions.*' => ['integer', 'exists:preseason_prediction_templates,id'],
+            'is_active' => ['nullable', 'boolean'],
+        ]);
+
+        DB::transaction(function () use ($data) {
+            $correctionGroup = PreseasonCorrectionGroupTemplate::create([
+                'label' => $data['label'],
+                'code' => $this->uniquePreseasonCorrectionGroupCode($data['code'] ?? null, $data['label']),
+                'position' => (PreseasonCorrectionGroupTemplate::max('position') ?? 0) + 10,
+                'is_active' => isset($data['is_active']),
+            ]);
+
+            $correctionGroup->questions()->sync($data['questions']);
+        });
+
+        return redirect()
+            ->route('admin.settings.preseason')
+            ->with('success', 'Groupe de correction avant-saison cree.');
+    }
+
+    public function updatePreseasonCorrectionGroupTemplate(Request $request, PreseasonCorrectionGroupTemplate $correctionGroup)
+    {
+        $data = $request->validate([
+            'label' => ['required', 'string', 'max:255'],
+            'code' => [
+                'nullable',
+                'string',
+                'max:100',
+                Rule::unique('preseason_correction_group_templates', 'code')->ignore($correctionGroup->id),
+            ],
+            'position' => ['nullable', 'integer'],
+            'questions' => ['required', 'array', 'min:1'],
+            'questions.*' => ['integer', 'exists:preseason_prediction_templates,id'],
+            'is_active' => ['nullable', 'boolean'],
+        ]);
+
+        DB::transaction(function () use ($correctionGroup, $data) {
+            $correctionGroup->update([
+                'label' => $data['label'],
+                'code' => $this->uniquePreseasonCorrectionGroupCode(
+                    $data['code'] ?? null,
+                    $data['label'],
+                    $correctionGroup->id
+                ),
+                'position' => $data['position'] ?? 0,
+                'is_active' => isset($data['is_active']),
+            ]);
+
+            $correctionGroup->questions()->sync($data['questions']);
+        });
+
+        return redirect()
+            ->route('admin.settings.preseason')
+            ->with('success', 'Groupe de correction avant-saison mis a jour.');
+    }
+
+    public function destroyPreseasonCorrectionGroupTemplate(PreseasonCorrectionGroupTemplate $correctionGroup)
+    {
+        DB::transaction(function () use ($correctionGroup) {
+            $correctionGroup->questions()->detach();
+            $correctionGroup->delete();
+        });
+
+        if (request()->expectsJson()) {
+            return response()->json([
+                'success' => true,
+            ]);
+        }
+
+        return redirect()
+            ->route('admin.settings.preseason')
+            ->with('success', 'Groupe de correction avant-saison supprime.');
+    }
+
+    public function reorderPreseasonCorrectionGroupTemplates(Request $request)
+    {
+        $data = $request->validate([
+            'correction_groups' => ['required', 'array'],
+            'correction_groups.*' => ['integer', 'exists:preseason_correction_group_templates,id'],
+        ]);
+
+        foreach ($data['correction_groups'] as $index => $correctionGroupId) {
+            PreseasonCorrectionGroupTemplate::whereKey($correctionGroupId)->update([
                 'position' => ($index + 1) * 10,
             ]);
         }
@@ -202,7 +307,7 @@ class SettingController extends Controller
 
         return redirect()
             ->route('admin.settings.preseason')
-            ->with('success', 'Bonus avant-saison créé.');
+            ->with('success', 'Bonus avant-saison cree.');
     }
 
     public function updatePreseasonBonusRuleTemplate(Request $request, PreseasonBonusRuleTemplate $bonusRule)
@@ -229,16 +334,22 @@ class SettingController extends Controller
 
         return redirect()
             ->route('admin.settings.preseason')
-            ->with('success', 'Bonus avant-saison mis à jour.');
+            ->with('success', 'Bonus avant-saison mis a jour.');
     }
 
     public function destroyPreseasonBonusRuleTemplate(PreseasonBonusRuleTemplate $bonusRule)
     {
         $bonusRule->delete();
 
-        return response()->json([
-            'success' => true,
-        ]);
+        if (request()->expectsJson()) {
+            return response()->json([
+                'success' => true,
+            ]);
+        }
+
+        return redirect()
+            ->route('admin.settings.preseason')
+            ->with('success', 'Bonus avant-saison supprime.');
     }
 
     public function reorderPreseasonBonusRuleTemplates(Request $request)
@@ -317,7 +428,7 @@ class SettingController extends Controller
 
         return redirect()
             ->route($route)
-            ->with('success', 'Barème créé.');
+            ->with('success', 'Bareme cree.');
     }
 
     public function editScoringProfile(Request $request, ScoringProfile $profile)
@@ -380,27 +491,24 @@ class SettingController extends Controller
 
         return redirect()
             ->route($route)
-            ->with('success', 'Barème mis à jour.');
+            ->with('success', 'Bareme mis a jour.');
     }
 
-    private function normalizeCorrectionGroup(?string $value): ?string
+    private function uniquePreseasonCorrectionGroupCode(?string $requestedCode, string $label, ?int $ignoreId = null): string
     {
-        $value = trim((string) $value);
+        $baseCode = Str::slug($requestedCode ?: $label, '_') ?: 'groupe_correction';
+        $code = $baseCode;
+        $suffix = 2;
 
-        if ($value === '') {
-            return null;
+        while (PreseasonCorrectionGroupTemplate::query()
+            ->where('code', $code)
+            ->when($ignoreId, fn ($query) => $query->where('id', '!=', $ignoreId))
+            ->exists()) {
+            $code = $baseCode.'_'.$suffix;
+            $suffix++;
         }
 
-        return $value;
-    }
-
-    private function correctionModeForGroup(?string $correctionGroup, ?string $correctionMode): ?string
-    {
-        if (! filled($correctionGroup)) {
-            return null;
-        }
-
-        return $correctionMode ?: null;
+        return $code;
     }
 
     private function allowedRuleCodesForCategory(string $category): array
