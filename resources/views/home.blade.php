@@ -18,21 +18,22 @@
             </p>
 
             <div class="d-flex flex-wrap gap-2">
-                <a href="{{ route('pronos.index') }}" class="btn btn-warning rounded-pill fw-bold px-4">
+                <a href="{{ route('pronos.index') }}"
+                   class="btn btn-warning rounded-pill fw-bold px-4">
                     Mes pronos
                 </a>
 
                 @if($season)
                     <a href="{{ route('rankings.index') }}"
-                    class="btn btn-outline-primary rounded-pill fw-bold px-4">
+                       class="btn btn-outline-primary rounded-pill fw-bold px-4">
                         Classement
                     </a>
 
-                    <a href="{{ route('seasons.results', $season) }}">
+                    <a href="{{ route('seasons.active.results') }}"
+                       class="btn btn-outline-primary rounded-pill fw-bold px-4">
                         Résultats
                     </a>
                 @endif
-
             </div>
         </div>
 
@@ -50,6 +51,7 @@
                         <div class="h5 fw-bold text-white mb-0">
                             {{ auth()->user()->display_name }}
                         </div>
+
                         <div class="small text-white-50">
                             {{ auth()->user()->role }}
                         </div>
@@ -57,12 +59,14 @@
                 </div>
 
                 <div class="d-grid gap-2">
-                    <a href="{{ route('player-profile.edit') }}" class="btn btn-light rounded-pill fw-bold">
+                    <a href="{{ route('player-profile.edit') }}"
+                       class="btn btn-light rounded-pill fw-bold">
                         Modifier mon profil
                     </a>
 
                     @if(auth()->user()->isAdmin())
-                        <a href="{{ route('admin.users.index') }}" class="btn btn-outline-warning rounded-pill fw-bold">
+                        <a href="{{ route('admin.users.index') }}"
+                           class="btn btn-outline-warning rounded-pill fw-bold">
                             Administration
                         </a>
                     @endif
@@ -77,7 +81,11 @@
         <a href="{{ route('pronos.index') }}" class="text-decoration-none">
             <div class="rugby-feature-card">
                 <div class="feature-number">01</div>
-                <div class="h4 fw-bold mb-2">Pronostics</div>
+
+                <div class="h4 fw-bold mb-2">
+                    Pronostics
+                </div>
+
                 <p class="text-secondary mb-0">
                     Saisis tes choix pour chaque journée.
                 </p>
@@ -89,7 +97,11 @@
         <a href="{{ route('rankings.index') }}" class="text-decoration-none">
             <div class="rugby-feature-card">
                 <div class="feature-number">02</div>
-                <div class="h4 fw-bold mb-2">Classement</div>
+
+                <div class="h4 fw-bold mb-2">
+                    Classement
+                </div>
+
                 <p class="text-secondary mb-0">
                     Suis le général et les scores journée.
                 </p>
@@ -101,7 +113,11 @@
         <a href="{{ route('player-profile.edit') }}" class="text-decoration-none">
             <div class="rugby-feature-card">
                 <div class="feature-number">03</div>
-                <div class="h4 fw-bold mb-2">Profil</div>
+
+                <div class="h4 fw-bold mb-2">
+                    Profil
+                </div>
+
                 <p class="text-secondary mb-0">
                     Modifie ton pseudo et ta couleur.
                 </p>

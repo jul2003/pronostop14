@@ -48,6 +48,13 @@ Route::middleware('auth')->group(function () {
     Route::put('/mon-profil', [PlayerProfileController::class, 'update'])
         ->name('player-profile.update');
 
+    Route::get('/profile', function () {
+        return redirect()->route('player-profile.edit');
+    })->name('profile.edit');
+
+    Route::put('/profile', [PlayerProfileController::class, 'update'])
+        ->name('profile.update');
+
     Route::get('/pronos', [PronoController::class, 'index'])
         ->name('pronos.index');
     Route::get('/pronos/{season}/{journee}', [PronoController::class, 'show'])
@@ -72,7 +79,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/classements/{season}/{journee}', [RankingController::class, 'journee'])
         ->name('rankings.journee');
 
-    Route::get('/saisons/resultats', function () {
+    Route::get('/resultats', function () {
         $season = Season::where('is_active', true)->first();
 
         if (! $season) {
@@ -82,6 +89,10 @@ Route::middleware('auth')->group(function () {
         }
 
         return redirect()->route('seasons.results', $season);
+    })->name('results.index');
+
+    Route::get('/saisons/resultats', function () {
+        return redirect()->route('results.index');
     })->name('seasons.active.results');
 
     Route::get('/saisons/{season}/journees/{journee}/resultats', [RankingController::class, 'journeeResults'])

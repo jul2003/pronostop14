@@ -2,7 +2,9 @@
 <html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
 <head>
     <meta charset="utf-8">
+
     <meta name="viewport" content="width=device-width, initial-scale=1">
+
     <title>{{ config('app.name', 'Pronos TOP 14') }}</title>
 
     <link rel="icon" href="{{ asset('favicon.ico') }}" sizes="any">
@@ -10,10 +12,11 @@
     <link rel="apple-touch-icon" href="{{ asset('favicon-180x180.png') }}">
 
     @vite(['resources/css/app.css', 'resources/js/app.js'])
+
+    @stack('styles')
 </head>
 
 <body class="rugby-page">
-
 <header class="site-header">
     <div class="topbar">
         <div class="container d-flex justify-content-between align-items-center">
@@ -33,6 +36,7 @@
 
                     <form method="POST" action="{{ route('logout') }}">
                         @csrf
+
                         <button type="submit" class="logout-link">
                             Déconnexion
                         </button>
@@ -45,10 +49,25 @@
     @auth
         <nav class="main-nav">
             <div class="container d-flex flex-wrap gap-4">
-                <a href="{{ route('home') }}">Accueil</a>
-                <a href="{{ route('pronos.index') }}">Pronos</a>
-                <a href="{{ route('rankings.index') }}">Classement général</a>
-                <a href="{{ route('player-profile.edit') }}">Mon profil</a>
+                <a href="{{ route('home') }}">
+                    Accueil
+                </a>
+
+                <a href="{{ route('pronos.index') }}">
+                    Pronos
+                </a>
+
+                <a href="{{ route('rankings.index') }}">
+                    Classement général
+                </a>
+
+                <a href="{{ route('results.index') }}">
+                    Résultats
+                </a>
+
+                <a href="{{ route('player-profile.edit') }}">
+                    Mon profil
+                </a>
 
                 @if(auth()->user()->isAdmin())
                     <a href="{{ route('admin.index') }}" class="admin-link">
@@ -62,7 +81,7 @@
 
 @if(session()->has('impersonator_id'))
     <div class="alert alert-warning rounded-0 mb-0 text-center fw-bold">
-        🔄 Mode reprise historique :
+        Mode reprise historique :
         vous êtes connecté en tant que
         <strong>{{ auth()->user()->display_name }}</strong>
 
@@ -92,10 +111,10 @@
         </div>
     @endif
 
-    @if ($errors->any())
+    @if($errors->any())
         <div class="alert alert-danger">
             <ul class="mb-0">
-                @foreach ($errors->all() as $error)
+                @foreach($errors->all() as $error)
                     <li>{{ $error }}</li>
                 @endforeach
             </ul>
@@ -106,17 +125,21 @@
 </main>
 
 <script>
-function togglePassword(inputId, button) {
-    const input = document.getElementById(inputId);
+    function togglePassword(inputId, button) {
+        const input = document.getElementById(inputId);
 
-    if (input.type === 'password') {
-        input.type = 'text';
-        button.innerHTML = '🙈';
-    } else {
-        input.type = 'password';
-        button.innerHTML = '👁';
+        if (!input) {
+            return;
+        }
+
+        if (input.type === 'password') {
+            input.type = 'text';
+            button.innerHTML = 'Masquer';
+        } else {
+            input.type = 'password';
+            button.innerHTML = 'Afficher';
+        }
     }
-}
 </script>
 
 @stack('scripts')
