@@ -3,6 +3,7 @@
 use App\Http\Controllers\Admin\AppSettingController;
 use App\Http\Controllers\Admin\ClubController;
 use App\Http\Controllers\Admin\JourneeController;
+use App\Http\Controllers\Admin\MaintenanceController;
 use App\Http\Controllers\Admin\MatchController;
 use App\Http\Controllers\Admin\PendingResultController;
 use App\Http\Controllers\Admin\SeasonController;
@@ -82,6 +83,9 @@ Route::middleware('auth')->group(function () {
 Route::middleware(['auth', 'admin'])->group(function () {
     Route::get('/admin', fn () => view('admin.index'))
         ->name('admin.index');
+
+    Route::get('/admin/maintenance', [MaintenanceController::class, 'index'])
+        ->name('admin.maintenance.index');
 
     Route::get('/admin/parametres-application', [AppSettingController::class, 'index'])
         ->name('admin.app-settings.index');
