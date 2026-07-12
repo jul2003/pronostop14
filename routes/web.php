@@ -79,17 +79,17 @@ Route::middleware('auth')->group(function () {
     Route::get('/classements/{season}/{journee}', [RankingController::class, 'journee'])
         ->name('rankings.journee');
 
-    Route::get('/resultats', function () {
-        $season = Season::where('is_active', true)->first();
+    Route::get('/resultats', [RankingController::class, 'resultsIndex'])
+        ->name('results.index');
+    Route::get('/resultats/{season}', [RankingController::class, 'resultsSeason'])
+        ->name('results.season');
+    Route::get('/resultats/{season}/{journee}', [RankingController::class, 'resultsJournee'])
+        ->name('results.journee');
 
-        if (! $season) {
-            return redirect()
-                ->route('home')
-                ->with('error', 'Aucune saison active pour le moment.');
-        }
-
-        return redirect()->route('seasons.results', $season);
-    })->name('results.index');
+    Route::get('/bilan', [RankingController::class, 'bilanIndex'])
+        ->name('bilan.index');
+    Route::get('/bilan/{season}', [RankingController::class, 'bilanSeason'])
+        ->name('bilan.season');
 
     Route::get('/saisons/resultats', function () {
         return redirect()->route('results.index');

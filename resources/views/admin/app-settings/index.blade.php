@@ -38,12 +38,26 @@
                         <tr>
                             <th>Paramètre</th>
                             <th>Description</th>
-                            <th class="text-center" style="width: 260px;">Valeur</th>
+                            <th class="text-center" style="width: 300px;">Valeur</th>
                         </tr>
                     </thead>
 
                     <tbody>
                         @foreach($settings as $setting)
+                            @php
+                                $fieldName = "settings.{$setting->id}";
+                                $fieldInputName = "settings[{$setting->id}]";
+                                $currentValue = old($fieldName, $setting->typedValue());
+
+                                $colorTextValue = is_string($currentValue)
+                                    ? strtoupper($currentValue)
+                                    : '#FFFFFF';
+
+                                $colorPickerValue = preg_match('/^#[0-9A-Fa-f]{6}$/', $colorTextValue)
+                                    ? $colorTextValue
+                                    : '#FFFFFF';
+                            @endphp
+
                             <tr>
                                 <td>
                                     <div class="fw-bold">
@@ -63,15 +77,15 @@
                                     @if($setting->type === 'boolean')
                                         <div class="form-check d-flex justify-content-center">
                                             <input type="checkbox"
-                                                   name="settings[{{ $setting->id }}]"
+                                                   name="{{ $fieldInputName }}"
                                                    value="1"
                                                    class="form-check-input"
-                                                   @checked(old("settings.{$setting->id}", $setting->typedValue()))>
+                                                   @checked(old($fieldName, $setting->typedValue()))>
                                         </div>
                                     @elseif($setting->type === 'integer')
                                         <input type="text"
-                                               name="settings[{{ $setting->id }}]"
-                                               value="{{ old("settings.{$setting->id}", $setting->typedValue()) }}"
+                                               name="{{ $fieldInputName }}"
+                                               value="{{ old($fieldName, $setting->typedValue()) }}"
                                                class="form-control text-center"
                                                inputmode="numeric"
                                                pattern="[0-9]+"
@@ -79,8 +93,8 @@
                                     @elseif($setting->type === 'date')
                                         <div class="input-group">
                                             <input type="date"
-                                                   name="settings[{{ $setting->id }}]"
-                                                   value="{{ old("settings.{$setting->id}", $setting->typedValue()) }}"
+                                                   name="{{ $fieldInputName }}"
+                                                   value="{{ old($fieldName, $setting->typedValue()) }}"
                                                    class="form-control text-center app-date-input">
 
                                             <button type="button"
@@ -90,12 +104,39 @@
                                                 ×
                                             </button>
                                         </div>
+                                    @elseif($setting->type === 'color')
+                                        <div class="input-group color-setting-group">
+                                            <input type="color"
+                                                   value="{{ $colorPickerValue }}"
+                                                   class="form-control form-control-color app-color-picker"
+                                                   title="Choisir une couleur"
+                                                   aria-label="Choisir une couleur">
+
+                                            <input type="text"
+                                                   name="{{ $fieldInputName }}"
+                                                   value="{{ $colorTextValue }}"
+                                                   class="form-control text-center app-color-input"
+                                                   maxlength="7"
+                                                   pattern="#[0-9A-Fa-f]{6}"
+                                                   placeholder="#FFFFFF"
+                                                   required>
+                                        </div>
+
+                                        <div class="form-text text-center">
+                                            Format attendu : #RRGGBB
+                                        </div>
                                     @else
                                         <input type="text"
-                                               name="settings[{{ $setting->id }}]"
-                                               value="{{ old("settings.{$setting->id}", $setting->typedValue()) }}"
+                                               name="{{ $fieldInputName }}"
+                                               value="{{ old($fieldName, $setting->typedValue()) }}"
                                                class="form-control">
                                     @endif
+
+                                    @error($fieldName)
+                                        <div class="text-danger small mt-1 text-center">
+                                            {{ $message }}
+                                        </div>
+                                    @enderror
                                 </td>
                             </tr>
                         @endforeach
@@ -131,6 +172,30 @@
 
                 input.value = '';
                 input.dispatchEvent(new Event('change', { bubbles: true }));
+            });
+        });
+
+        document.querySelectorAll('.color-setting-group').forEach(function (group) {
+            const picker = group.querySelector('.app-color-picker');
+            const input = group.querySelector('.app-color-input');
+
+            if (! picker || ! input) {
+                return;
+            }
+
+            picker.addEventListener('input', function () {
+                input.value = picker.value.toUpperCase();
+                input.dispatchEvent(new Event('change', { bubbles: true }));
+            });
+
+            input.addEventListener('input', function () {
+                const value = input.value.trim().toUpperCase();
+
+                input.value = value;
+
+                if (/^#[0-9A-F]{6}$/.test(value)) {
+                    picker.value = value;
+                }
             });
         });
     });

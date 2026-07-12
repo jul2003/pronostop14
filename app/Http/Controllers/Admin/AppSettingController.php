@@ -52,6 +52,7 @@ class AppSettingController extends Controller
             'integer' => ['required', 'integer', 'min:1'],
             'boolean' => ['nullable', 'boolean'],
             'date' => ['nullable', 'date'],
+            'color' => ['required', 'regex:/^#[0-9A-Fa-f]{6}$/'],
             default => ['nullable', 'string'],
         };
     }
@@ -66,6 +67,7 @@ class AppSettingController extends Controller
             'integer' => (string) max(1, (int) $value),
             'boolean' => $value ? '1' : '0',
             'date' => (string) $value,
+            'color' => strtoupper((string) $value),
             default => (string) $value,
         };
     }
