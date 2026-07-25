@@ -20,40 +20,22 @@ class UserController extends Controller
 {
     public function index()
     {
-        $users = User::orderByRaw("
-            CASE role
-                WHEN 'super_admin' THEN 1
-                WHEN 'admin' THEN 2
-                ELSE 3
-            END
-        ")
+        $users = User::withCount([
+            'seasons',
+            'pronos',
+            'journeeScores',
+        ])
+            ->orderByRaw("
+                CASE role
+                    WHEN 'super_admin' THEN 1
+                    WHEN 'admin' THEN 2
+                    ELSE 3
+                END
+            ")
             ->orderBy('nickname')
             ->get();
 
         return view('admin.users.index', compact('users'));
-    }
-
-    public function updateRole(Request $request, User $user)
-    {
-        if (! auth()->user()->isSuperAdmin()) {
-            abort(403);
-        }
-
-        if ($user->isSuperAdmin()) {
-            return back()->withErrors([
-                'role' => 'Le super admin ne peut pas être modifié.',
-            ]);
-        }
-
-        $data = $request->validate([
-            'role' => ['required', Rule::in(['admin', 'player'])],
-        ]);
-
-        $user->update([
-            'role' => $data['role'],
-        ]);
-
-        return back()->with('success', 'Rôle mis à jour.');
     }
 
     public function create()
@@ -139,6 +121,7 @@ class UserController extends Controller
                     'role' => $data['role'],
                     'password' => Hash::make($plainPassword),
                     'must_change_password' => true,
+                    'is_active' => true,
                 ]);
 
                 Mail::to($mailRecipients)->send(
@@ -164,6 +147,183 @@ class UserController extends Controller
             ->with('success', 'Utilisateur créé. Le mot de passe a été envoyé par mail et devra être changé à la première connexion.');
     }
 
+    public function edit(User $user)
+    {
+        abort_unless(auth()->user()->isSuperAdmin(), 403);
+
+        $playerColors = PlayerColorPalette::colors();
+        $usedPlayerColors = $this->usedPlayerColorsExcept($user);
+        $deletionBlockers = $this->deletionBlockers($user);
+
+        return view('admin.users.edit', [
+            'editedUser' => $user,
+            'playerColors' => $playerColors,
+            'usedPlayerColors' => $usedPlayerColors,
+            'deletionBlockers' => $deletionBlockers,
+            'canBeDeleted' => empty($deletionBlockers),
+        ]);
+    }
+
+    public function update(Request $request, User $user)
+    {
+        abort_unless(auth()->user()->isSuperAdmin(), 403);
+
+        $request->merge([
+            'color' => strtoupper((string) $request->input('color')),
+            'nickname' => strtoupper((string) $request->input('nickname')),
+        ]);
+
+        $data = $request->validate([
+            'name' => ['required', 'string', 'max:255'],
+            'nickname' => [
+                'required',
+                'string',
+                'regex:/^[A-Z]{2}[0-9]{2}$/',
+                Rule::unique('users', 'nickname')->ignore($user->id),
+            ],
+            'email_pro' => [
+                'nullable',
+                'email',
+                'required_without:email_perso',
+                Rule::unique('users', 'email_pro')->ignore($user->id),
+            ],
+            'email_perso' => [
+                'nullable',
+                'email',
+                'required_without:email_pro',
+                Rule::unique('users', 'email_perso')->ignore($user->id),
+            ],
+            'color' => [
+                'required',
+                'string',
+                Rule::in(PlayerColorPalette::colors()),
+                Rule::unique('users', 'color')->ignore($user->id),
+            ],
+            'role' => ['nullable', Rule::in(['player', 'admin'])],
+        ], [
+            'color.unique' => 'Cette couleur est déjà utilisée par un autre joueur.',
+        ]);
+
+        $userData = [
+            'name' => $data['name'],
+            'nickname' => $data['nickname'],
+            'email' => $data['email_pro'] ?? $data['email_perso'],
+            'email_pro' => $data['email_pro'] ?? null,
+            'email_perso' => $data['email_perso'] ?? null,
+            'color' => $data['color'],
+        ];
+
+        if (! $user->isSuperAdmin() && $user->id !== auth()->id()) {
+            $userData['role'] = $data['role'] ?? $user->role;
+        }
+
+        $user->update($userData);
+
+        return redirect()
+            ->route('admin.users.edit', $user)
+            ->with('success', 'Utilisateur mis à jour.');
+    }
+
+    public function updateRole(Request $request, User $user)
+    {
+        abort_unless(auth()->user()->isSuperAdmin(), 403);
+
+        if ($user->isSuperAdmin()) {
+            return back()->withErrors([
+                'role' => 'Le super admin ne peut pas être modifié.',
+            ]);
+        }
+
+        if ($user->id === auth()->id()) {
+            return back()->withErrors([
+                'role' => 'Tu ne peux pas modifier ton propre rôle.',
+            ]);
+        }
+
+        $data = $request->validate([
+            'role' => ['required', Rule::in(['admin', 'player'])],
+        ]);
+
+        $user->update([
+            'role' => $data['role'],
+        ]);
+
+        return back()->with('success', 'Rôle mis à jour.');
+    }
+
+    public function deactivate(User $user)
+    {
+        abort_unless(auth()->user()->isSuperAdmin(), 403);
+
+        if ($user->isSuperAdmin()) {
+            return back()->withErrors([
+                'user' => 'Le super admin ne peut pas être désactivé.',
+            ]);
+        }
+
+        if ($user->id === auth()->id()) {
+            return back()->withErrors([
+                'user' => 'Tu ne peux pas désactiver ton propre compte.',
+            ]);
+        }
+
+        $user->forceFill([
+            'is_active' => false,
+        ])->save();
+
+        return back()->with('success', 'Utilisateur désactivé. Son historique reste conservé.');
+    }
+
+    public function reactivate(User $user)
+    {
+        abort_unless(auth()->user()->isSuperAdmin(), 403);
+
+        if ($user->isSuperAdmin()) {
+            return back()->withErrors([
+                'user' => 'Le super admin est toujours actif.',
+            ]);
+        }
+
+        $user->forceFill([
+            'is_active' => true,
+        ])->save();
+
+        return back()->with('success', 'Utilisateur réactivé.');
+    }
+
+    public function destroy(User $user)
+    {
+        abort_unless(auth()->user()->isSuperAdmin(), 403);
+
+        if ($user->isSuperAdmin()) {
+            return back()->withErrors([
+                'user' => 'Le super admin ne peut pas être supprimé.',
+            ]);
+        }
+
+        if ($user->id === auth()->id()) {
+            return back()->withErrors([
+                'user' => 'Tu ne peux pas supprimer ton propre compte.',
+            ]);
+        }
+
+        $deletionBlockers = $this->deletionBlockers($user);
+
+        if (! empty($deletionBlockers)) {
+            return back()->withErrors([
+                'user' => 'Suppression impossible : cet utilisateur possède déjà un historique. Désactive-le plutôt.',
+            ]);
+        }
+
+        $displayName = $user->display_name;
+
+        $user->delete();
+
+        return redirect()
+            ->route('admin.users.index')
+            ->with('success', 'Utilisateur '.$displayName.' supprimé.');
+    }
+
     public function impersonate(User $user)
     {
         abort_unless(auth()->user()->isSuperAdmin(), 403);
@@ -177,7 +337,7 @@ class UserController extends Controller
 
         return redirect()
             ->route('pronos.index')
-            ->with('success', 'Tu saisis maintenant les pronos de ' . $user->display_name . '.');
+            ->with('success', 'Tu saisis maintenant les pronos de '.$user->display_name.'.');
     }
 
     public function stopImpersonating()
@@ -193,6 +353,37 @@ class UserController extends Controller
         return redirect()
             ->route('admin.users.index')
             ->with('success', 'Retour au compte super admin.');
+    }
+
+    private function usedPlayerColorsExcept(User $currentUser): array
+    {
+        return User::query()
+            ->where('id', '!=', $currentUser->id)
+            ->whereNotNull('color')
+            ->get(['nickname', 'color'])
+            ->mapWithKeys(fn (User $user) => [
+                strtoupper((string) $user->color) => $user->nickname,
+            ])
+            ->all();
+    }
+
+    private function deletionBlockers(User $user): array
+    {
+        $blockers = [];
+
+        if ($user->seasons()->exists()) {
+            $blockers[] = 'rattachement à au moins une saison';
+        }
+
+        if ($user->pronos()->exists()) {
+            $blockers[] = 'pronos existants';
+        }
+
+        if ($user->journeeScores()->exists()) {
+            $blockers[] = 'scores de journées existants';
+        }
+
+        return $blockers;
     }
 
     private function generateTemporaryPassword(): string

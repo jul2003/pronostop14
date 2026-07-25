@@ -18,6 +18,12 @@
 
             <x-auth-session-status class="mb-4" :status="session('status')" />
 
+            @if($errors->any())
+                <div class="alert alert-danger login-alert">
+                    {{ $errors->first() }}
+                </div>
+            @endif
+
             <form method="POST" action="{{ route('login') }}">
                 @csrf
 
@@ -27,13 +33,13 @@
                     </label>
 
                     <input id="login"
-                        type="text"
-                        name="login"
-                        value="{{ old('login') }}"
-                        required
-                        autofocus
-                        autocomplete="username"
-                        class="form-control login-control">
+                           type="text"
+                           name="login"
+                           value="{{ old('login') }}"
+                           required
+                           autofocus
+                           autocomplete="username"
+                           class="form-control login-control @error('login') is-invalid @enderror">
                 </div>
 
                 <div class="mb-3">
@@ -47,7 +53,7 @@
                                name="password"
                                required
                                autocomplete="current-password"
-                               class="form-control login-control">
+                               class="form-control login-control @error('password') is-invalid @enderror">
 
                         <button class="btn login-toggle"
                                 type="button"
@@ -82,9 +88,28 @@
         </div>
     </div>
 
+    <style>
+        .login-alert {
+            border: 0;
+            border-radius: 1rem;
+            background: rgba(220, 53, 69, 0.95);
+            color: #ffffff;
+            font-weight: 700;
+        }
+
+        .login-control.is-invalid {
+            border-color: #dc3545;
+            box-shadow: 0 0 0 0.2rem rgba(220, 53, 69, 0.22);
+        }
+    </style>
+
     <script>
         function togglePassword(inputId, button) {
             const input = document.getElementById(inputId);
+
+            if (!input) {
+                return;
+            }
 
             if (input.type === 'password') {
                 input.type = 'text';

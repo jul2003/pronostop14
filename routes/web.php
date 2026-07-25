@@ -281,8 +281,18 @@ Route::middleware(['auth', 'admin'])->group(function () {
         ->name('admin.users.create');
     Route::post('/admin/users', [UserController::class, 'store'])
         ->name('admin.users.store');
+    Route::get('/admin/users/{user}/edit', [UserController::class, 'edit'])
+        ->name('admin.users.edit');
+    Route::put('/admin/users/{user}', [UserController::class, 'update'])
+        ->name('admin.users.update');
     Route::patch('/admin/users/{user}/role', [UserController::class, 'updateRole'])
         ->name('admin.users.updateRole');
+    Route::post('/admin/users/{user}/deactivate', [UserController::class, 'deactivate'])
+        ->name('admin.users.deactivate');
+    Route::post('/admin/users/{user}/reactivate', [UserController::class, 'reactivate'])
+        ->name('admin.users.reactivate');
+    Route::delete('/admin/users/{user}', [UserController::class, 'destroy'])
+        ->name('admin.users.destroy');
     Route::post('/admin/users/{user}/impersonate', [UserController::class, 'impersonate'])
         ->name('admin.users.impersonate');
 });

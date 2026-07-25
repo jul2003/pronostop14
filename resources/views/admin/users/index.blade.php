@@ -15,7 +15,7 @@
         </h2>
 
         <p class="text-muted mb-0">
-            Gère les joueurs, administrateurs et leurs droits.
+            Gère les joueurs, administrateurs, accès et statuts.
         </p>
     </div>
 
@@ -25,6 +25,18 @@
     </a>
 </div>
 
+@if($errors->any())
+    <div class="alert alert-danger">
+        {{ $errors->first() }}
+    </div>
+@endif
+
+@if(session('success'))
+    <div class="alert alert-success">
+        {{ session('success') }}
+    </div>
+@endif
+
 <x-admin-card class="p-0 overflow-hidden">
     <div class="table-responsive">
         <table class="table table-hover align-middle mb-0">
@@ -33,6 +45,7 @@
                     <th>Pseudo</th>
                     <th>Nom</th>
                     <th>Email</th>
+                    <th class="text-center">Statut</th>
                     <th>Dernière connexion</th>
                     <th class="text-center">Couleur</th>
                     <th class="text-center">Rôle</th>
@@ -46,9 +59,11 @@
                         $lastLoginAt = $user->last_login_at
                             ? $user->last_login_at->copy()->timezone('Europe/Paris')
                             : null;
+
+                        $isActive = (bool) $user->is_active;
                     @endphp
 
-                    <tr>
+                    <tr class="{{ $isActive ? '' : 'table-secondary' }}">
                         <td class="fw-bold"
                             style="color: {{ $user->color ?? '#06142f' }}">
                             {{ $user->display_name }}
@@ -68,6 +83,18 @@
                                     <div class="text-muted small">{{ $user->email_perso }}</div>
                                 @endif
                             </div>
+                        </td>
+
+                        <td class="text-center">
+                            @if($isActive)
+                                <span class="badge rounded-pill text-bg-success">
+                                    Actif
+                                </span>
+                            @else
+                                <span class="badge rounded-pill text-bg-secondary">
+                                    Désactivé
+                                </span>
+                            @endif
                         </td>
 
                         <td>
@@ -133,6 +160,13 @@
 
                         <td class="text-end">
                             <div class="d-flex justify-content-end gap-2">
+                                @if(auth()->user()->isSuperAdmin())
+                                    <a href="{{ route('admin.users.edit', $user) }}"
+                                       class="btn btn-sm btn-outline-primary rounded-pill">
+                                        Modifier
+                                    </a>
+                                @endif
+
                                 @if(auth()->user()->isSuperAdmin() && ! $user->isSuperAdmin())
                                     <form method="POST"
                                           action="{{ route('admin.users.impersonate', $user) }}">
@@ -148,41 +182,13 @@
                                     <span class="text-muted small">
                                         Verrouillé
                                     </span>
-                                @elseif($user->role === 'admin')
-                                    <form method="POST"
-                                          action="{{ route('admin.users.updateRole', $user) }}">
-                                        @csrf
-                                        @method('PATCH')
-
-                                        <input type="hidden"
-                                               name="role"
-                                               value="player">
-
-                                        <button class="btn btn-sm btn-outline-warning rounded-pill">
-                                            Rétrograder
-                                        </button>
-                                    </form>
-                                @else
-                                    <form method="POST"
-                                          action="{{ route('admin.users.updateRole', $user) }}">
-                                        @csrf
-                                        @method('PATCH')
-
-                                        <input type="hidden"
-                                               name="role"
-                                               value="admin">
-
-                                        <button class="btn btn-sm btn-outline-success rounded-pill">
-                                            Promouvoir
-                                        </button>
-                                    </form>
                                 @endif
                             </div>
                         </td>
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="7"
+                        <td colspan="8"
                             class="text-center text-muted py-4">
                             Aucun utilisateur.
                         </td>

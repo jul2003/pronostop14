@@ -7,6 +7,7 @@ use Illuminate\Auth\Events\Lockout;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
@@ -40,19 +41,21 @@ class LoginRequest extends FormRequest
             ->orWhere('email_perso', $login)
             ->first();
 
-        if (
-            ! $user ||
-            ! Auth::attempt([
-                'id' => $user->id,
-                'password' => $this->input('password'),
-            ], $this->boolean('remember'))
-        ) {
-            RateLimiter::hit($this->throttleKey());
+        if (! $user) {
+            $this->failAuthentication();
+        }
 
+        if (! Hash::check($this->input('password'), $user->password)) {
+            $this->failAuthentication();
+        }
+
+        if ($user->is_active === false) {
             throw ValidationException::withMessages([
-                'login' => trans('auth.failed'),
+                'login' => 'Ce compte est désactivé. Contacte un administrateur pour le réactiver.',
             ]);
         }
+
+        Auth::login($user, $this->boolean('remember'));
 
         RateLimiter::clear($this->throttleKey());
 
@@ -84,5 +87,14 @@ class LoginRequest extends FormRequest
         return Str::transliterate(
             Str::lower($this->input('login')).'|'.$this->ip()
         );
+    }
+
+    private function failAuthentication(): void
+    {
+        RateLimiter::hit($this->throttleKey());
+
+        throw ValidationException::withMessages([
+            'login' => trans('auth.failed'),
+        ]);
     }
 }

@@ -40,8 +40,9 @@ Route::middleware('auth')->group(function () {
     Route::put('mot-de-passe-obligatoire', [ForcedPasswordChangeController::class, 'update'])
         ->name('password.force.update');
 
-    Route::get('verify-email', VerifyEmailController::class)
-        ->name('verification.notice');
+    Route::get('verify-email', function () {
+        return view('auth.verify-email');
+    })->name('verification.notice');
 
     Route::get('verify-email/{id}/{hash}', VerifyEmailController::class)
         ->middleware(['signed', 'throttle:6,1'])

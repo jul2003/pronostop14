@@ -22,6 +22,7 @@ class User extends Authenticatable
         'email_perso',
         'last_login_at',
         'must_change_password',
+        'is_active',
     ];
 
     protected $hidden = [
@@ -36,6 +37,7 @@ class User extends Authenticatable
             'password' => 'hashed',
             'last_login_at' => 'datetime',
             'must_change_password' => 'boolean',
+            'is_active' => 'boolean',
         ];
     }
 
@@ -66,6 +68,11 @@ class User extends Authenticatable
     public function isPlayer(): bool
     {
         return $this->role === 'player';
+    }
+
+    public function isActive(): bool
+    {
+        return (bool) $this->is_active;
     }
 
     public function journeeScores()
