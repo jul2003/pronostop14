@@ -5,13 +5,45 @@
 @php
     $user = auth()->user();
 
-    $playerColors = $playerColors ?? \App\Support\PlayerColorPalette::colors();
+    $playerColors = collect($playerColors ?? \App\Support\PlayerColorPalette::colors())
+        ->map(fn ($color) => strtoupper((string) $color))
+        ->values()
+        ->all();
 
-    $currentColor = strtoupper(old('color', $user->color ?? '#FFFF00'));
+    $usedPlayerColors = $usedPlayerColors ?? [];
+
+    $currentColor = strtoupper((string) old('color', $user->color ?? ''));
+
+    $firstAvailableColor = collect($playerColors)
+        ->first(fn ($color) => ! array_key_exists(strtoupper($color), $usedPlayerColors));
 
     $selectedColor = in_array($currentColor, $playerColors, true)
-        ? $currentColor
-        : '#FFFF00';
+        && ! array_key_exists($currentColor, $usedPlayerColors)
+            ? $currentColor
+            : ($firstAvailableColor ?? ($playerColors[0] ?? '#FFFF00'));
+
+    $contrastColor = function (string $hexColor) {
+        $hexColor = ltrim($hexColor, '#');
+
+        if (strlen($hexColor) !== 6) {
+            return '#06142F';
+        }
+
+        $red = hexdec(substr($hexColor, 0, 2));
+        $green = hexdec(substr($hexColor, 2, 2));
+        $blue = hexdec(substr($hexColor, 4, 2));
+
+        $brightness = (($red * 299) + ($green * 587) + ($blue * 114)) / 1000;
+
+        return $brightness > 145 ? '#06142F' : '#FFFFFF';
+    };
+
+    $selectedTextColor = $contrastColor($selectedColor);
+    $selectedTextShadow = $selectedTextColor === '#FFFFFF'
+        ? '0 1px 2px rgba(0, 0, 0, 0.45)'
+        : 'none';
+
+    $avatarInitials = strtoupper(substr($user->nickname ?: $user->name, 0, 2));
 @endphp
 
 <div class="row justify-content-center">
@@ -21,8 +53,8 @@
                 <div class="d-flex align-items-center gap-3">
                     <div id="profileAvatar"
                          class="profile-avatar"
-                         style="background: {{ $selectedColor }}">
-                        {{ strtoupper(substr($user->display_name, 0, 2)) }}
+                         style="background: {{ $selectedColor }}; color: {{ $selectedTextColor }}; text-shadow: {{ $selectedTextShadow }};">
+                        {{ $avatarInitials }}
                     </div>
 
                     <div>
@@ -87,29 +119,46 @@
                             </div>
 
                             <div class="small text-secondary mb-3">
-                                Utilisée dans les classements et les pronos. Seules les couleurs de la palette sont autorisées.
+                                Les couleurs déjà prises sont désactivées et affichent le pseudo du joueur concerné.
                             </div>
 
                             <div class="player-color-palette">
                                 @foreach($playerColors as $color)
-                                    <label class="player-color-option"
-                                           title="{{ $color }}">
+                                    @php
+                                        $normalizedColor = strtoupper($color);
+                                        $usedByNickname = $usedPlayerColors[$normalizedColor] ?? null;
+                                        $isUsed = filled($usedByNickname);
+                                        $textColor = $contrastColor($normalizedColor);
+                                        $textShadow = $textColor === '#FFFFFF'
+                                            ? '0 1px 2px rgba(0, 0, 0, 0.45)'
+                                            : 'none';
+                                    @endphp
+
+                                    <label class="player-color-option {{ $isUsed ? 'is-used' : '' }}"
+                                           title="{{ $isUsed ? 'Déjà prise par '.$usedByNickname : $normalizedColor }}">
                                         <input type="radio"
                                                name="color"
-                                               value="{{ $color }}"
+                                               value="{{ $normalizedColor }}"
                                                class="player-color-input"
                                                required
-                                               @checked($selectedColor === $color)>
+                                               @disabled($isUsed)
+                                               @checked(! $isUsed && $selectedColor === $normalizedColor)>
 
                                         <span class="player-color-swatch"
-                                              style="background-color: {{ $color }};">
-                                            <span class="player-color-check">
-                                                ✓
-                                            </span>
+                                              style="background-color: {{ $normalizedColor }}; color: {{ $textColor }}; --swatch-text-shadow: {{ $textShadow }};">
+                                            @if($isUsed)
+                                                <span class="player-color-used-label">
+                                                    {{ $usedByNickname }}
+                                                </span>
+                                            @else
+                                                <span class="player-color-check">
+                                                    ✓
+                                                </span>
+                                            @endif
                                         </span>
 
                                         <span class="visually-hidden">
-                                            {{ $color }}
+                                            {{ $normalizedColor }}
                                         </span>
                                     </label>
                                 @endforeach
@@ -177,33 +226,66 @@
 
                     <div class="row g-4">
                         <div class="col-md-4">
-                            <label class="form-label fw-bold">
+                            <label for="current_password" class="form-label fw-bold">
                                 Mot de passe actuel
                             </label>
 
-                            <input type="password"
-                                   name="current_password"
-                                   class="form-control form-control-lg">
+                            <div class="input-group">
+                                <input id="current_password"
+                                       type="password"
+                                       name="current_password"
+                                       class="form-control form-control-lg"
+                                       autocomplete="current-password">
+
+                                <button type="button"
+                                        class="btn btn-outline-secondary password-toggle-button"
+                                        data-password-toggle="current_password"
+                                        aria-label="Afficher le mot de passe actuel">
+                                    Afficher
+                                </button>
+                            </div>
                         </div>
 
                         <div class="col-md-4">
-                            <label class="form-label fw-bold">
+                            <label for="password" class="form-label fw-bold">
                                 Nouveau mot de passe
                             </label>
 
-                            <input type="password"
-                                   name="password"
-                                   class="form-control form-control-lg">
+                            <div class="input-group">
+                                <input id="password"
+                                       type="password"
+                                       name="password"
+                                       class="form-control form-control-lg"
+                                       autocomplete="new-password">
+
+                                <button type="button"
+                                        class="btn btn-outline-secondary password-toggle-button"
+                                        data-password-toggle="password"
+                                        aria-label="Afficher le nouveau mot de passe">
+                                    Afficher
+                                </button>
+                            </div>
                         </div>
 
                         <div class="col-md-4">
-                            <label class="form-label fw-bold">
+                            <label for="password_confirmation" class="form-label fw-bold">
                                 Confirmation
                             </label>
 
-                            <input type="password"
-                                   name="password_confirmation"
-                                   class="form-control form-control-lg">
+                            <div class="input-group">
+                                <input id="password_confirmation"
+                                       type="password"
+                                       name="password_confirmation"
+                                       class="form-control form-control-lg"
+                                       autocomplete="new-password">
+
+                                <button type="button"
+                                        class="btn btn-outline-secondary password-toggle-button"
+                                        data-password-toggle="password_confirmation"
+                                        aria-label="Afficher la confirmation">
+                                    Afficher
+                                </button>
+                            </div>
                         </div>
                     </div>
 
@@ -219,18 +301,39 @@
     </div>
 </div>
 
+@endsection
+
+@push('styles')
 <style>
+    .profile-avatar {
+        width: 72px;
+        height: 72px;
+        border-radius: 999px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 900;
+        font-size: 1.45rem;
+        letter-spacing: 0.03em;
+        border: 3px solid rgba(255, 255, 255, 0.6);
+        box-shadow: 0 0.6rem 1.4rem rgba(0, 0, 0, 0.25);
+    }
+
     .player-color-palette {
         display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(42px, 1fr));
+        grid-template-columns: repeat(auto-fill, minmax(48px, 1fr));
         gap: 0.75rem;
-        max-width: 360px;
+        max-width: 420px;
     }
 
     .player-color-option {
         position: relative;
         display: block;
         cursor: pointer;
+    }
+
+    .player-color-option.is-used {
+        cursor: not-allowed;
     }
 
     .player-color-input {
@@ -240,33 +343,72 @@
     }
 
     .player-color-swatch {
+        position: relative;
         display: flex;
         align-items: center;
         justify-content: center;
-        width: 42px;
-        height: 42px;
+        width: 48px;
+        height: 48px;
         border-radius: 999px;
         border: 2px solid rgba(6, 20, 47, 0.2);
         box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.35);
-        transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+        transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease, opacity 0.15s ease;
     }
 
     .player-color-check {
         display: none;
-        width: 22px;
-        height: 22px;
+        width: 24px;
+        height: 24px;
         border-radius: 999px;
         background: rgba(255, 255, 255, 0.92);
         color: #06142f;
-        font-size: 0.9rem;
+        font-size: 0.95rem;
         font-weight: 800;
-        line-height: 22px;
+        line-height: 24px;
         text-align: center;
     }
 
-    .player-color-option:hover .player-color-swatch {
+    .player-color-used-label {
+        position: relative;
+        z-index: 2;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 38px;
+        height: 38px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.24);
+        font-size: 0.68rem;
+        font-weight: 900;
+        letter-spacing: 0.02em;
+        text-transform: uppercase;
+        text-align: center;
+        line-height: 1;
+        overflow: hidden;
+        color: inherit;
+        text-shadow: var(--swatch-text-shadow);
+    }
+
+    .player-color-option:not(.is-used):hover .player-color-swatch {
         transform: translateY(-1px);
         box-shadow: 0 0.4rem 1rem rgba(6, 20, 47, 0.18);
+    }
+
+    .player-color-option.is-used .player-color-swatch {
+        opacity: 0.66;
+        filter: grayscale(0.2);
+    }
+
+    .player-color-option.is-used .player-color-swatch::after {
+        content: "";
+        position: absolute;
+        z-index: 1;
+        width: 54px;
+        height: 2px;
+        background: rgba(6, 20, 47, 0.72);
+        transform: rotate(-35deg);
+        border-radius: 999px;
+        pointer-events: none;
     }
 
     .player-color-input:checked + .player-color-swatch {
@@ -278,22 +420,68 @@
     .player-color-input:checked + .player-color-swatch .player-color-check {
         display: inline-block;
     }
-</style>
 
+    .password-toggle-button {
+        min-width: 92px;
+        font-weight: 700;
+    }
+</style>
+@endpush
+
+@push('scripts')
 <script>
+    function readableTextColor(hexColor) {
+        const cleanHex = String(hexColor || '').replace('#', '');
+
+        if (cleanHex.length !== 6) {
+            return '#06142F';
+        }
+
+        const red = parseInt(cleanHex.substring(0, 2), 16);
+        const green = parseInt(cleanHex.substring(2, 4), 16);
+        const blue = parseInt(cleanHex.substring(4, 6), 16);
+        const brightness = ((red * 299) + (green * 587) + (blue * 114)) / 1000;
+
+        return brightness > 145 ? '#06142F' : '#FFFFFF';
+    }
+
     document.addEventListener('DOMContentLoaded', function () {
         const avatar = document.getElementById('profileAvatar');
 
-        document.querySelectorAll('.player-color-input').forEach(function (input) {
+        document.querySelectorAll('.player-color-input:not(:disabled)').forEach(function (input) {
             input.addEventListener('change', function () {
-                if (! avatar) {
+                if (!avatar) {
                     return;
                 }
 
+                const textColor = readableTextColor(input.value);
+
                 avatar.style.background = input.value;
+                avatar.style.color = textColor;
+                avatar.style.textShadow = textColor === '#FFFFFF'
+                    ? '0 1px 2px rgba(0, 0, 0, 0.45)'
+                    : 'none';
+            });
+        });
+
+        document.querySelectorAll('[data-password-toggle]').forEach(function (button) {
+            button.addEventListener('click', function () {
+                const input = document.getElementById(button.dataset.passwordToggle);
+
+                if (!input) {
+                    return;
+                }
+
+                const shouldShow = input.type === 'password';
+
+                input.type = shouldShow ? 'text' : 'password';
+                button.textContent = shouldShow ? 'Masquer' : 'Afficher';
+                button.setAttribute(
+                    'aria-label',
+                    shouldShow ? 'Masquer le mot de passe' : 'Afficher le mot de passe'
+                );
             });
         });
     });
 </script>
-
-@endsection
+@endpush

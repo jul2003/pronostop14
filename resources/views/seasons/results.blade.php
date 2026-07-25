@@ -611,7 +611,6 @@
     .results-table-wrapper {
         max-height: 78vh;
         overflow: auto;
-        border-top: 2px solid #000;
     }
 
     .excel-results-table {
@@ -636,8 +635,6 @@
         top: 0;
         z-index: 40;
         height: 28px;
-        border-top: 2px solid #000 !important;
-        border-bottom: 2px solid #000 !important;
     }
 
     .excel-results-table thead tr:nth-child(2) th {
@@ -645,7 +642,6 @@
         top: 28px;
         z-index: 39;
         height: 92px;
-        border-bottom: 2px solid #000 !important;
     }
 
     .left-main-head {
@@ -826,7 +822,6 @@
     .player-p-sub-head {
         min-width: 34px;
         max-width: 34px;
-        border-left: 1px solid #000 !important;
         border-right: 2px solid #000 !important;
         font-size: 0.9rem;
     }
@@ -835,8 +830,6 @@
         height: 18px;
         padding: 0;
         background: #ffffff;
-        border-top: 2px solid #000 !important;
-        border-bottom: 2px solid #000 !important;
     }
 
     .section-title-row td {
@@ -844,8 +837,6 @@
         padding-top: 0.15rem;
         padding-bottom: 0.15rem;
         background: #ffffff;
-        border-top: 1px solid #000 !important;
-        border-bottom: 1px solid #000 !important;
     }
 
     .section-title-cell {
@@ -854,12 +845,6 @@
         font-weight: 900;
         text-align: center;
         text-transform: uppercase;
-    }
-
-    .preseason-row td,
-    .match-row td {
-        border-top: 1px solid #000 !important;
-        border-bottom: 1px solid #000 !important;
     }
 
     .preseason-left-combined-cell {
@@ -926,7 +911,6 @@
     .player-points-cell {
         min-width: 34px;
         max-width: 34px;
-        border-left: 1px solid #000 !important;
         border-right: 2px solid #000 !important;
     }
 
@@ -936,8 +920,6 @@
 
     .total-row td {
         background: #ffffff;
-        border-top: 2px solid #000 !important;
-        border-bottom: 2px solid #000 !important;
         font-weight: 900;
     }
 
@@ -947,7 +929,7 @@
     }
 
     .player-summary-block-cell {
-        color: var(--player-color) !important;
+        color: var(--player-color, #000000) !important;
         font-weight: 900;
         text-align: right;
         padding-right: 0.45rem !important;
@@ -961,8 +943,6 @@
 
     .journee-title-row td {
         background: #ffffff;
-        border-top: 2px solid #000 !important;
-        border-bottom: 2px solid #000 !important;
         font-weight: 900;
     }
 
@@ -998,14 +978,6 @@
         color: #000000;
         font-weight: 600;
         text-align: center;
-    }
-
-    .team-home-cell {
-        border-right-color: transparent !important;
-    }
-
-    .team-away-cell {
-        border-left-color: transparent !important;
     }
 
     .official-value-cell {

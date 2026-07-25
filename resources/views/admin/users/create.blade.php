@@ -4,7 +4,28 @@
 
 @php
     $playerColors = $playerColors ?? \App\Support\PlayerColorPalette::colors();
-    $selectedColor = strtoupper(old('color', '#FFFF00'));
+    $usedPlayerColors = $usedPlayerColors ?? [];
+
+    $firstAvailableColor = collect($playerColors)
+        ->first(fn ($color) => ! array_key_exists(strtoupper($color), $usedPlayerColors));
+
+    $selectedColor = strtoupper((string) old('color', $firstAvailableColor ?? ''));
+
+    $contrastColor = function (string $hexColor) {
+        $hexColor = ltrim($hexColor, '#');
+
+        if (strlen($hexColor) !== 6) {
+            return '#06142F';
+        }
+
+        $red = hexdec(substr($hexColor, 0, 2));
+        $green = hexdec(substr($hexColor, 2, 2));
+        $blue = hexdec(substr($hexColor, 4, 2));
+
+        $brightness = (($red * 299) + ($green * 587) + ($blue * 114)) / 1000;
+
+        return $brightness > 145 ? '#06142F' : '#FFFFFF';
+    };
 @endphp
 
 @include('admin.partials.back-link', [
@@ -22,7 +43,7 @@
     </h2>
 
     <p class="text-muted mb-0">
-        Crée un utilisateur et choisis sa couleur dans la palette autorisée.
+        Crée un utilisateur, choisis sa couleur et envoie ses accès par mail.
     </p>
 </div>
 
@@ -87,7 +108,7 @@
         </div>
 
         <div class="form-text mb-3">
-            Au moins une des deux adresses est obligatoire.
+            Au moins une des deux adresses est obligatoire. Le mot de passe sera envoyé à la ou les adresses renseignées.
         </div>
 
         <div class="mb-4">
@@ -96,29 +117,46 @@
             </label>
 
             <div class="form-text mb-3">
-                Seules les 27 couleurs de la palette contrôlée sont autorisées.
+                Les couleurs déjà utilisées sont désactivées et affichent le pseudo du joueur concerné.
             </div>
 
             <div class="player-color-palette">
                 @foreach($playerColors as $color)
-                    <label class="player-color-option"
-                           title="{{ $color }}">
+                    @php
+                        $normalizedColor = strtoupper($color);
+                        $usedByNickname = $usedPlayerColors[$normalizedColor] ?? null;
+                        $isUsed = filled($usedByNickname);
+                        $textColor = $contrastColor($normalizedColor);
+                        $textShadow = $textColor === '#FFFFFF'
+                            ? '0 1px 2px rgba(0, 0, 0, 0.45)'
+                            : 'none';
+                    @endphp
+
+                    <label class="player-color-option {{ $isUsed ? 'is-used' : '' }}"
+                           title="{{ $isUsed ? 'Déjà prise par '.$usedByNickname : $normalizedColor }}">
                         <input type="radio"
                                name="color"
-                               value="{{ $color }}"
+                               value="{{ $normalizedColor }}"
                                class="player-color-input"
                                required
-                               @checked($selectedColor === $color)>
+                               @disabled($isUsed)
+                               @checked(! $isUsed && $selectedColor === $normalizedColor)>
 
                         <span class="player-color-swatch"
-                              style="background-color: {{ $color }};">
-                            <span class="player-color-check">
-                                ✓
-                            </span>
+                              style="background-color: {{ $normalizedColor }}; color: {{ $textColor }}; --swatch-text-shadow: {{ $textShadow }};">
+                            @if($isUsed)
+                                <span class="player-color-used-label">
+                                    {{ $usedByNickname }}
+                                </span>
+                            @else
+                                <span class="player-color-check">
+                                    ✓
+                                </span>
+                            @endif
                         </span>
 
                         <span class="visually-hidden">
-                            {{ $color }}
+                            {{ $normalizedColor }}
                         </span>
                     </label>
                 @endforeach
@@ -148,45 +186,80 @@
         </div>
 
         <div class="mb-3">
-            <label class="form-label fw-bold">
+            <label for="password" class="form-label fw-bold">
                 Mot de passe
             </label>
 
-            <input name="password"
-                   type="password"
-                   class="form-control"
-                   required>
+            <div class="input-group">
+                <input id="password"
+                       name="password"
+                       type="password"
+                       class="form-control"
+                       autocomplete="new-password">
+
+                <button type="button"
+                        class="btn btn-outline-secondary password-toggle-button"
+                        data-password-toggle="password"
+                        aria-label="Afficher le mot de passe">
+                    Afficher
+                </button>
+            </div>
+
+            <div class="form-text">
+                Laisse vide pour générer automatiquement un mot de passe. Dans tous les cas, il sera envoyé par mail et devra être changé à la première connexion.
+            </div>
         </div>
 
         <div class="mb-4">
-            <label class="form-label fw-bold">
+            <label for="password_confirmation" class="form-label fw-bold">
                 Confirmation
             </label>
 
-            <input name="password_confirmation"
-                   type="password"
-                   class="form-control"
-                   required>
+            <div class="input-group">
+                <input id="password_confirmation"
+                       name="password_confirmation"
+                       type="password"
+                       class="form-control"
+                       autocomplete="new-password">
+
+                <button type="button"
+                        class="btn btn-outline-secondary password-toggle-button"
+                        data-password-toggle="password_confirmation"
+                        aria-label="Afficher la confirmation du mot de passe">
+                    Afficher
+                </button>
+            </div>
+
+            <div class="form-text">
+                À remplir seulement si tu saisis toi-même un mot de passe.
+            </div>
         </div>
 
         <button class="btn btn-warning rounded-pill fw-bold px-4">
-            Créer l’utilisateur
+            Créer l’utilisateur et envoyer le mail
         </button>
     </form>
 </div>
 
+@endsection
+
+@push('styles')
 <style>
     .player-color-palette {
         display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(42px, 1fr));
+        grid-template-columns: repeat(auto-fill, minmax(48px, 1fr));
         gap: 0.75rem;
-        max-width: 520px;
+        max-width: 620px;
     }
 
     .player-color-option {
         position: relative;
         display: block;
         cursor: pointer;
+    }
+
+    .player-color-option.is-used {
+        cursor: not-allowed;
     }
 
     .player-color-input {
@@ -196,33 +269,72 @@
     }
 
     .player-color-swatch {
+        position: relative;
         display: flex;
         align-items: center;
         justify-content: center;
-        width: 42px;
-        height: 42px;
+        width: 48px;
+        height: 48px;
         border-radius: 999px;
         border: 2px solid rgba(6, 20, 47, 0.2);
         box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.35);
-        transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+        transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease, opacity 0.15s ease;
     }
 
     .player-color-check {
         display: none;
-        width: 22px;
-        height: 22px;
+        width: 24px;
+        height: 24px;
         border-radius: 999px;
         background: rgba(255, 255, 255, 0.92);
         color: #06142f;
-        font-size: 0.9rem;
+        font-size: 0.95rem;
         font-weight: 800;
-        line-height: 22px;
+        line-height: 24px;
         text-align: center;
     }
 
-    .player-color-option:hover .player-color-swatch {
+    .player-color-used-label {
+        position: relative;
+        z-index: 2;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 38px;
+        height: 38px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.24);
+        font-size: 0.68rem;
+        font-weight: 900;
+        letter-spacing: 0.02em;
+        text-transform: uppercase;
+        text-align: center;
+        line-height: 1;
+        overflow: hidden;
+        color: inherit;
+        text-shadow: var(--swatch-text-shadow);
+    }
+
+    .player-color-option:not(.is-used):hover .player-color-swatch {
         transform: translateY(-1px);
         box-shadow: 0 0.4rem 1rem rgba(6, 20, 47, 0.18);
+    }
+
+    .player-color-option.is-used .player-color-swatch {
+        opacity: 0.66;
+        filter: grayscale(0.2);
+    }
+
+    .player-color-option.is-used .player-color-swatch::after {
+        content: "";
+        position: absolute;
+        z-index: 1;
+        width: 54px;
+        height: 2px;
+        background: rgba(6, 20, 47, 0.72);
+        transform: rotate(-35deg);
+        border-radius: 999px;
+        pointer-events: none;
     }
 
     .player-color-input:checked + .player-color-swatch {
@@ -234,6 +346,35 @@
     .player-color-input:checked + .player-color-swatch .player-color-check {
         display: inline-block;
     }
-</style>
 
-@endsection
+    .password-toggle-button {
+        min-width: 92px;
+        font-weight: 700;
+    }
+</style>
+@endpush
+
+@push('scripts')
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        document.querySelectorAll('[data-password-toggle]').forEach(function (button) {
+            button.addEventListener('click', function () {
+                const input = document.getElementById(button.dataset.passwordToggle);
+
+                if (!input) {
+                    return;
+                }
+
+                const shouldShow = input.type === 'password';
+
+                input.type = shouldShow ? 'text' : 'password';
+                button.textContent = shouldShow ? 'Masquer' : 'Afficher';
+                button.setAttribute(
+                    'aria-label',
+                    shouldShow ? 'Masquer le mot de passe' : 'Afficher le mot de passe'
+                );
+            });
+        });
+    });
+</script>
+@endpush
