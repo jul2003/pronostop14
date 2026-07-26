@@ -90,7 +90,6 @@
     </div>
 
 @else
-
     <div class="rugby-card p-0 overflow-hidden">
         <div class="table-responsive">
             <table class="table table-hover align-middle mb-0">
@@ -128,17 +127,9 @@
                                     {{ $journee->name }}
                                 </div>
 
-                                <div class="text-muted small">
-                                    {{ $journee->slug }}
-                                </div>
-
                                 @if($season->is_locked)
                                     <div class="text-muted small mt-1">
                                         Saison verrouillée : consultation uniquement.
-                                    </div>
-                                @elseif($journeeIsLockedByDate)
-                                    <div class="text-muted small mt-1">
-                                        Journée commencée : seuls les résultats restent accessibles.
                                     </div>
                                 @endif
                             </td>
@@ -215,7 +206,6 @@
             </table>
         </div>
     </div>
-
 @endif
 
 @endsection

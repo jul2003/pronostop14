@@ -2,8 +2,8 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Model;
 use App\Services\AppDateService;
+use Illuminate\Database\Eloquent\Model;
 
 class Journee extends Model
 {
@@ -17,10 +17,13 @@ class Journee extends Model
         'prediction_deadline',
     ];
 
-    protected $casts = [
-        'starts_at' => 'datetime',
-        'prediction_deadline' => 'datetime',
-    ];
+    protected function casts(): array
+    {
+        return [
+            'starts_at' => 'datetime',
+            'prediction_deadline' => 'datetime',
+        ];
+    }
 
     public function season()
     {
@@ -51,6 +54,25 @@ class Journee extends Model
         return 'slug';
     }
 
+    public function resolveRouteBinding($value, $field = null)
+    {
+        $field = $field ?: $this->getRouteKeyName();
+
+        $journee = $this->where($field, $value)->first();
+
+        if ($journee || $field !== 'slug') {
+            return $journee;
+        }
+
+        $currentSlug = $this->currentSlugForLegacySlug((string) $value);
+
+        if (! $currentSlug) {
+            return null;
+        }
+
+        return $this->where('slug', $currentSlug)->first();
+    }
+
     public function getTypeLabelAttribute(): string
     {
         return match ($this->type) {
@@ -69,15 +91,12 @@ class Journee extends Model
     {
         return match ($this->type) {
             'regular' => (int) ($this->season->top14_clubs_count / 2),
-
             'prod2_final' => 1,
             'access_match' => 1,
             'top14_playoff' => 2,
             'top14_semifinal' => 2,
             'top14_final' => 1,
-
             'preseason' => null,
-
             default => null,
         };
     }
@@ -97,13 +116,11 @@ class Journee extends Model
     {
         return match ($this->type) {
             'regular' => ['v', 'n', 'd'],
-
             'access_match',
             'top14_playoff',
             'prod2_final',
             'top14_semifinal',
             'top14_final' => ['v', 'd'],
-
             default => ['v', 'n', 'd'],
         };
     }
@@ -122,7 +139,6 @@ class Journee extends Model
                 'v' => 'Équipe 1',
                 'd' => 'Équipe 2',
             ],
-
             default => [
                 'v' => 'Domicile',
                 'n' => 'Nul',
@@ -140,7 +156,6 @@ class Journee extends Model
                 'v' => 'Éq. 1',
                 'd' => 'Éq. 2',
             ],
-
             default => [
                 'v' => 'V',
                 'n' => 'N',
@@ -157,5 +172,22 @@ class Journee extends Model
     public function resultOptionShortLabel(string $result): string
     {
         return $this->resultOptionShortLabels()[$result] ?? $result;
+    }
+
+    private function currentSlugForLegacySlug(string $slug): ?string
+    {
+        if (preg_match('/^journee-(\d+)$/i', $slug, $matches)) {
+            return 'J'.((int) $matches[1]);
+        }
+
+        if (preg_match('/^j(\d+)$/i', $slug, $matches)) {
+            return 'J'.((int) $matches[1]);
+        }
+
+        if ($slug === 'access-match-top-14-pro-d2') {
+            return 'access-match';
+        }
+
+        return null;
     }
 }

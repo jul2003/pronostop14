@@ -40,7 +40,7 @@ class SeasonJourneeGenerator
                 'number' => $number,
                 'type' => 'regular',
                 'name' => "Journée {$number}",
-                'slug' => "journee-{$number}",
+                'slug' => "J{$number}",
             ]);
         }
     }
@@ -66,7 +66,7 @@ class SeasonJourneeGenerator
                 'number' => $regularJourneesCount + 3,
                 'type' => 'access_match',
                 'name' => 'Access match TOP 14 / PRO D2',
-                'slug' => 'access-match-top-14-pro-d2',
+                'slug' => 'access-match',
             ],
             [
                 'number' => $regularJourneesCount + 4,
@@ -98,7 +98,9 @@ class SeasonJourneeGenerator
             'number' => $data['number'],
             'type' => $data['type'],
             'name' => $data['name'],
-            'slug' => Str::slug($data['slug']),
+            'slug' => $data['type'] === 'regular'
+                ? $data['slug']
+                : Str::slug($data['slug']),
             'starts_at' => null,
             'prediction_deadline' => null,
         ]);
