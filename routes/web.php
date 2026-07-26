@@ -20,6 +20,7 @@ use App\Http\Controllers\PronoController;
 use App\Http\Controllers\RankingController;
 use App\Http\Controllers\SeasonRuleController;
 use App\Http\Controllers\TeamStandingController;
+use App\Models\Journee;
 use App\Models\Season;
 use App\Models\User;
 use Illuminate\Support\Facades\Route;
@@ -281,10 +282,10 @@ Route::middleware(['auth', 'admin'])->group(function () {
     Route::get('/admin/saisons/{season}/journees', [JourneeController::class, 'season'])
         ->name('admin.seasons.journees');
 
-    Route::get('/admin/saisons/{season}/journees/{journee}/edit', [JourneeController::class, 'edit'])
+    Route::get('/admin/saisons/{season}/{journee}/edit', [JourneeController::class, 'edit'])
         ->name('admin.seasons.journees.edit');
 
-    Route::put('/admin/saisons/{season}/journees/{journee}', [JourneeController::class, 'update'])
+    Route::put('/admin/saisons/{season}/{journee}', [JourneeController::class, 'update'])
         ->name('admin.seasons.journees.update');
 
     Route::get('/admin/saisons/{season}/avant-saison', [SeasonPreseasonController::class, 'edit'])
@@ -326,26 +327,38 @@ Route::middleware(['auth', 'admin'])->group(function () {
     Route::put('/admin/saisons/{season}/avant-saison/resultats', [SeasonPreseasonResultController::class, 'update'])
         ->name('admin.seasons.preseason-results.update');
 
-    Route::get('/admin/saisons/{season}/journees/{journee}/matches', [MatchController::class, 'manage'])
+    Route::get('/admin/saisons/{season}/{journee}/matches', [MatchController::class, 'manage'])
         ->name('admin.seasons.journees.matches');
 
-    Route::post('/admin/saisons/{season}/journees/{journee}/matches', [MatchController::class, 'store'])
+    Route::post('/admin/saisons/{season}/{journee}/matches', [MatchController::class, 'store'])
         ->name('admin.seasons.journees.matches.store');
 
-    Route::post('/admin/saisons/{season}/journees/{journee}/matches/reorder', [MatchController::class, 'reorder'])
+    Route::post('/admin/saisons/{season}/{journee}/matches/reorder', [MatchController::class, 'reorder'])
         ->name('admin.seasons.journees.matches.reorder');
 
     Route::delete('/admin/matches/{match}', [MatchController::class, 'destroy'])
         ->name('admin.matches.destroy');
 
-    Route::post('/admin/saisons/{season}/journees/{journee}/matches/bulk', [MatchController::class, 'storeBulk'])
+    Route::post('/admin/saisons/{season}/{journee}/matches/bulk', [MatchController::class, 'storeBulk'])
         ->name('admin.seasons.journees.matches.storeBulk');
 
-    Route::get('/admin/saisons/{season}/journees/{journee}/results', [MatchController::class, 'results'])
+    Route::get('/admin/saisons/{season}/{journee}/results', [MatchController::class, 'results'])
         ->name('admin.seasons.journees.results');
 
-    Route::post('/admin/saisons/{season}/journees/{journee}/results', [MatchController::class, 'storeResults'])
+    Route::post('/admin/saisons/{season}/{journee}/results', [MatchController::class, 'storeResults'])
         ->name('admin.seasons.journees.results.store');
+
+    Route::get('/admin/saisons/{season}/journees/{journee}/edit', function (Season $season, Journee $journee) {
+        return redirect()->route('admin.seasons.journees.edit', [$season, $journee]);
+    });
+
+    Route::get('/admin/saisons/{season}/journees/{journee}/matches', function (Season $season, Journee $journee) {
+        return redirect()->route('admin.seasons.journees.matches', [$season, $journee]);
+    });
+
+    Route::get('/admin/saisons/{season}/journees/{journee}/results', function (Season $season, Journee $journee) {
+        return redirect()->route('admin.seasons.journees.results', [$season, $journee]);
+    });
 
     Route::get('/admin/users', [UserController::class, 'index'])
         ->name('admin.users.index');
