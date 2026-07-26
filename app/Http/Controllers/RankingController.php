@@ -197,6 +197,7 @@ class RankingController extends Controller
             ->get();
 
         $preseasonDeadline = $preseasonDeadlineService->deadlineForUser($season, auth()->user());
+
         $preseasonIsVisible = $preseasonDeadline
             ? $preseasonDeadlineService->isLockedForUser($season, auth()->user())
             : false;
@@ -315,7 +316,6 @@ class RankingController extends Controller
         foreach ($journees as $journee) {
             foreach ($players as $player) {
                 $score = $journee->userScores->firstWhere('user_id', $player->id);
-
                 $matchPoints = (int) ($score?->match_points ?? 0);
                 $total = (int) ($score?->total_points ?? 0);
                 $perfectBonus = $this->perfectJourneeBonusFromScore($score, $matchPoints, $total);
@@ -447,11 +447,14 @@ class RankingController extends Controller
 
     private function bonusStatus(?string $predictedBonus, ?string $actualBonus): string
     {
-        if ($predictedBonus === null || $predictedBonus === '') {
+        $predictedBonus = $this->normalizeBonusValue($predictedBonus);
+        $actualBonus = $this->normalizeBonusValue($actualBonus);
+
+        if ($predictedBonus === null) {
             return 'neutral';
         }
 
-        if ($actualBonus === null || $actualBonus === '') {
+        if ($actualBonus === null) {
             return 'neutral';
         }
 
@@ -459,7 +462,18 @@ class RankingController extends Controller
             return 'good';
         }
 
-        return 'bonus';
+        return 'bad';
+    }
+
+    private function normalizeBonusValue(?string $value): ?string
+    {
+        if ($value === null) {
+            return null;
+        }
+
+        $value = strtolower(trim($value));
+
+        return $value === '' ? null : $value;
     }
 
     private function perfectJourneeBonusFromScore(?JourneeUserScore $score, int $matchPoints, int $total): int

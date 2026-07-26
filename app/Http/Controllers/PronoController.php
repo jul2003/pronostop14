@@ -33,7 +33,10 @@ class PronoController extends Controller
         $preseasonDeadline = $preseasonDeadlineService->deadlineForUser($season, auth()->user());
         $preseasonIsLocked = $preseasonDeadlineService->isLockedForUser($season, auth()->user());
 
-        $journees = Journee::with('season')
+        $journees = Journee::with([
+            'season',
+            'matches.predictionDeadlineException',
+        ])
             ->withCount('matches')
             ->where('season_id', $season->id)
             ->orderBy('number')
@@ -50,19 +53,23 @@ class PronoController extends Controller
                         ->exists();
                 }
 
-                if (! $journee->prediction_deadline) {
-                    return false;
-                }
-
-                if ($journee->isLocked()) {
-                    return false;
-                }
-
                 if (! $journee->hasExpectedMatchesCount()) {
                     return false;
                 }
 
-                return (int) $journee->matches_count > 0;
+                if ((int) $journee->matches_count === 0) {
+                    return false;
+                }
+
+                $hasAnyDeadline = $journee->matches
+                    ->contains(fn ($match) => $match->effectivePredictionDeadline() !== null);
+
+                if (! $hasAnyDeadline) {
+                    return false;
+                }
+
+                return $journee->matches
+                    ->contains(fn ($match) => ! $match->isPredictionLocked());
             })
             ->values();
 
@@ -94,17 +101,20 @@ class PronoController extends Controller
             'homeClub',
             'awayClub',
             'journee',
+            'predictionDeadlineException',
             'pronos' => fn ($query) => $query->where('user_id', auth()->id()),
         ])
             ->where('journee_id', $journee->id)
             ->orderBy('position')
             ->get();
 
+        $hasOpenMatches = $matches->contains(fn ($match) => ! $match->isPredictionLocked());
+
         return view('pronos.index', [
             'season' => $season,
             'journee' => $journee,
             'matches' => $matches,
-            'isLocked' => $journee->isLocked(),
+            'isLocked' => ! $hasOpenMatches,
         ]);
     }
 
@@ -126,12 +136,23 @@ class PronoController extends Controller
 
         $this->ensureJourneeHasDeadline($journee);
 
-        if ($journee->isLocked()) {
+        $matches = MatchGame::with([
+            'homeClub',
+            'awayClub',
+            'predictionDeadlineException',
+        ])
+            ->where('journee_id', $journee->id)
+            ->get()
+            ->keyBy('id');
+
+        $hasOpenMatches = $matches->contains(fn ($match) => ! $match->isPredictionLocked());
+
+        if (! $hasOpenMatches) {
             abort(403);
         }
 
         $data = $request->validate([
-            'pronos' => ['required', 'array'],
+            'pronos' => ['required', 'array', 'min:1'],
             'pronos.*.predicted_result' => ['required', Rule::in($journee->allowedResultOptions())],
             'pronos.*.predicted_tries' => ['required', 'integer', 'min:0'],
             'pronos.*.predicted_home_bonus' => ['nullable', 'in:o,-,d'],
@@ -139,9 +160,19 @@ class PronoController extends Controller
         ]);
 
         foreach ($data['pronos'] as $matchId => $pronoData) {
-            $match = MatchGame::where('journee_id', $journee->id)
-                ->where('id', $matchId)
-                ->firstOrFail();
+            $match = $matches->get((int) $matchId);
+
+            if (! $match) {
+                abort(404);
+            }
+
+            if ($match->isPredictionLocked()) {
+                return redirect()
+                    ->route('pronos.show', [$season, $journee])
+                    ->withErrors([
+                        'deadline' => 'Ce match est verrouillé : '.$match->homeClub->name.' - '.$match->awayClub->name.'.',
+                    ]);
+            }
 
             Prono::updateOrCreate(
                 [
@@ -279,7 +310,6 @@ class PronoController extends Controller
         $groups = [
             'top14_semifinalists' => fn ($label) => str_contains($label, 'demi')
                 && str_contains($label, 'top 14'),
-
             'prod2_semifinalists' => fn ($label) => str_contains($label, 'demi')
                 && str_contains($label, 'pro d2'),
         ];

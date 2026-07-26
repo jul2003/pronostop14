@@ -36,11 +36,14 @@ class UpcomingMatchController extends Controller
                 ->filter(fn ($journee) => $journee->expectedMatchesCount() !== null)
                 ->values();
 
-            $windowStartIndex = $this->windowStartIndex($allJournees, $dateService);
+            $windowStartIndex = $this->windowStartIndex(
+                $allJournees,
+                $journeesToPrepareCount,
+                $dateService
+            );
 
             $journees = $allJournees
                 ->slice($windowStartIndex, $journeesToPrepareCount)
-                ->filter(fn ($journee) => $this->journeeNeedsPreparation($journee))
                 ->values();
         }
 
@@ -51,72 +54,32 @@ class UpcomingMatchController extends Controller
         ]);
     }
 
-    private function windowStartIndex(Collection $journees, AppDateService $dateService): int
-    {
-        $now = $dateService->now();
+    private function windowStartIndex(
+        Collection $journees,
+        int $journeesToPrepareCount,
+        AppDateService $dateService
+    ): int {
+        if ($journees->isEmpty()) {
+            return 0;
+        }
 
-        $firstPastUnfinishedJourneeIndex = $journees->search(function ($journee) use ($now) {
+        $today = $dateService->today();
+
+        $firstUpcomingJourneeIndex = $journees->search(function ($journee) use ($today) {
             if (! $journee->prediction_deadline) {
-                return false;
+                return true;
             }
 
-            if ($journee->prediction_deadline->gt($now)) {
-                return false;
-            }
-
-            return $this->matchesAreIncomplete($journee)
-                || $this->resultsAreIncomplete($journee);
+            return $journee->prediction_deadline
+                ->copy()
+                ->startOfDay()
+                ->gte($today);
         });
 
-        if ($firstPastUnfinishedJourneeIndex !== false) {
-            return (int) $firstPastUnfinishedJourneeIndex;
+        if ($firstUpcomingJourneeIndex !== false) {
+            return (int) $firstUpcomingJourneeIndex;
         }
 
-        $firstJourneeNeedingPreparationIndex = $journees->search(function ($journee) {
-            return $this->journeeNeedsPreparation($journee);
-        });
-
-        if ($firstJourneeNeedingPreparationIndex !== false) {
-            return (int) $firstJourneeNeedingPreparationIndex;
-        }
-
-        return 0;
-    }
-
-    private function journeeNeedsPreparation($journee): bool
-    {
-        return $this->deadlineIsMissing($journee)
-            || $this->matchesAreIncomplete($journee);
-    }
-
-    private function deadlineIsMissing($journee): bool
-    {
-        return $journee->prediction_deadline === null;
-    }
-
-    private function matchesAreIncomplete($journee): bool
-    {
-        $expectedMatchesCount = $journee->expectedMatchesCount();
-
-        if ($expectedMatchesCount === null) {
-            return false;
-        }
-
-        return (int) $journee->matches_count < $expectedMatchesCount;
-    }
-
-    private function resultsAreIncomplete($journee): bool
-    {
-        $expectedMatchesCount = $journee->expectedMatchesCount();
-
-        if ($expectedMatchesCount === null) {
-            return false;
-        }
-
-        if ((int) $journee->matches_count < $expectedMatchesCount) {
-            return true;
-        }
-
-        return (int) $journee->finished_matches_count < $expectedMatchesCount;
+        return max($journees->count() - $journeesToPrepareCount, 0);
     }
 }

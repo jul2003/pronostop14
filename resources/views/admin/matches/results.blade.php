@@ -23,6 +23,10 @@
             @else
                 {{ $season->name }}
             @endif
+
+            @if($journee->prediction_deadline)
+                · date limite journée : {{ $journee->prediction_deadline->format('d/m/Y H:i') }}
+            @endif
         </p>
     </div>
 
@@ -79,7 +83,7 @@
 
         <div class="rugby-card p-0 overflow-hidden">
             <div class="table-responsive">
-                <table class="table table-hover align-middle mb-0 prono-table">
+                <table class="table table-hover align-middle mb-0 prono-table admin-results-table">
                     <thead class="table-light">
                         <tr>
                             <th>Match</th>
@@ -87,15 +91,19 @@
                             <th class="text-center">Essais</th>
                             <th class="text-center">Bonus dom.</th>
                             <th class="text-center">Bonus ext.</th>
+                            <th style="min-width: 260px;">Date limite prono exceptionnelle</th>
                         </tr>
                     </thead>
 
                     <tbody>
                         @foreach($matches as $match)
+                            @php
+                                $exceptionDeadline = $match->predictionDeadlineException?->prediction_deadline;
+                            @endphp
+
                             <tr>
                                 <td class="match-cell">
                                     <div class="match-line">
-
                                         <div class="match-home">
                                             <img src="{{ $match->homeClub->logo_url }}"
                                                  alt="{{ $match->homeClub->name }}"
@@ -119,7 +127,6 @@
                                                 {{ $match->awayClub->short_name ?? $match->awayClub->name }}
                                             </span>
                                         </div>
-
                                     </div>
                                 </td>
 
@@ -190,6 +197,24 @@
                                         @endforeach
                                     </div>
                                 </td>
+
+                                <td>
+                                    <input type="datetime-local"
+                                           name="deadline_exceptions[{{ $match->id }}][prediction_deadline]"
+                                           value="{{ $exceptionDeadline ? $exceptionDeadline->format('Y-m-d\TH:i') : '' }}"
+                                           class="form-control form-control-sm"
+                                           @disabled($season->is_locked)>
+
+                                    <div class="form-text">
+                                        Vide = date limite normale de la journée.
+                                    </div>
+
+                                    @if($exceptionDeadline)
+                                        <div class="small fw-bold text-warning mt-1">
+                                            Exception active : {{ $exceptionDeadline->format('d/m/Y H:i') }}
+                                        </div>
+                                    @endif
+                                </td>
                             </tr>
                         @endforeach
                     </tbody>
@@ -201,7 +226,7 @@
             <div class="mt-4">
                 <button type="submit"
                         class="btn btn-warning rounded-pill fw-bold px-4">
-                    Enregistrer les résultats
+                    Enregistrer les résultats et exceptions
                 </button>
             </div>
         @endunless
@@ -209,27 +234,27 @@
 
 @endif
 
-@unless($season->is_locked)
-    <script>
-        document.querySelectorAll('.prono-choice-input').forEach(input => {
-            input.addEventListener('click', function () {
-                if (this.dataset.wasChecked === 'true') {
-                    this.checked = false;
-                    this.dataset.wasChecked = 'false';
-                } else {
-                    document
-                        .querySelectorAll(`input[name="${this.name}"]`)
-                        .forEach(radio => radio.dataset.wasChecked = 'false');
-
-                    this.dataset.wasChecked = 'true';
-                }
-            });
-        });
-
-        document.querySelectorAll('.prono-choice-input:checked').forEach(input => {
-            input.dataset.wasChecked = 'true';
-        });
-    </script>
-@endunless
-
 @endsection
+
+@push('styles')
+<style>
+    .admin-results-table th,
+    .admin-results-table td {
+        padding-top: 0.45rem;
+        padding-bottom: 0.45rem;
+    }
+
+    .admin-results-table .match-cell {
+        min-width: 330px;
+    }
+
+    .admin-results-table .match-home span,
+    .admin-results-table .match-away span {
+        white-space: nowrap;
+    }
+
+    .admin-results-table .match-line {
+        grid-template-columns: minmax(120px, 1fr) 24px minmax(120px, 1fr);
+    }
+</style>
+@endpush

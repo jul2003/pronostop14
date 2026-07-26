@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Club;
 use App\Models\Journee;
 use App\Models\MatchGame;
+use App\Models\MatchPredictionDeadlineException;
 use App\Models\Prono;
 use App\Models\Season;
 use App\Services\ScoringService;
@@ -151,7 +152,11 @@ class MatchController extends Controller
         $this->ensureJourneeBelongsToSeason($season, $journee);
 
         $matches = $journee->matches()
-            ->with(['homeClub', 'awayClub'])
+            ->with([
+                'homeClub',
+                'awayClub',
+                'predictionDeadlineException',
+            ])
             ->orderBy('position')
             ->orderBy('id')
             ->get();
@@ -179,12 +184,37 @@ class MatchController extends Controller
 
         $data = $request->validate([
             'matches' => ['nullable', 'array'],
-
             'matches.*.actual_result' => ['nullable', Rule::in($journee->allowedResultOptions())],
             'matches.*.actual_tries' => ['nullable', 'integer', 'min:0'],
             'matches.*.actual_home_bonus' => ['nullable', 'in:o,-,d'],
             'matches.*.actual_away_bonus' => ['nullable', 'in:o,-,d'],
+
+            'deadline_exceptions' => ['nullable', 'array'],
+            'deadline_exceptions.*.prediction_deadline' => ['nullable', 'date'],
         ]);
+
+        foreach ($data['deadline_exceptions'] ?? [] as $matchId => $exceptionData) {
+            $match = MatchGame::where('journee_id', $journee->id)
+                ->where('id', $matchId)
+                ->firstOrFail();
+
+            $deadline = $exceptionData['prediction_deadline'] ?? null;
+
+            if (blank($deadline)) {
+                $match->predictionDeadlineException()->delete();
+
+                continue;
+            }
+
+            MatchPredictionDeadlineException::updateOrCreate(
+                [
+                    'match_game_id' => $match->id,
+                ],
+                [
+                    'prediction_deadline' => $deadline,
+                ]
+            );
+        }
 
         foreach ($data['matches'] ?? [] as $matchId => $matchData) {
             $match = MatchGame::where('journee_id', $journee->id)
@@ -232,7 +262,7 @@ class MatchController extends Controller
 
         return redirect()
             ->route('admin.seasons.journees.results', [$season, $journee])
-            ->with('success', 'Résultats enregistrés.');
+            ->with('success', 'Résultats et exceptions de dates enregistrés.');
     }
 
     public function reorder(Request $request, Season $season, Journee $journee)
