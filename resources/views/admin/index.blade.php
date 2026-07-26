@@ -145,11 +145,34 @@
         </a>
     </div>
 
+    <div class="col-md-6 col-xl-4">
+        <div class="rugby-feature-card h-100">
+            <div class="feature-number">09</div>
+
+            <div class="h4 fw-bold mb-2">
+                Recalculer les scores
+            </div>
+
+            <p class="text-secondary mb-3">
+                Recalcule les points, bonus journée parfaite et classements de la saison active.
+            </p>
+
+            <form method="POST" action="{{ route('admin.scores.recalculate') }}">
+                @csrf
+
+                <button type="submit"
+                        class="btn btn-warning rounded-pill fw-bold px-4">
+                    Recalculer maintenant
+                </button>
+            </form>
+        </div>
+    </div>
+
     @if(auth()->user()?->isSuperAdmin())
         <div class="col-md-6 col-xl-4">
             <a href="{{ route('admin.maintenance.index') }}" class="text-decoration-none">
                 <div class="rugby-feature-card h-100">
-                    <div class="feature-number">09</div>
+                    <div class="feature-number">10</div>
 
                     <div class="h4 fw-bold mb-2">
                         Maintenance

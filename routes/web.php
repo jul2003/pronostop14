@@ -6,6 +6,7 @@ use App\Http\Controllers\Admin\JourneeController;
 use App\Http\Controllers\Admin\MaintenanceController;
 use App\Http\Controllers\Admin\MatchController;
 use App\Http\Controllers\Admin\PendingResultController;
+use App\Http\Controllers\Admin\ScoreRecalculationController;
 use App\Http\Controllers\Admin\SeasonController;
 use App\Http\Controllers\Admin\SeasonPreseasonController;
 use App\Http\Controllers\Admin\SeasonPreseasonResultController;
@@ -69,19 +70,12 @@ Route::middleware('auth')->group(function () {
         ->name('pronos.store');
 
     Route::get('/classements', function () {
-        $season = Season::where('is_active', true)->first();
-
-        if (! $season) {
-            return redirect()
-                ->route('home')
-                ->with('error', 'Aucune saison active pour le moment.');
-        }
-
-        return redirect()->route('rankings.general', $season);
+        return redirect()->route('results.index');
     })->name('rankings.index');
 
-    Route::get('/classements/{season}', [RankingController::class, 'general'])
-        ->name('rankings.general');
+    Route::get('/classements/{season}', function (Season $season) {
+        return redirect()->route('results.season', $season);
+    })->name('rankings.general');
 
     Route::get('/classements/{season}/{journee}', [RankingController::class, 'journee'])
         ->name('rankings.journee');
@@ -130,6 +124,9 @@ Route::middleware('auth')->group(function () {
 Route::middleware(['auth', 'admin'])->group(function () {
     Route::get('/admin', fn () => view('admin.index'))
         ->name('admin.index');
+
+    Route::post('/admin/recalculer-scores', ScoreRecalculationController::class)
+        ->name('admin.scores.recalculate');
 
     Route::get('/admin/maintenance', [MaintenanceController::class, 'index'])
         ->name('admin.maintenance.index');

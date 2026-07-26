@@ -14,7 +14,7 @@
             </h1>
 
             <p class="lead text-white-50 mb-4">
-                Pronostique les journées, suis les résultats et grimpe au classement général.
+                Pronostique les journées et suis les résultats de la saison.
             </p>
 
             <div class="d-flex flex-wrap gap-2">
@@ -24,14 +24,14 @@
                 </a>
 
                 @if($season)
-                    <a href="{{ route('rankings.index') }}"
-                       class="btn btn-outline-primary rounded-pill fw-bold px-4">
-                        Classement
-                    </a>
-
-                    <a href="{{ route('seasons.active.results') }}"
+                    <a href="{{ route('results.index') }}"
                        class="btn btn-outline-primary rounded-pill fw-bold px-4">
                         Résultats
+                    </a>
+
+                    <a href="{{ route('team-standings.index') }}"
+                       class="btn btn-outline-primary rounded-pill fw-bold px-4">
+                        Classement équipes
                     </a>
                 @endif
             </div>
@@ -94,16 +94,16 @@
     </div>
 
     <div class="col-md-4">
-        <a href="{{ route('rankings.index') }}" class="text-decoration-none">
+        <a href="{{ route('results.index') }}" class="text-decoration-none">
             <div class="rugby-feature-card">
                 <div class="feature-number">02</div>
 
                 <div class="h4 fw-bold mb-2">
-                    Classement
+                    Résultats
                 </div>
 
                 <p class="text-secondary mb-0">
-                    Suis le général et les scores journée.
+                    Consulte les résultats, les points et les totaux.
                 </p>
             </div>
         </a>

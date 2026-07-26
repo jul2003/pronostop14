@@ -111,7 +111,7 @@
                                                  class="club-logo-small">
 
                                             <span>
-                                                {{ $match->homeClub->short_name ?? $match->homeClub->name }}
+                                                {{ $match->homeClub->name }}
                                             </span>
                                         </div>
 
@@ -125,7 +125,7 @@
                                                  class="club-logo-small">
 
                                             <span>
-                                                {{ $match->awayClub->short_name ?? $match->awayClub->name }}
+                                                {{ $match->awayClub->name }}
                                             </span>
                                         </div>
                                     </div>
@@ -241,7 +241,7 @@
     }
 
     .admin-results-table .match-cell {
-        min-width: 330px;
+        min-width: 430px;
     }
 
     .admin-results-table .match-home span,
@@ -250,7 +250,7 @@
     }
 
     .admin-results-table .match-line {
-        grid-template-columns: minmax(120px, 1fr) 24px minmax(120px, 1fr);
+        grid-template-columns: minmax(170px, 1fr) 24px minmax(170px, 1fr);
     }
 
     .exception-deadline-cell {

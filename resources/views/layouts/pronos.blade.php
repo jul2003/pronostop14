@@ -58,24 +58,20 @@
                     Pronos
                 </a>
 
-                <a href="{{ route('rankings.index') }}">
-                    Classement général
-                </a>
-
-                <a href="{{ route('team-standings.index') }}">
-                    Classement équipes
-                </a>
-
-                <a href="{{ route('season-rules.index') }}">
-                    Barèmes & bonus
-                </a>
-
                 <a href="{{ route('results.index') }}">
                     Résultats
                 </a>
 
                 <a href="{{ route('player-profile.edit') }}">
                     Mon profil
+                </a>
+
+                <a href="{{ route('team-standings.index') }}">
+                    Classement TOP 14
+                </a>
+
+                <a href="{{ route('season-rules.index') }}">
+                    Barèmes
                 </a>
 
                 @if(auth()->user()->isAdmin())

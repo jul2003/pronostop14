@@ -48,11 +48,6 @@
            class="btn btn-outline-primary rounded-pill fw-bold px-4">
             Résultats
         </a>
-
-        <a href="{{ route('rankings.general', $selectedSeason) }}"
-           class="btn btn-warning rounded-pill fw-bold px-4">
-            Classement joueurs
-        </a>
     </div>
 </div>
 

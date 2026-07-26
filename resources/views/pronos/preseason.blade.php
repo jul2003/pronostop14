@@ -26,11 +26,6 @@
            class="btn btn-outline-primary rounded-pill fw-bold">
             ← Retour aux pronostics
         </a>
-
-        <a href="{{ route('rankings.general', $season) }}"
-           class="btn btn-outline-primary rounded-pill fw-bold">
-            Classement général
-        </a>
     </div>
 </div>
 
