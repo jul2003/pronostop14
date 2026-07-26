@@ -78,7 +78,8 @@
 @else
 
     <form method="POST"
-          action="{{ route('admin.seasons.journees.results.store', [$season, $journee]) }}">
+          action="{{ route('admin.seasons.journees.results.store', [$season, $journee]) }}"
+          autocomplete="off">
         @csrf
 
         <div class="rugby-card p-0 overflow-hidden">
@@ -91,7 +92,7 @@
                             <th class="text-center">Essais</th>
                             <th class="text-center">Bonus dom.</th>
                             <th class="text-center">Bonus ext.</th>
-                            <th style="min-width: 260px;">Date limite prono exceptionnelle</th>
+                            <th class="text-center">Date limite prono exceptionnelle</th>
                         </tr>
                     </thead>
 
@@ -156,7 +157,11 @@
                                            pattern="[0-9]*"
                                            name="matches[{{ $match->id }}][actual_tries]"
                                            value="{{ $match->actual_tries }}"
-                                           class="form-control form-control-sm prono-tries-input mx-auto"
+                                           class="form-control form-control-sm prono-tries-input admin-tries-input mx-auto"
+                                           autocomplete="off"
+                                           autocorrect="off"
+                                           autocapitalize="off"
+                                           spellcheck="false"
                                            @disabled($season->is_locked)>
                                 </td>
 
@@ -198,22 +203,13 @@
                                     </div>
                                 </td>
 
-                                <td>
+                                <td class="exception-deadline-cell">
                                     <input type="datetime-local"
                                            name="deadline_exceptions[{{ $match->id }}][prediction_deadline]"
                                            value="{{ $exceptionDeadline ? $exceptionDeadline->format('Y-m-d\TH:i') : '' }}"
-                                           class="form-control form-control-sm"
+                                           class="form-control form-control-sm exception-deadline-input"
+                                           tabindex="-1"
                                            @disabled($season->is_locked)>
-
-                                    <div class="form-text">
-                                        Vide = date limite normale de la journée.
-                                    </div>
-
-                                    @if($exceptionDeadline)
-                                        <div class="small fw-bold text-warning mt-1">
-                                            Exception active : {{ $exceptionDeadline->format('d/m/Y H:i') }}
-                                        </div>
-                                    @endif
                                 </td>
                             </tr>
                         @endforeach
@@ -256,5 +252,45 @@
     .admin-results-table .match-line {
         grid-template-columns: minmax(120px, 1fr) 24px minmax(120px, 1fr);
     }
+
+    .exception-deadline-cell {
+        min-width: 210px;
+        width: 210px;
+    }
+
+    .exception-deadline-input {
+        min-width: 190px;
+    }
 </style>
+@endpush
+
+@push('scripts')
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const triesInputs = Array.from(document.querySelectorAll('.admin-tries-input'))
+            .filter(function (input) {
+                return !input.disabled;
+            });
+
+        triesInputs.forEach(function (input, index) {
+            input.addEventListener('keydown', function (event) {
+                if (event.key !== 'Tab') {
+                    return;
+                }
+
+                const nextIndex = event.shiftKey ? index - 1 : index + 1;
+                const nextInput = triesInputs[nextIndex];
+
+                if (!nextInput) {
+                    return;
+                }
+
+                event.preventDefault();
+
+                nextInput.focus();
+                nextInput.select();
+            });
+        });
+    });
+</script>
 @endpush
