@@ -52,15 +52,13 @@
 @endif
 
 @if($questions->isEmpty())
-
     <div class="alert alert-info">
         Aucune question avant-saison disponible pour cette saison.
     </div>
-
 @else
-
     <form method="POST"
-          action="{{ route('pronos.store', [$season, $journee]) }}">
+          action="{{ route('pronos.store', [$season, $journee]) }}"
+          autocomplete="off">
         @csrf
 
         <div class="rugby-card p-0 overflow-hidden">
@@ -71,6 +69,7 @@
                             <th style="width: 45%;">
                                 Question
                             </th>
+
                             <th>
                                 Réponse
                             </th>
@@ -114,11 +113,16 @@
                                                name="answers[{{ $question->id }}]"
                                                value="{{ $currentAnswer }}"
                                                class="form-control"
+                                               autocomplete="off"
+                                               autocorrect="off"
+                                               autocapitalize="off"
+                                               spellcheck="false"
                                                @disabled($isLocked || $isNotOpen)>
                                     @else
                                         <select name="answers[{{ $question->id }}]"
                                                 class="form-select preseason-answer-select"
                                                 data-question-label="{{ mb_strtolower($question->label) }}"
+                                                autocomplete="off"
                                                 @disabled($isLocked || $isNotOpen)>
                                             <option value="">
                                                 Choisir...
@@ -149,7 +153,6 @@
             </div>
         @endunless
     </form>
-
 @endif
 
 <script>
@@ -192,6 +195,7 @@
                     Array.from(select.options).forEach(function (option) {
                         if (option.value === '') {
                             option.disabled = false;
+
                             return;
                         }
 

@@ -164,17 +164,17 @@ class RankingController extends Controller
         return redirect()->route('bilan.season', $season);
     }
 
-    public function bilanSeason(Season $season)
-    {
-        $seasons = Season::query()
-            ->orderByDesc('is_active')
-            ->orderByDesc('id')
-            ->get();
-
-        return view('bilan.index', [
-            'seasons' => $seasons,
-            'selectedSeason' => $season,
-        ]);
+    public function bilanSeason(
+        Season $season,
+        PreseasonDeadlineService $preseasonDeadlineService,
+        AppSettingService $appSettingService
+    ) {
+        return view('bilan.index', $this->buildResultsViewData(
+            season: $season,
+            selectedJournee: null,
+            preseasonDeadlineService: $preseasonDeadlineService,
+            appSettingService: $appSettingService,
+        ));
     }
 
     private function buildResultsViewData(
