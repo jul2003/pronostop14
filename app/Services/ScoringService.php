@@ -6,6 +6,7 @@ use App\Models\Journee;
 use App\Models\JourneeUserScore;
 use App\Models\MatchGame;
 use App\Models\Prono;
+use App\Models\Season;
 use App\Models\SeasonScoringProfile;
 use App\Models\User;
 
@@ -43,7 +44,7 @@ class ScoringService
         }
 
         if ($match->actual_tries !== null && $prono->predicted_tries !== null) {
-            $difference = abs($prono->predicted_tries - $match->actual_tries);
+            $difference = abs((int) $prono->predicted_tries - (int) $match->actual_tries);
 
             if ($difference === 0) {
                 $points += $rules['tries_exact'] ?? 0;
@@ -69,7 +70,7 @@ class ScoringService
 
     public function updateJourneeUserScore(User $user, Journee $journee): JourneeUserScore
     {
-        $matchPoints = Prono::where('user_id', $user->id)
+        $matchPoints = (int) Prono::where('user_id', $user->id)
             ->whereHas('matchGame', function ($query) use ($journee) {
                 $query->where('journee_id', $journee->id);
             })
@@ -118,18 +119,37 @@ class ScoringService
 
     public function calculatePerfectJourneeBonus(User $user, Journee $journee): int
     {
+        $journee->loadMissing([
+            'season.scoringRules',
+            'season.journeeTypeScoringProfiles.profile.rules',
+        ]);
+
+        $expectedMatchesCount = $journee->expectedMatchesCount();
+
+        if ($expectedMatchesCount === null || $expectedMatchesCount <= 0) {
+            return 0;
+        }
+
         $matches = $journee->matches()
-            ->whereNotNull('actual_result')
+            ->with([
+                'pronos' => function ($query) use ($user) {
+                    $query->where('user_id', $user->id);
+                },
+            ])
+            ->orderBy('position')
+            ->orderBy('id')
             ->get();
 
-        if ($matches->isEmpty()) {
+        if ($matches->count() !== $expectedMatchesCount) {
+            return 0;
+        }
+
+        if ($matches->contains(fn ($match) => blank($match->actual_result))) {
             return 0;
         }
 
         foreach ($matches as $match) {
-            $prono = Prono::where('user_id', $user->id)
-                ->where('match_game_id', $match->id)
-                ->first();
+            $prono = $match->pronos->first();
 
             if (! $prono) {
                 return 0;
@@ -145,13 +165,67 @@ class ScoringService
         return $rules['perfect_round'] ?? 0;
     }
 
+    public function recalculateJourneeScores(Journee $journee): void
+    {
+        $journee->loadMissing([
+            'season.players',
+            'season.scoringRules',
+            'season.journeeTypeScoringProfiles.profile.rules',
+        ]);
+
+        $matches = $journee->matches()
+            ->with([
+                'pronos.user',
+                'journee.season.scoringRules',
+                'journee.season.journeeTypeScoringProfiles.profile.rules',
+            ])
+            ->orderBy('position')
+            ->orderBy('id')
+            ->get();
+
+        foreach ($matches as $match) {
+            foreach ($match->pronos as $prono) {
+                $prono->update([
+                    'points' => $this->calculateMatchPoints($prono, $match),
+                ]);
+            }
+        }
+
+        foreach ($journee->season->players as $player) {
+            $this->updateJourneeUserScore($player, $journee);
+        }
+
+        $this->updateJourneeRanking($journee);
+    }
+
+    public function recalculateRegularJourneeScores(Season $season): void
+    {
+        $journees = $season->journees()
+            ->where('type', '!=', 'preseason')
+            ->with([
+                'season.players',
+                'season.scoringRules',
+                'season.journeeTypeScoringProfiles.profile.rules',
+            ])
+            ->orderBy('number')
+            ->orderBy('id')
+            ->get();
+
+        foreach ($journees as $journee) {
+            $this->recalculateJourneeScores($journee);
+        }
+    }
+
     private function calculateBonusPoints(?string $predictedBonus, ?string $actualBonus, array $rules): int
     {
-        if ($predictedBonus === null || $predictedBonus === '') {
+        $predictedBonus = $this->normalizeBonusValue($predictedBonus);
+        $actualBonus = $this->normalizeBonusValue($actualBonus);
+
+        if ($predictedBonus === null) {
             return 0;
         }
 
-        if ($actualBonus === null || $actualBonus === '') {
+        if ($actualBonus === null) {
             return 0;
         }
 
@@ -160,6 +234,17 @@ class ScoringService
         }
 
         return $rules['bonus_wrong'] ?? 0;
+    }
+
+    private function normalizeBonusValue(?string $value): ?string
+    {
+        if ($value === null) {
+            return null;
+        }
+
+        $value = strtolower(trim($value));
+
+        return $value === '' ? null : $value;
     }
 
     private function profileForMatch(MatchGame $match): ?SeasonScoringProfile
