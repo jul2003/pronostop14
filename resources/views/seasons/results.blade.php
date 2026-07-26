@@ -99,7 +99,6 @@
             --result-bad-bg: {{ $resultColors['wrong'] }};
             --result-bonus-bg: {{ $resultColors['bonus_offset'] }};
             --preseason-bonus-bg: {{ $resultColors['preseason_bonus'] }};">
-
     <div id="page-top" class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-3">
         <div>
             <div class="text-uppercase text-primary fw-bold small">
@@ -423,13 +422,22 @@
                             @foreach($players as $player)
                                 @php
                                     $perfectBonus = $journeePerfectBonuses[$journee->id][$player->id] ?? 0;
+                                    $hasPerfectBonus = $journee->isLocked() && $perfectBonus > 0;
                                 @endphp
 
-                                <td colspan="9"
-                                    class="player-summary-block-cell journee-bonus-block-cell"
+                                <td class="journee-bonus-empty-cell player-mini-cell player-group-start-cell"></td>
+                                <td class="journee-bonus-empty-cell player-mini-cell"></td>
+                                <td class="journee-bonus-empty-cell player-bonus-cell"></td>
+                                <td class="journee-bonus-empty-cell player-bonus-cell player-prono-end-cell"></td>
+                                <td class="journee-bonus-empty-cell result-mini-cell"></td>
+                                <td class="journee-bonus-empty-cell result-mini-cell"></td>
+                                <td class="journee-bonus-empty-cell result-bonus-cell"></td>
+                                <td class="journee-bonus-empty-cell result-bonus-cell player-result-end-cell"></td>
+
+                                <td class="player-points-cell journee-perfect-bonus-points-cell {{ $hasPerfectBonus ? 'journee-perfect-bonus-hit' : '' }}"
                                     style="--player-color: {{ $playerColor($player) }};">
-                                    @if($journee->isLocked() && $perfectBonus > 0)
-                                        +{{ $perfectBonus }}
+                                    @if($hasPerfectBonus)
+                                        {{ $perfectBonus }}
                                     @endif
                                 </td>
                             @endforeach
@@ -970,8 +978,19 @@
         padding: 0.12rem 0.22rem;
     }
 
-    .journee-bonus-block-cell {
+    .journee-bonus-empty-cell {
         background: #ffffff !important;
+    }
+
+    .journee-perfect-bonus-points-cell {
+        background: #ffffff !important;
+        text-align: center;
+        padding-right: 0.22rem !important;
+    }
+
+    .journee-perfect-bonus-points-cell.journee-perfect-bonus-hit {
+        background: var(--preseason-bonus-bg) !important;
+        color: #000000 !important;
     }
 
     .team-cell {
