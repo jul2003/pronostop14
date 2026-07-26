@@ -17,6 +17,7 @@ use App\Http\Controllers\InitialSetupController;
 use App\Http\Controllers\PlayerProfileController;
 use App\Http\Controllers\PronoController;
 use App\Http\Controllers\RankingController;
+use App\Http\Controllers\SeasonRuleController;
 use App\Http\Controllers\TeamStandingController;
 use App\Models\Season;
 use App\Models\User;
@@ -90,6 +91,12 @@ Route::middleware('auth')->group(function () {
 
     Route::get('/classement-equipes/{season}', [TeamStandingController::class, 'season'])
         ->name('team-standings.season');
+
+    Route::get('/baremes', [SeasonRuleController::class, 'index'])
+        ->name('season-rules.index');
+
+    Route::get('/baremes/{season}', [SeasonRuleController::class, 'season'])
+        ->name('season-rules.season');
 
     Route::get('/resultats', [RankingController::class, 'resultsIndex'])
         ->name('results.index');

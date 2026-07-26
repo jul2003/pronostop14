@@ -66,6 +66,10 @@
                     Classement équipes
                 </a>
 
+                <a href="{{ route('season-rules.index') }}">
+                    Barèmes & bonus
+                </a>
+
                 <a href="{{ route('results.index') }}">
                     Résultats
                 </a>
