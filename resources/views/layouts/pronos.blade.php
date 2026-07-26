@@ -31,6 +31,7 @@
                        class="user-chip text-decoration-none">
                         <span class="user-dot"
                               style="background: {{ auth()->user()->color ?? '#ffd200' }}"></span>
+
                         <span>{{ auth()->user()->display_name }}</span>
                     </a>
 
@@ -59,6 +60,10 @@
 
                 <a href="{{ route('rankings.index') }}">
                     Classement général
+                </a>
+
+                <a href="{{ route('team-standings.index') }}">
+                    Classement équipes
                 </a>
 
                 <a href="{{ route('results.index') }}">
