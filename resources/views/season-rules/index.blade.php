@@ -9,6 +9,36 @@
         return $points.' '.($points === 1 || $points === -1 ? 'point' : 'points');
     };
 
+    $questionSummaryLabel = function ($question) {
+        $label = trim((string) $question->label);
+        $lowerLabel = mb_strtolower($label);
+        $compactLabel = str_replace([' ', '-', '_'], '', $lowerLabel);
+
+        if (str_contains($lowerLabel, 'demi') && str_contains($compactLabel, 'top14')) {
+            return 'Demi-finalistes TOP 14';
+        }
+
+        if (str_contains($lowerLabel, 'demi') && str_contains($compactLabel, 'prod2')) {
+            return 'Demi-finalistes PRO D2';
+        }
+
+        return $label;
+    };
+
+    $preseasonQuestionRows = $preseasonQuestions
+        ->groupBy(function ($question) use ($questionSummaryLabel) {
+            return $questionSummaryLabel($question).'|'.((int) $question->points);
+        })
+        ->map(function ($questions) use ($questionSummaryLabel) {
+            $firstQuestion = $questions->first();
+
+            return [
+                'label' => $questionSummaryLabel($firstQuestion),
+                'points' => (int) $firstQuestion->points,
+            ];
+        })
+        ->values();
+
     $bonusRuleName = function ($bonusRule) {
         return $bonusRule->name
             ?? $bonusRule->label
@@ -31,7 +61,7 @@
 <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4">
     <div>
         <div class="text-uppercase text-primary fw-bold small">
-            Barèmes & bonus
+            Barèmes
         </div>
 
         <h2 class="fw-bold mb-1">
@@ -143,11 +173,11 @@
         </h3>
 
         <p class="text-muted mb-0">
-            Points attribués pour chaque question avant-saison.
+            Points attribués aux pronostics avant-saison.
         </p>
     </div>
 
-    @if($preseasonQuestions->isEmpty())
+    @if($preseasonQuestionRows->isEmpty())
         <div class="p-4">
             <div class="alert alert-info mb-0">
                 Aucune question avant-saison active pour cette saison.
@@ -164,14 +194,14 @@
                 </thead>
 
                 <tbody>
-                    @foreach($preseasonQuestions as $question)
+                    @foreach($preseasonQuestionRows as $row)
                         <tr>
                             <td class="fw-bold">
-                                {{ $question->label }}
+                                {{ $row['label'] }}
                             </td>
 
                             <td class="text-end fw-bold">
-                                {{ $pointsLabel($question->points) }}
+                                {{ $pointsLabel($row['points']) }}
                             </td>
                         </tr>
                     @endforeach
@@ -211,6 +241,13 @@
 
                 <tbody>
                     @foreach($preseasonBonusRules as $bonusRule)
+                        @php
+                            $bonusQuestionLabels = $bonusRule->questions
+                                ->map(fn ($question) => $questionSummaryLabel($question))
+                                ->unique()
+                                ->values();
+                        @endphp
+
                         <tr>
                             <td>
                                 <div class="fw-bold">
@@ -225,15 +262,15 @@
                             </td>
 
                             <td>
-                                @if($bonusRule->questions->isEmpty())
+                                @if($bonusQuestionLabels->isEmpty())
                                     <span class="text-muted">
                                         Aucune question liée
                                     </span>
                                 @else
                                     <div class="d-flex flex-column gap-1">
-                                        @foreach($bonusRule->questions as $question)
+                                        @foreach($bonusQuestionLabels as $questionLabel)
                                             <span>
-                                                {{ $question->label }}
+                                                {{ $questionLabel }}
                                             </span>
                                         @endforeach
                                     </div>
