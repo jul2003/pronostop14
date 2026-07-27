@@ -278,6 +278,7 @@ class RankingController extends Controller
             foreach ($preseasonQuestions as $question) {
                 foreach ($players as $player) {
                     $prediction = $question->predictions->firstWhere('user_id', $player->id);
+
                     $preseasonQuestionTotals[$player->id] += (int) ($prediction?->points ?? 0);
                 }
             }
@@ -316,6 +317,7 @@ class RankingController extends Controller
         foreach ($journees as $journee) {
             foreach ($players as $player) {
                 $score = $journee->userScores->firstWhere('user_id', $player->id);
+
                 $matchPoints = (int) ($score?->match_points ?? 0);
                 $total = (int) ($score?->total_points ?? 0);
                 $perfectBonus = $this->perfectJourneeBonusFromScore($score, $matchPoints, $total);
@@ -362,6 +364,9 @@ class RankingController extends Controller
             ->sortByDesc('total_points')
             ->values();
 
+        $resultCorrectColor = $appSettingService->string('results_color_correct', '#008000');
+        $resultWrongColor = $appSettingService->string('results_color_wrong', '#FF0000');
+
         return [
             'seasons' => $seasons,
             'selectedSeason' => $season,
@@ -381,8 +386,10 @@ class RankingController extends Controller
             'journeePerfectBonuses' => $journeePerfectBonuses,
             'matchBreakdowns' => $matchBreakdowns,
             'resultColors' => [
-                'correct' => $appSettingService->string('results_color_correct', '#008000'),
-                'wrong' => $appSettingService->string('results_color_wrong', '#FF0000'),
+                'correct' => $resultCorrectColor,
+                'wrong' => $resultWrongColor,
+                'bonus_correct' => $appSettingService->string('results_color_bonus_correct', $resultCorrectColor),
+                'bonus_wrong' => $appSettingService->string('results_color_bonus_wrong', $resultWrongColor),
                 'bonus_offset' => $appSettingService->string(
                     'results_color_bonus_offset',
                     $appSettingService->string('results_color_bonus', '#92D050')

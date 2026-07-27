@@ -91,12 +91,20 @@
         default => 'result-neutral',
     };
 
+    $bonusStatusClass = fn ($status) => match ($status) {
+        'good' => 'bonus-result-good',
+        'bad' => 'bonus-result-bad',
+        default => 'result-neutral',
+    };
+
     $totalColumns = 6 + ($players->count() * 9);
 @endphp
 
 <div class="results-page"
      style="--result-good-bg: {{ $resultColors['correct'] }};
             --result-bad-bg: {{ $resultColors['wrong'] }};
+            --bonus-good-bg: {{ $resultColors['bonus_correct'] ?? $resultColors['correct'] }};
+            --bonus-bad-bg: {{ $resultColors['bonus_wrong'] ?? $resultColors['wrong'] }};
             --result-bonus-bg: {{ $resultColors['bonus_offset'] }};
             --preseason-bonus-bg: {{ $resultColors['preseason_bonus'] }};">
     <div id="page-top" class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-3">
@@ -117,11 +125,6 @@
                     Bilan
                 </a>
             @endif
-
-            <a href="{{ route('rankings.general', $selectedSeason) }}"
-               class="btn btn-warning rounded-pill fw-bold px-4">
-                Classement général
-            </a>
         </div>
     </div>
 
@@ -509,8 +512,8 @@
 
                                             <td class="result-indicator-cell result-mini-cell {{ $statusClass($breakdown['result_status'] ?? 'neutral') }}"></td>
                                             <td class="result-indicator-cell result-mini-cell {{ $statusClass($breakdown['tries_status'] ?? 'neutral') }}"></td>
-                                            <td class="result-indicator-cell result-bonus-cell {{ $statusClass($breakdown['home_bonus_status'] ?? 'neutral') }}"></td>
-                                            <td class="result-indicator-cell result-bonus-cell player-result-end-cell {{ $statusClass($breakdown['away_bonus_status'] ?? 'neutral') }}"></td>
+                                            <td class="result-indicator-cell result-bonus-cell {{ $bonusStatusClass($breakdown['home_bonus_status'] ?? 'neutral') }}"></td>
+                                            <td class="result-indicator-cell result-bonus-cell player-result-end-cell {{ $bonusStatusClass($breakdown['away_bonus_status'] ?? 'neutral') }}"></td>
 
                                             <td class="player-points-cell"
                                                 style="--player-color: {{ $playerColor($player) }};">
@@ -1036,6 +1039,14 @@
 
     .result-bad {
         background: var(--result-bad-bg) !important;
+    }
+
+    .bonus-result-good {
+        background: var(--bonus-good-bg) !important;
+    }
+
+    .bonus-result-bad {
+        background: var(--bonus-bad-bg) !important;
     }
 
     .result-bonus {
