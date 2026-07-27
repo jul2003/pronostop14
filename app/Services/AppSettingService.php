@@ -23,6 +23,15 @@ class AppSettingService
         return (string) $this->get($key, $default);
     }
 
+    public function color(string $key, string $default = '#FFFFFF'): string
+    {
+        $value = strtoupper((string) $this->get($key, $default));
+
+        return preg_match('/^#[0-9A-F]{6}$/', $value)
+            ? $value
+            : strtoupper($default);
+    }
+
     public function integer(string $key, int $default = 0): int
     {
         return (int) $this->get($key, $default);
