@@ -141,6 +141,9 @@ Route::middleware(['auth', 'admin'])->group(function () {
     Route::get('/admin/matchs-a-saisir', [UpcomingMatchController::class, 'index'])
         ->name('admin.upcoming-matches.index');
 
+    Route::patch('/admin/matchs-a-saisir/{season}/{journee}/pronostics', [UpcomingMatchController::class, 'updatePredictionsEnabled'])
+        ->name('admin.upcoming-matches.predictions.update');
+
     Route::get('/admin/resultats-a-saisir', [PendingResultController::class, 'index'])
         ->name('admin.pending-results.index');
 

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\Journee;
 use App\Models\Season;
 use App\Models\SeasonPreseasonQuestion;
 use App\Services\AppDateService;
@@ -19,6 +20,13 @@ class PendingResultController extends Controller
                     $query->where('type', '!=', 'preseason')
                         ->whereNotNull('first_match_at')
                         ->where('first_match_at', '<=', $now)
+                        ->with([
+                            'matches' => function ($query) {
+                                $query->with('predictionDeadlineException')
+                                    ->orderBy('position')
+                                    ->orderBy('id');
+                            },
+                        ])
                         ->withCount([
                             'matches',
                             'matches as finished_matches_count' => function ($query) {
@@ -38,20 +46,16 @@ class PendingResultController extends Controller
         $preseasonNeedsResults = false;
 
         if ($season && ! $season->is_locked) {
+            $season->journees->each(function (Journee $journee) use ($season) {
+                $journee->setRelation('season', $season);
+
+                $journee->matches->each(function ($match) use ($journee) {
+                    $match->setRelation('journee', $journee);
+                });
+            });
+
             $journees = $season->journees
-                ->filter(function ($journee) {
-                    $expectedMatchesCount = $journee->expectedMatchesCount();
-
-                    if ($expectedMatchesCount === null) {
-                        return false;
-                    }
-
-                    if ((int) $journee->matches_count < $expectedMatchesCount) {
-                        return true;
-                    }
-
-                    return (int) $journee->finished_matches_count < $expectedMatchesCount;
-                })
+                ->filter(fn (Journee $journee) => $this->journeeIsIncomplete($journee))
                 ->values();
 
             $preseasonJournee = $season->journees()
@@ -86,6 +90,27 @@ class PendingResultController extends Controller
             'preseasonQuestionsCount' => $preseasonQuestionsCount,
             'preseasonResultsCount' => $preseasonResultsCount,
             'preseasonNeedsResults' => $preseasonNeedsResults,
+            'currentAppDateTime' => $now,
         ]);
+    }
+
+    private function journeeIsIncomplete(Journee $journee): bool
+    {
+        $expectedMatchesCount = $journee->expectedMatchesCount();
+
+        if ($expectedMatchesCount === null) {
+            return false;
+        }
+
+        $matchesCount = (int) $journee->matches_count;
+        $finishedMatchesCount = (int) $journee->finished_matches_count;
+
+        $displayExpectedCount = max($expectedMatchesCount, $matchesCount);
+
+        if ($matchesCount < $expectedMatchesCount) {
+            return true;
+        }
+
+        return $finishedMatchesCount < $displayExpectedCount;
     }
 }

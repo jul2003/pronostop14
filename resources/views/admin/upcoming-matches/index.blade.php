@@ -21,7 +21,7 @@
     </h2>
 
     <p class="text-muted mb-0">
-        Prochaines journées à préparer pour la saison active.
+        Prochaines journées à préparer pour la saison active. Tu peux aussi activer ou désactiver la saisie des pronostics.
     </p>
 </div>
 
@@ -58,6 +58,7 @@
                             <th class="text-center">Premier match</th>
                             <th class="text-center">Matchs</th>
                             <th class="text-center">Résultats</th>
+                            <th class="text-center">Saisie pronos</th>
                             <th class="text-end">Actions</th>
                         </tr>
                     </thead>
@@ -99,6 +100,7 @@
                                 <td class="text-center">
                                     <span class="@if($expectedMatchesCount !== null && $journee->matches_count < $expectedMatchesCount) text-danger fw-bold @endif">
                                         {{ $journee->matches_count }}
+
                                         @if($expectedMatchesCount !== null)
                                             / {{ $expectedMatchesCount }}
                                         @endif
@@ -107,6 +109,42 @@
 
                                 <td class="text-center">
                                     {{ $journee->finished_matches_count }} / {{ $journee->matches_count }}
+                                </td>
+
+                                <td class="text-center">
+                                    <div class="d-flex flex-column align-items-center gap-2">
+                                        @if($journee->predictions_enabled)
+                                            <span class="badge rounded-pill text-bg-success">
+                                                Activée
+                                            </span>
+                                        @else
+                                            <span class="badge rounded-pill text-bg-secondary">
+                                                Désactivée
+                                            </span>
+                                        @endif
+
+                                        @if($season->is_locked)
+                                            <span class="btn btn-sm btn-outline-secondary rounded-pill fw-bold disabled"
+                                                  aria-disabled="true">
+                                                Saison verrouillée
+                                            </span>
+                                        @else
+                                            <form method="POST"
+                                                  action="{{ route('admin.upcoming-matches.predictions.update', [$season, $journee]) }}">
+                                                @csrf
+                                                @method('PATCH')
+
+                                                <input type="hidden"
+                                                       name="predictions_enabled"
+                                                       value="{{ $journee->predictions_enabled ? 0 : 1 }}">
+
+                                                <button type="submit"
+                                                        class="btn btn-sm rounded-pill fw-bold {{ $journee->predictions_enabled ? 'btn-outline-secondary' : 'btn-outline-success' }}">
+                                                    {{ $journee->predictions_enabled ? 'Désactiver' : 'Activer' }}
+                                                </button>
+                                            </form>
+                                        @endif
+                                    </div>
                                 </td>
 
                                 <td class="text-end">

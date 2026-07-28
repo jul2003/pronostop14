@@ -292,6 +292,21 @@
             return group.dataset.defaultTime || '12:00';
         }
 
+        function applyDefaultTimeWhenDateIsSelected(group) {
+            const dateInput = group.querySelector('.simulated-date-input');
+            const timeInput = group.querySelector('.simulated-time-input');
+
+            if (!dateInput || !timeInput) {
+                return;
+            }
+
+            if (!dateInput.value) {
+                return;
+            }
+
+            timeInput.value = currentDefaultFirstMatchTime(group);
+        }
+
         function timeWithOffset(defaultTime, offsetMinutes) {
             const parts = defaultTime.split(':');
 
@@ -342,6 +357,7 @@
 
             if (dateInput) {
                 dateInput.addEventListener('change', function () {
+                    applyDefaultTimeWhenDateIsSelected(group);
                     normalizeDateTimeValue(group);
                 });
             }

@@ -48,11 +48,7 @@
     </div>
 </div>
 
-@if(session('success'))
-    <div class="alert alert-success">
-        {{ session('success') }}
-    </div>
-@elseif($predictionWarning)
+@if($predictionWarning)
     <div class="alert alert-warning">
         {{ $predictionWarning }}
     </div>

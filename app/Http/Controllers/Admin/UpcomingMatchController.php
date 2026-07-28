@@ -3,9 +3,11 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\Journee;
 use App\Models\Season;
 use App\Services\AppDateService;
 use App\Services\AppSettingService;
+use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 
 class UpcomingMatchController extends Controller
@@ -52,6 +54,33 @@ class UpcomingMatchController extends Controller
             'journees' => $journees,
             'journeesToPrepareCount' => $journeesToPrepareCount,
         ]);
+    }
+
+    public function updatePredictionsEnabled(Request $request, Season $season, Journee $journee)
+    {
+        abort_if($journee->season_id !== $season->id, 404);
+        abort_if($journee->type === 'preseason', 404);
+
+        if ($season->is_locked) {
+            return redirect()
+                ->route('admin.upcoming-matches.index')
+                ->with('error', 'Cette saison est verrouillée : la saisie des pronostics ne peut plus être modifiée.');
+        }
+
+        $request->validate([
+            'predictions_enabled' => ['required', 'boolean'],
+        ]);
+
+        $journee->update([
+            'predictions_enabled' => $request->boolean('predictions_enabled'),
+        ]);
+
+        return redirect()
+            ->route('admin.upcoming-matches.index')
+            ->with(
+                'success',
+                $journee->name.' : saisie des pronostics '.($journee->predictions_enabled ? 'activée.' : 'désactivée.')
+            );
     }
 
     private function windowStartIndex(

@@ -5,20 +5,27 @@
 @php
     $defaultFirstMatchTime = $defaultFirstMatchTime ?? '12:00';
 
+    $suggestedFirstMatchAt = $suggestedFirstMatchAt ?? null;
+    $suggestedFirstMatchSourceJournee = $suggestedFirstMatchSourceJournee ?? null;
+
+    $sourceFirstMatchAt = $journee->first_match_at ?: $suggestedFirstMatchAt;
+
     $firstMatchDateValue = old(
         'first_match_date',
-        $journee->first_match_at?->format('Y-m-d') ?? ''
+        $sourceFirstMatchAt?->format('Y-m-d') ?? ''
     );
 
     $firstMatchTimeValue = old(
         'first_match_time',
-        $journee->first_match_at?->format('H:i') ?? ''
+        $sourceFirstMatchAt?->format('H:i') ?? ''
     );
 
     $predictionsEnabledValue = (bool) old(
         'predictions_enabled',
         $journee->predictions_enabled
     );
+
+    $firstMatchSuggestionIsApplied = ! $journee->first_match_at && $suggestedFirstMatchAt;
 @endphp
 
 @include('admin.partials.back-link', [
@@ -49,6 +56,22 @@
 @if(session('success'))
     <div class="alert alert-success">
         {{ session('success') }}
+    </div>
+@endif
+
+@if($firstMatchSuggestionIsApplied)
+    <div class="alert alert-info">
+        <div class="fw-bold">
+            Date proposée automatiquement
+        </div>
+
+        <div>
+            La date du premier match était vide. Elle est préremplie avec
+            <span class="fw-bold">{{ $suggestedFirstMatchAt->format('d/m/Y H:i') }}</span>
+            à partir de
+            <span class="fw-bold">{{ $suggestedFirstMatchSourceJournee?->name }}</span>
+            + 7 jours. Clique sur Enregistrer pour l’appliquer.
+        </div>
     </div>
 @endif
 

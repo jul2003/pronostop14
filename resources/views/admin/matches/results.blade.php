@@ -57,18 +57,6 @@
     </div>
 @endif
 
-@if(session('error'))
-    <div class="alert alert-danger">
-        {{ session('error') }}
-    </div>
-@endif
-
-@if(session('success'))
-    <div class="alert alert-success">
-        {{ session('success') }}
-    </div>
-@endif
-
 @if($matches->isEmpty())
 
     <div class="alert alert-info">
@@ -130,23 +118,37 @@
                                     </div>
                                 </td>
 
-                                <td class="text-center">
-                                    <div class="prono-choice-group">
-                                        @foreach($journee->resultOptionShortLabels() as $value => $label)
-                                            <input type="radio"
-                                                   id="actual_result_{{ $match->id }}_{{ $value }}"
-                                                   name="matches[{{ $match->id }}][actual_result]"
-                                                   value="{{ $value }}"
-                                                   class="prono-choice-input"
-                                                   @checked($match->actual_result === $value)
-                                                   @disabled($season->is_locked)>
+                                <td class="text-center result-cell">
+                                    <div class="d-flex justify-content-center align-items-center gap-2">
+                                        <div class="prono-choice-group">
+                                            @foreach($journee->resultOptionShortLabels() as $value => $label)
+                                                <input type="radio"
+                                                       id="actual_result_{{ $match->id }}_{{ $value }}"
+                                                       name="matches[{{ $match->id }}][actual_result]"
+                                                       value="{{ $value }}"
+                                                       class="prono-choice-input"
+                                                       data-match-result-id="{{ $match->id }}"
+                                                       @checked($match->actual_result === $value)
+                                                       @disabled($season->is_locked)>
 
-                                            <label for="actual_result_{{ $match->id }}_{{ $value }}"
-                                                   class="prono-choice-label"
-                                                   title="{{ $journee->resultOptionLabel($value) }}">
-                                                {{ $label }}
-                                            </label>
-                                        @endforeach
+                                                <label for="actual_result_{{ $match->id }}_{{ $value }}"
+                                                       class="prono-choice-label"
+                                                       title="{{ $journee->resultOptionLabel($value) }}">
+                                                    {{ $label }}
+                                                </label>
+                                            @endforeach
+                                        </div>
+
+                                        @unless($season->is_locked)
+                                            <button type="button"
+                                                    class="btn btn-sm btn-outline-secondary clear-match-result-button"
+                                                    data-match-id="{{ $match->id }}"
+                                                    title="Effacer le résultat saisi"
+                                                    aria-label="Effacer le résultat saisi"
+                                                    tabindex="-1">
+                                                ×
+                                            </button>
+                                        @endunless
                                     </div>
                                 </td>
 
@@ -157,6 +159,7 @@
                                            name="matches[{{ $match->id }}][actual_tries]"
                                            value="{{ $match->actual_tries }}"
                                            class="form-control form-control-sm prono-tries-input admin-tries-input mx-auto"
+                                           data-match-result-id="{{ $match->id }}"
                                            autocomplete="off"
                                            autocorrect="off"
                                            autocapitalize="off"
@@ -172,6 +175,7 @@
                                                    name="matches[{{ $match->id }}][actual_home_bonus]"
                                                    value="{{ $value }}"
                                                    class="prono-choice-input"
+                                                   data-match-result-id="{{ $match->id }}"
                                                    @checked($match->actual_home_bonus === $value)
                                                    @disabled($season->is_locked)>
 
@@ -191,6 +195,7 @@
                                                    name="matches[{{ $match->id }}][actual_away_bonus]"
                                                    value="{{ $value }}"
                                                    class="prono-choice-input"
+                                                   data-match-result-id="{{ $match->id }}"
                                                    @checked($match->actual_away_bonus === $value)
                                                    @disabled($season->is_locked)>
 
@@ -203,12 +208,26 @@
                                 </td>
 
                                 <td class="exception-deadline-cell">
-                                    <input type="datetime-local"
-                                           name="deadline_exceptions[{{ $match->id }}][prediction_deadline]"
-                                           value="{{ $exceptionDeadline ? $exceptionDeadline->format('Y-m-d\TH:i') : '' }}"
-                                           class="form-control form-control-sm exception-deadline-input"
-                                           tabindex="-1"
-                                           @disabled($season->is_locked)>
+                                    <div class="input-group input-group-sm">
+                                        <input type="datetime-local"
+                                               id="exception_deadline_{{ $match->id }}"
+                                               name="deadline_exceptions[{{ $match->id }}][prediction_deadline]"
+                                               value="{{ $exceptionDeadline ? $exceptionDeadline->format('Y-m-d\TH:i') : '' }}"
+                                               class="form-control exception-deadline-input"
+                                               tabindex="-1"
+                                               @disabled($season->is_locked)>
+
+                                        @unless($season->is_locked)
+                                            <button type="button"
+                                                    class="btn btn-outline-secondary clear-exception-deadline-button"
+                                                    data-target="exception_deadline_{{ $match->id }}"
+                                                    title="Supprimer la date limite exceptionnelle"
+                                                    aria-label="Supprimer la date limite exceptionnelle"
+                                                    tabindex="-1">
+                                                ×
+                                            </button>
+                                        @endunless
+                                    </div>
                                 </td>
                             </tr>
                         @endforeach
@@ -251,13 +270,31 @@
         grid-template-columns: minmax(170px, 1fr) 24px minmax(170px, 1fr);
     }
 
+    .result-cell {
+        min-width: 170px;
+    }
+
+    .clear-match-result-button {
+        min-width: 32px;
+        width: 32px;
+        height: 32px;
+        padding: 0;
+        line-height: 1;
+        font-weight: 700;
+    }
+
     .exception-deadline-cell {
-        min-width: 210px;
-        width: 210px;
+        min-width: 250px;
+        width: 250px;
     }
 
     .exception-deadline-input {
         min-width: 190px;
+    }
+
+    .clear-exception-deadline-button {
+        min-width: 36px;
+        line-height: 1;
     }
 </style>
 @endpush
@@ -287,6 +324,51 @@
 
                 nextInput.focus();
                 nextInput.select();
+            });
+        });
+
+        document.querySelectorAll('.clear-match-result-button').forEach(function (button) {
+            button.addEventListener('click', function () {
+                const matchId = button.dataset.matchId;
+
+                if (!matchId) {
+                    return;
+                }
+
+                document.querySelectorAll('[data-match-result-id="' + matchId + '"]').forEach(function (input) {
+                    if (input.disabled) {
+                        return;
+                    }
+
+                    if (input.type === 'radio') {
+                        input.checked = false;
+                    } else {
+                        input.value = '';
+                    }
+
+                    input.dispatchEvent(new Event('change', { bubbles: true }));
+                });
+
+                const triesInput = document.querySelector('.admin-tries-input[data-match-result-id="' + matchId + '"]');
+
+                if (triesInput && !triesInput.disabled) {
+                    triesInput.focus();
+                    triesInput.select();
+                }
+            });
+        });
+
+        document.querySelectorAll('.clear-exception-deadline-button').forEach(function (button) {
+            button.addEventListener('click', function () {
+                const target = document.getElementById(button.dataset.target);
+
+                if (!target || target.disabled) {
+                    return;
+                }
+
+                target.value = '';
+                target.dispatchEvent(new Event('change', { bubbles: true }));
+                target.focus();
             });
         });
     });

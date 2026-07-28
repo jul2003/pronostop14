@@ -57,10 +57,21 @@ class JourneeController extends Controller
                 ->with('error', 'Cette journée a commencé : seuls les résultats restent accessibles.');
         }
 
+        $suggestedFirstMatchSourceJournee = $this->previousJourneeForFirstMatchSuggestion($season, $journee);
+        $suggestedFirstMatchAt = null;
+
+        if (! $journee->first_match_at && $suggestedFirstMatchSourceJournee?->first_match_at) {
+            $suggestedFirstMatchAt = $suggestedFirstMatchSourceJournee->first_match_at
+                ->copy()
+                ->addDays(7);
+        }
+
         return view('admin.journees.edit', [
             'season' => $season,
             'journee' => $journee,
             'defaultFirstMatchTime' => $settings->defaultFirstMatchTime(),
+            'suggestedFirstMatchAt' => $suggestedFirstMatchAt,
+            'suggestedFirstMatchSourceJournee' => $suggestedFirstMatchSourceJournee,
         ]);
     }
 
@@ -111,6 +122,34 @@ class JourneeController extends Controller
         return redirect()
             ->route('admin.seasons.journees', $season)
             ->with('success', 'Journée mise à jour.');
+    }
+
+    private function previousJourneeForFirstMatchSuggestion(Season $season, Journee $journee): ?Journee
+    {
+        if ($journee->type === 'preseason') {
+            return null;
+        }
+
+        if ($journee->type === 'regular' && (int) $journee->number <= 1) {
+            return null;
+        }
+
+        if ((int) $journee->number <= 1) {
+            return null;
+        }
+
+        if ($journee->type === 'regular') {
+            return $season->journees()
+                ->where('type', 'regular')
+                ->where('number', (int) $journee->number - 1)
+                ->first();
+        }
+
+        return $season->journees()
+            ->where('id', '!=', $journee->id)
+            ->where('type', '!=', 'preseason')
+            ->where('number', (int) $journee->number - 1)
+            ->first();
     }
 
     private function preparationIsLocked(Journee $journee): bool

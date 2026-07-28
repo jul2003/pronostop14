@@ -2,6 +2,10 @@
 
 @section('content')
 
+@php
+    $currentAppDateTime = app(\App\Services\AppDateService::class)->now();
+@endphp
+
 @if(! $season)
     <div class="alert alert-info">
         Aucune saison active disponible pour tes pronostics.
@@ -24,6 +28,43 @@
 
 <div class="row g-4">
     @forelse($journees as $journee)
+        @php
+            $isPreseason = $journee->type === 'preseason';
+
+            $journeeHasPassed = ! $isPreseason
+                && $journee->first_match_at
+                && $currentAppDateTime->greaterThanOrEqualTo($journee->first_match_at);
+
+            $mainDeadlineIsOpen = ! $isPreseason
+                && $journee->first_match_at
+                && $currentAppDateTime->lt($journee->first_match_at);
+
+            $openMatches = collect();
+            $openMatchDeadlineGroups = collect();
+
+            if (! $isPreseason) {
+                $openMatches = $journee->matches
+                    ->filter(fn ($match) => ! $match->isPredictionLocked());
+
+                if ($journeeHasPassed) {
+                    $openMatchDeadlineGroups = $openMatches
+                        ->filter(fn ($match) => $match->effectivePredictionDeadline() !== null)
+                        ->groupBy(fn ($match) => $match->effectivePredictionDeadline()->format('Y-m-d H:i'))
+                        ->map(function ($matches) {
+                            $deadline = $matches->first()->effectivePredictionDeadline();
+
+                            return [
+                                'count' => $matches->count(),
+                                'deadline' => $deadline,
+                            ];
+                        })
+                        ->sortBy(fn ($group) => $group['deadline']->timestamp)
+                        ->values();
+                }
+            }
+
+            $openMatchesCount = $openMatches->count();
+        @endphp
 
         <div class="col-md-6 col-xl-4">
             <div class="rugby-card p-4 h-100">
@@ -36,24 +77,49 @@
                 </h3>
 
                 <div class="text-muted mb-2">
-                    @if($journee->type === 'preseason')
+                    @if($isPreseason)
                         Questions avant-saison
                     @else
                         {{ $journee->matches_count }} match(s)
                     @endif
                 </div>
 
-                @if($journee->type === 'preseason')
+                @if($isPreseason)
                     @if($preseasonDeadline)
                         <div class="small text-secondary mb-3">
-                            Ouvert jusqu’au :
+                            Prono ouvert jusqu’au :
                             {{ $preseasonDeadline->format('d/m/Y H:i') }}
                         </div>
                     @endif
-                @elseif($journee->first_match_at)
+                @elseif($mainDeadlineIsOpen)
                     <div class="small text-secondary mb-3">
-                        Premier match :
+                        Prono ouvert jusqu’au :
                         {{ $journee->first_match_at->format('d/m/Y H:i') }}
+                    </div>
+                @elseif($openMatchDeadlineGroups->isNotEmpty())
+                    <div class="mb-3">
+                        <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
+                            <span class="badge rounded-pill text-bg-secondary">
+                                Journée passée
+                            </span>
+
+                            <span class="small fw-bold text-secondary">
+                                {{ $openMatchesCount }}
+                                {{ $openMatchesCount > 1 ? 'matchs' : 'match' }}
+                                à pronostiquer
+                            </span>
+                        </div>
+
+                        <div class="small text-secondary">
+                            @foreach($openMatchDeadlineGroups as $group)
+                                <div>
+                                    {{ $group['count'] }}
+                                    {{ $group['count'] > 1 ? 'matchs' : 'match' }}
+                                    avant le
+                                    {{ $group['deadline']->format('d/m/Y H:i') }}
+                                </div>
+                            @endforeach
+                        </div>
                     </div>
                 @endif
 
@@ -73,7 +139,6 @@
                 Aucun pronostic ouvert pour le moment.
             </div>
         </div>
-
     @endforelse
 </div>
 
