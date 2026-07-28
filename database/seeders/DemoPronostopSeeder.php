@@ -348,8 +348,7 @@ class DemoPronostopSeeder extends Seeder
             }
 
             $journee->forceFill($this->tablePayload('journees', [
-                'starts_at' => $startsAt,
-                'prediction_deadline' => $startsAt->subMinutes(15),
+                'first_match_at' => $startsAt,
             ]))->save();
         }
     }

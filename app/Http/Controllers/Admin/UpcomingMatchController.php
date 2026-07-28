@@ -63,17 +63,14 @@ class UpcomingMatchController extends Controller
             return 0;
         }
 
-        $today = $dateService->today();
+        $now = $dateService->now();
 
-        $firstUpcomingJourneeIndex = $journees->search(function ($journee) use ($today) {
-            if (! $journee->prediction_deadline) {
+        $firstUpcomingJourneeIndex = $journees->search(function ($journee) use ($now) {
+            if (! $journee->first_match_at) {
                 return true;
             }
 
-            return $journee->prediction_deadline
-                ->copy()
-                ->startOfDay()
-                ->gte($today);
+            return $journee->first_match_at->greaterThan($now);
         });
 
         if ($firstUpcomingJourneeIndex !== false) {

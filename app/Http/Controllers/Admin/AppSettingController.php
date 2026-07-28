@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\AppSetting;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 
 class AppSettingController extends Controller
@@ -52,6 +53,8 @@ class AppSettingController extends Controller
             'integer' => ['required', 'integer', 'min:1'],
             'boolean' => ['nullable', 'boolean'],
             'date' => ['nullable', 'date'],
+            'datetime' => ['nullable', 'date'],
+            'time' => ['required', 'date_format:H:i'],
             'color' => ['required', 'regex:/^#[0-9A-Fa-f]{6}$/'],
             default => ['nullable', 'string'],
         };
@@ -66,7 +69,9 @@ class AppSettingController extends Controller
         return match ($setting->type) {
             'integer' => (string) max(1, (int) $value),
             'boolean' => $value ? '1' : '0',
-            'date' => (string) $value,
+            'date' => Carbon::parse((string) $value)->format('Y-m-d'),
+            'datetime' => Carbon::parse((string) $value)->format('Y-m-d H:i:s'),
+            'time' => Carbon::createFromFormat('H:i', (string) $value)->format('H:i'),
             'color' => strtoupper((string) $value),
             default => (string) $value,
         };

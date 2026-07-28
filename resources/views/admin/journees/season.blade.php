@@ -3,10 +3,7 @@
 @section('content')
 
 @php
-    $currentAppDate = app(\App\Services\AppDateService::class)
-        ->now()
-        ->copy()
-        ->startOfDay();
+    $currentAppDateTime = app(\App\Services\AppDateService::class)->now();
 @endphp
 
 @include('admin.partials.back-link', [
@@ -27,8 +24,7 @@
         @if($season->is_locked)
             Cette saison est verrouillée. Les journées sont consultables uniquement.
         @else
-            Gère les journées, les dates limites, les matchs et les résultats de cette saison.
-            À partir de la date de début d’une journée, seuls les résultats restent accessibles.
+            Gère les journées, les dates du premier match, les matchs, l’ouverture des pronostics et les résultats.
         @endif
     </p>
 </div>
@@ -98,8 +94,8 @@
                         <th style="width: 90px;">N°</th>
                         <th>Journée</th>
                         <th>Type</th>
-                        <th class="text-center">Début</th>
-                        <th class="text-center">Date limite</th>
+                        <th class="text-center">Premier match</th>
+                        <th class="text-center">Pronos</th>
                         <th class="text-end">Actions</th>
                     </tr>
                 </thead>
@@ -107,14 +103,10 @@
                 <tbody>
                     @foreach($journees as $journee)
                         @php
-                            $journeeDate = $journee->starts_at
-                                ? $journee->starts_at->copy()->startOfDay()
-                                : null;
+                            $journeeHasStarted = $journee->first_match_at !== null
+                                && $currentAppDateTime->greaterThanOrEqualTo($journee->first_match_at);
 
-                            $journeeIsLockedByDate = $journeeDate !== null
-                                && $currentAppDate->greaterThanOrEqualTo($journeeDate);
-
-                            $preparationIsLocked = $season->is_locked || $journeeIsLockedByDate;
+                            $preparationIsLocked = $season->is_locked || $journeeHasStarted;
                         @endphp
 
                         <tr>
@@ -139,21 +131,23 @@
                             </td>
 
                             <td class="text-center">
-                                @if($journee->starts_at)
-                                    {{ $journee->starts_at->format('d/m/Y') }}
+                                @if($journee->first_match_at)
+                                    {{ $journee->first_match_at->format('d/m/Y H:i') }}
                                 @else
-                                    <span class="text-muted">
-                                        Non défini
+                                    <span class="badge bg-danger">
+                                        Manquant
                                     </span>
                                 @endif
                             </td>
 
                             <td class="text-center">
-                                @if($journee->prediction_deadline)
-                                    {{ $journee->prediction_deadline->format('d/m/Y') }}
+                                @if($journee->predictions_enabled)
+                                    <span class="badge rounded-pill text-bg-success">
+                                        Actifs
+                                    </span>
                                 @else
-                                    <span class="badge bg-danger">
-                                        Manquante
+                                    <span class="badge rounded-pill text-bg-secondary">
+                                        Inactifs
                                     </span>
                                 @endif
                             </td>

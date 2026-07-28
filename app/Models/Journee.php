@@ -13,15 +13,15 @@ class Journee extends Model
         'number',
         'name',
         'slug',
-        'starts_at',
-        'prediction_deadline',
+        'first_match_at',
+        'predictions_enabled',
     ];
 
     protected function casts(): array
     {
         return [
-            'starts_at' => 'datetime',
-            'prediction_deadline' => 'datetime',
+            'first_match_at' => 'datetime',
+            'predictions_enabled' => 'boolean',
         ];
     }
 
@@ -42,11 +42,34 @@ class Journee extends Model
 
     public function isLocked(): bool
     {
-        if (! $this->prediction_deadline) {
+        if (! $this->first_match_at) {
             return false;
         }
 
-        return $this->prediction_deadline->lte(app(AppDateService::class)->now());
+        return $this->first_match_at->lte(app(AppDateService::class)->now());
+    }
+
+    public function isPredictionOpen(): bool
+    {
+        if ($this->predictions_enabled === false) {
+            return false;
+        }
+
+        if (! $this->first_match_at) {
+            return false;
+        }
+
+        return app(AppDateService::class)->now()->lt($this->first_match_at);
+    }
+
+    public function isPredictionLocked(): bool
+    {
+        return ! $this->isPredictionOpen();
+    }
+
+    public function isPreparationLocked(): bool
+    {
+        return $this->isLocked();
     }
 
     public function getRouteKeyName(): string

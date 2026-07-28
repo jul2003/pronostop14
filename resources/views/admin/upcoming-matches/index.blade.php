@@ -2,6 +2,10 @@
 
 @section('content')
 
+@php
+    $currentAppDateTime = app(\App\Services\AppDateService::class)->now();
+@endphp
+
 @include('admin.partials.back-link', [
     'href' => route('admin.index'),
     'label' => 'Retour administration',
@@ -17,58 +21,44 @@
     </h2>
 
     <p class="text-muted mb-0">
-        Prépare les prochaines journées en saisissant les matchs et les dates limites nécessaires.
+        Prochaines journées à préparer pour la saison active.
     </p>
 </div>
 
 @if(! $season)
-    <div class="alert alert-warning">
-        Aucune saison active n’est définie. Active une saison pour afficher les matchs à préparer.
+    <div class="rugby-card p-4">
+        <div class="alert alert-info mb-0">
+            Aucune saison active pour le moment.
+        </div>
     </div>
 @else
-    <div class="rugby-card p-4 mb-4">
-        <div class="d-flex justify-content-between align-items-start gap-3">
-            <div>
-                <h3 class="h5 fw-bold mb-1">
-                    Saison active : {{ $season->name }}
-                </h3>
+    <div class="rugby-card p-0 overflow-hidden">
+        <div class="p-4 border-bottom">
+            <h3 class="h5 fw-bold mb-1">
+                {{ $season->name }}
+            </h3>
 
-                <p class="text-muted mb-0">
-                    Cette page affiche les {{ $journeesToPrepareCount }} prochaine(s) journée(s)
-                    à préparer, en tenant compte des matchs et des dates limites.
-                </p>
+            <p class="text-muted mb-0">
+                Affichage des {{ $journeesToPrepareCount }} prochaine(s) journée(s) à préparer.
+            </p>
+        </div>
+
+        @if($journees->isEmpty())
+            <div class="p-4">
+                <div class="alert alert-success mb-0">
+                    Aucune journée à préparer pour le moment.
+                </div>
             </div>
-
-            <a href="{{ route('admin.app-settings.index') }}"
-               class="btn btn-sm btn-outline-secondary rounded-pill fw-bold">
-                Modifier le nombre
-            </a>
-        </div>
-    </div>
-
-    @if($journees->isEmpty())
-        <div class="alert alert-success">
-            Toutes les prochaines journées sont préparées.
-        </div>
-
-        <div class="d-flex justify-content-end">
-            <a href="{{ route('admin.seasons.journees', $season) }}"
-               class="btn btn-outline-primary rounded-pill fw-bold px-4">
-                Voir les journées
-            </a>
-        </div>
-    @else
-        <div class="rugby-card p-0 overflow-hidden">
+        @else
             <div class="table-responsive">
                 <table class="table table-hover align-middle mb-0">
                     <thead class="table-light">
                         <tr>
                             <th>Journée</th>
-                            <th>Type</th>
-                            <th class="text-center">Matchs saisis</th>
-                            <th class="text-center">Matchs attendus</th>
-                            <th class="text-center">Date limite</th>
-                            <th class="text-end">Action</th>
+                            <th class="text-center">Premier match</th>
+                            <th class="text-center">Matchs</th>
+                            <th class="text-center">Résultats</th>
+                            <th class="text-end">Actions</th>
                         </tr>
                     </thead>
 
@@ -76,79 +66,83 @@
                         @foreach($journees as $journee)
                             @php
                                 $expectedMatchesCount = $journee->expectedMatchesCount();
-                                $matchesAreIncomplete = (int) $journee->matches_count < $expectedMatchesCount;
-                                $deadlineIsMissing = $journee->prediction_deadline === null;
+
+                                $firstMatchDateIsMissing = $journee->first_match_at === null;
+
+                                $journeeHasStarted = $journee->first_match_at !== null
+                                    && $currentAppDateTime->greaterThanOrEqualTo($journee->first_match_at);
+
+                                $preparationIsLocked = $season->is_locked || $journeeHasStarted;
                             @endphp
 
                             <tr>
-                                <td class="fw-bold">
-                                    {{ $journee->name }}
-                                </td>
-
                                 <td>
-                                    {{ $journee->type_label }}
+                                    <div class="fw-bold">
+                                        {{ $journee->name }}
+                                    </div>
+
+                                    <div class="text-muted small">
+                                        {{ $journee->type_label }}
+                                    </div>
                                 </td>
 
                                 <td class="text-center">
-                                    @if($matchesAreIncomplete)
-                                        <span class="badge bg-warning text-dark">
-                                            {{ $journee->matches_count }} / {{ $expectedMatchesCount }}
-                                        </span>
+                                    @if($journee->first_match_at)
+                                        {{ $journee->first_match_at->format('d/m/Y H:i') }}
                                     @else
-                                        <span class="badge bg-success">
-                                            {{ $journee->matches_count }} / {{ $expectedMatchesCount }}
+                                        <span class="badge bg-danger">
+                                            Manquant
                                         </span>
                                     @endif
                                 </td>
 
                                 <td class="text-center">
-                                    <span class="badge bg-primary">
-                                        {{ $expectedMatchesCount }}
+                                    <span class="@if($expectedMatchesCount !== null && $journee->matches_count < $expectedMatchesCount) text-danger fw-bold @endif">
+                                        {{ $journee->matches_count }}
+                                        @if($expectedMatchesCount !== null)
+                                            / {{ $expectedMatchesCount }}
+                                        @endif
                                     </span>
                                 </td>
 
                                 <td class="text-center">
-                                    @if($deadlineIsMissing)
-                                        <span class="badge bg-danger">
-                                            Manquante
-                                        </span>
-                                    @else
-                                        {{ $journee->prediction_deadline->format('d/m/Y') }}
-                                    @endif
+                                    {{ $journee->finished_matches_count }} / {{ $journee->matches_count }}
                                 </td>
 
                                 <td class="text-end">
-                                    @if($matchesAreIncomplete)
-                                        <a href="{{ route('admin.seasons.journees.matches', [$season, $journee]) }}?from=upcoming-matches"
-                                           class="btn btn-sm btn-warning rounded-pill fw-bold px-3">
-                                            Saisir les matchs
+                                    <div class="d-inline-flex flex-wrap justify-content-end gap-2">
+                                        @if($preparationIsLocked)
+                                            <span class="btn btn-sm btn-outline-primary rounded-pill fw-bold disabled"
+                                                  aria-disabled="true">
+                                                Matchs
+                                            </span>
+                                        @else
+                                            <a href="{{ route('admin.seasons.journees.matches', [$season, $journee]) }}"
+                                               class="btn btn-sm btn-outline-primary rounded-pill fw-bold">
+                                                Matchs
+                                            </a>
+                                        @endif
+
+                                        <a href="{{ route('admin.seasons.journees.results', [$season, $journee]) }}"
+                                           class="btn btn-sm btn-outline-warning rounded-pill fw-bold">
+                                            Résultats
                                         </a>
-                                    @elseif($deadlineIsMissing)
-                                        <a href="{{ route('admin.seasons.journees.edit', [$season, $journee]) }}"
-                                           class="btn btn-sm btn-outline-warning rounded-pill fw-bold px-3">
-                                            Modifier la journée
-                                        </a>
-                                    @else
-                                        <a href="{{ route('admin.seasons.journees.edit', [$season, $journee]) }}"
-                                           class="btn btn-sm btn-outline-secondary rounded-pill fw-bold px-3">
-                                            Voir la journée
-                                        </a>
-                                    @endif
+
+                                        @if($firstMatchDateIsMissing && ! $season->is_locked)
+                                            <a href="{{ route('admin.seasons.journees.edit', [$season, $journee]) }}"
+                                               class="btn btn-sm btn-outline-secondary rounded-pill fw-bold">
+                                                Date
+                                            </a>
+                                        @endif
+                                    </div>
                                 </td>
                             </tr>
                         @endforeach
                     </tbody>
                 </table>
             </div>
-        </div>
-
-        <div class="d-flex justify-content-end mt-4">
-            <a href="{{ route('admin.seasons.journees', $season) }}"
-               class="btn btn-outline-secondary rounded-pill fw-bold px-4">
-                Voir toutes les journées
-            </a>
-        </div>
-    @endif
+        @endif
+    </div>
 @endif
 
 @endsection

@@ -17,8 +17,8 @@ class PendingResultController extends Controller
             ->with([
                 'journees' => function ($query) use ($now) {
                     $query->where('type', '!=', 'preseason')
-                        ->whereNotNull('prediction_deadline')
-                        ->where('prediction_deadline', '<=', $now)
+                        ->whereNotNull('first_match_at')
+                        ->where('first_match_at', '<=', $now)
                         ->withCount([
                             'matches',
                             'matches as finished_matches_count' => function ($query) {
@@ -56,8 +56,8 @@ class PendingResultController extends Controller
 
             $preseasonJournee = $season->journees()
                 ->where('type', 'preseason')
-                ->whereNotNull('prediction_deadline')
-                ->where('prediction_deadline', '<=', $now)
+                ->whereNotNull('first_match_at')
+                ->where('first_match_at', '<=', $now)
                 ->first();
 
             if ($preseasonJournee) {

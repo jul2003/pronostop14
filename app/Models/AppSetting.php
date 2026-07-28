@@ -20,7 +20,10 @@ class AppSetting extends Model
         return match ($this->type) {
             'integer' => (int) $this->value,
             'boolean' => filter_var($this->value, FILTER_VALIDATE_BOOLEAN),
-            'date' => $this->value,
+            'date',
+            'datetime',
+            'time',
+            'color' => $this->value,
             default => $this->value,
         };
     }

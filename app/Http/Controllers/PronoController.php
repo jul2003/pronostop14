@@ -35,6 +35,7 @@ class PronoController extends Controller
 
         $journees = Journee::with([
             'season',
+            'matches.journee',
             'matches.predictionDeadlineException',
         ])
             ->withCount('matches')
@@ -53,18 +54,19 @@ class PronoController extends Controller
                         ->exists();
                 }
 
+                if ($journee->predictions_enabled === false) {
+                    return false;
+                }
+
+                if (! $journee->first_match_at) {
+                    return false;
+                }
+
                 if (! $journee->hasExpectedMatchesCount()) {
                     return false;
                 }
 
                 if ((int) $journee->matches_count === 0) {
-                    return false;
-                }
-
-                $hasAnyDeadline = $journee->matches
-                    ->contains(fn ($match) => $match->effectivePredictionDeadline() !== null);
-
-                if (! $hasAnyDeadline) {
                     return false;
                 }
 
@@ -95,8 +97,6 @@ class PronoController extends Controller
             return $this->showPreseason($season, $journee, $preseasonDeadlineService);
         }
 
-        $this->ensureJourneeHasDeadline($journee);
-
         $matches = MatchGame::with([
             'homeClub',
             'awayClub',
@@ -115,6 +115,8 @@ class PronoController extends Controller
             'journee' => $journee,
             'matches' => $matches,
             'isLocked' => ! $hasOpenMatches,
+            'rankingIsAvailable' => $journee->isLocked() && ! $hasOpenMatches,
+            'predictionNotice' => $this->predictionNoticeForJournee($journee, $matches),
         ]);
     }
 
@@ -134,21 +136,22 @@ class PronoController extends Controller
             return $this->storePreseason($request, $season, $journee, $preseasonDeadlineService);
         }
 
-        $this->ensureJourneeHasDeadline($journee);
-
         $matches = MatchGame::with([
             'homeClub',
             'awayClub',
+            'journee',
             'predictionDeadlineException',
         ])
             ->where('journee_id', $journee->id)
             ->get()
             ->keyBy('id');
 
-        $hasOpenMatches = $matches->contains(fn ($match) => ! $match->isPredictionLocked());
+        $blockMessage = $this->predictionBlockMessage($journee, $matches);
 
-        if (! $hasOpenMatches) {
-            abort(403);
+        if ($blockMessage) {
+            return redirect()
+                ->route('pronos.show', [$season, $journee])
+                ->with('prediction_warning', $blockMessage);
         }
 
         $data = $request->validate([
@@ -169,10 +172,15 @@ class PronoController extends Controller
             if ($match->isPredictionLocked()) {
                 return redirect()
                     ->route('pronos.show', [$season, $journee])
-                    ->withErrors([
-                        'deadline' => 'Ce match est verrouillé : '.$match->homeClub->name.' - '.$match->awayClub->name.'.',
-                    ]);
+                    ->with(
+                        'prediction_warning',
+                        'Saisie clôturée pour '.$match->homeClub->name.' - '.$match->awayClub->name.' : tes pronostics n’ont pas été enregistrés.'
+                    );
             }
+        }
+
+        foreach ($data['pronos'] as $matchId => $pronoData) {
+            $match = $matches->get((int) $matchId);
 
             Prono::updateOrCreate(
                 [
@@ -251,13 +259,13 @@ class PronoController extends Controller
         if (! $preseasonDeadline) {
             return redirect()
                 ->route('pronos.show', [$season, $journee])
-                ->withErrors([
-                    'deadline' => 'Les pronostics avant-saison ne sont pas encore ouverts.',
-                ]);
+                ->with('prediction_warning', 'Les pronostics avant-saison ne sont pas encore ouverts.');
         }
 
         if ($preseasonDeadlineService->isLockedForUser($season, auth()->user())) {
-            abort(403);
+            return redirect()
+                ->route('pronos.show', [$season, $journee])
+                ->with('prediction_warning', 'Saisie avant-saison clôturée : tes pronostics n’ont pas été enregistrés.');
         }
 
         $questions = $season->preseasonQuestions()
@@ -303,6 +311,60 @@ class PronoController extends Controller
         return redirect()
             ->route('pronos.show', [$season, $journee])
             ->with('success', 'Pronostics avant-saison enregistrés.');
+    }
+
+    private function predictionNoticeForJournee(Journee $journee, $matches): ?array
+    {
+        if ($journee->predictions_enabled === false) {
+            return [
+                'type' => 'warning',
+                'message' => 'Saisie non activée pour cette journée.',
+            ];
+        }
+
+        if (! $journee->first_match_at) {
+            return [
+                'type' => 'warning',
+                'message' => 'Date du premier match non renseignée.',
+            ];
+        }
+
+        $hasOpenMatches = $matches->contains(fn ($match) => ! $match->isPredictionLocked());
+
+        if (! $hasOpenMatches) {
+            return [
+                'type' => 'info',
+                'message' => 'Pronostics clôturés. Consultation uniquement.',
+            ];
+        }
+
+        if ($matches->contains(fn ($match) => $match->isPredictionLocked())) {
+            return [
+                'type' => 'warning',
+                'message' => 'Certains matchs sont verrouillés. Tu peux encore modifier les matchs ouverts.',
+            ];
+        }
+
+        return null;
+    }
+
+    private function predictionBlockMessage(Journee $journee, $matches): ?string
+    {
+        if ($journee->predictions_enabled === false) {
+            return 'Saisie non activée : tes pronostics n’ont pas été enregistrés.';
+        }
+
+        if (! $journee->first_match_at) {
+            return 'Date du premier match non renseignée : tes pronostics n’ont pas été enregistrés.';
+        }
+
+        $hasOpenMatches = $matches->contains(fn ($match) => ! $match->isPredictionLocked());
+
+        if (! $hasOpenMatches) {
+            return 'Saisie clôturée : tes pronostics n’ont pas été enregistrés.';
+        }
+
+        return null;
     }
 
     private function validateUniquePreseasonGroups($questions, array $answers): void
@@ -376,13 +438,6 @@ class PronoController extends Controller
 
         if (! $canAccess) {
             abort(403);
-        }
-    }
-
-    private function ensureJourneeHasDeadline(Journee $journee): void
-    {
-        if (! $journee->prediction_deadline) {
-            abort(404);
         }
     }
 }

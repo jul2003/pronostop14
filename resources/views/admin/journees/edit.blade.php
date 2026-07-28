@@ -3,36 +3,52 @@
 @section('content')
 
 @php
-    $startsAtValue = old('starts_at', $journee->starts_at?->format('Y-m-d'));
+    $defaultFirstMatchTime = $defaultFirstMatchTime ?? '12:00';
 
-    $predictionDeadlineValue = old(
-        'prediction_deadline',
-        $journee->prediction_deadline?->format('Y-m-d') ?? ''
+    $firstMatchDateValue = old(
+        'first_match_date',
+        $journee->first_match_at?->format('Y-m-d') ?? ''
+    );
+
+    $firstMatchTimeValue = old(
+        'first_match_time',
+        $journee->first_match_at?->format('H:i') ?? ''
+    );
+
+    $predictionsEnabledValue = (bool) old(
+        'predictions_enabled',
+        $journee->predictions_enabled
     );
 @endphp
 
-<div class="mb-4">
-    <a href="{{ route('admin.seasons.journees', $season) }}"
-       class="text-decoration-none fw-bold">
-        ← Retour aux journées
-    </a>
+@include('admin.partials.back-link', [
+    'href' => route('admin.seasons.journees', $season),
+    'label' => 'Retour aux journées',
+])
 
-    <div class="mt-3 text-uppercase text-primary fw-bold small">
+<div class="mb-4">
+    <div class="text-uppercase text-primary fw-bold small">
         Administration
     </div>
 
     <h2 class="fw-bold mb-1">
-        {{ $journee->name }}
+        Modifier {{ $journee->name }}
     </h2>
 
     <p class="text-muted mb-0">
-        Modifie la date sportive de la journée et la date limite de saisie des pronostics.
+        La saisie des pronostics reste ouverte uniquement si elle est activée et tant que la date et l’heure actuelles sont strictement inférieures à la date du premier match.
     </p>
 </div>
 
 @if($errors->any())
     <div class="alert alert-danger">
         {{ $errors->first() }}
+    </div>
+@endif
+
+@if(session('success'))
+    <div class="alert alert-success">
+        {{ session('success') }}
     </div>
 @endif
 
@@ -45,148 +61,163 @@
 
         <div class="row g-4">
             <div class="col-lg-6">
-                <label for="startsAtInput" class="form-label fw-bold">
-                    Début de la journée
+                <label for="firstMatchDateInput" class="form-label fw-bold">
+                    Date du premier match
                 </label>
 
                 <div class="input-group">
                     <input type="date"
-                           id="startsAtInput"
-                           name="starts_at"
-                           value="{{ $startsAtValue }}"
-                           class="form-control app-date-input"
+                           id="firstMatchDateInput"
+                           name="first_match_date"
+                           value="{{ $firstMatchDateValue }}"
+                           class="form-control @error('first_match_date') is-invalid @enderror"
                            autocomplete="off">
 
                     <button type="button"
                             class="btn btn-outline-secondary clear-date-button"
+                            data-target="firstMatchDateInput"
                             title="Effacer la date"
                             aria-label="Effacer la date">
                         ×
                     </button>
                 </div>
 
-                <div class="form-text">
-                    Date sportive de la journée. À partir de cette date, les matchs et la préparation ne sont plus modifiables.
-                </div>
+                @error('first_match_date')
+                    <div class="text-danger small mt-1">
+                        {{ $message }}
+                    </div>
+                @enderror
             </div>
 
             <div class="col-lg-6">
-                <label for="predictionDeadlineInput" class="form-label fw-bold">
-                    Date limite des pronostics
+                <label for="firstMatchTimeInput" class="form-label fw-bold">
+                    Heure du premier match
                 </label>
 
                 <div class="input-group">
-                    <input type="date"
-                           id="predictionDeadlineInput"
-                           name="prediction_deadline"
-                           value="{{ $predictionDeadlineValue }}"
-                           class="form-control app-date-input"
+                    <input type="time"
+                           id="firstMatchTimeInput"
+                           name="first_match_time"
+                           value="{{ $firstMatchTimeValue }}"
+                           class="form-control @error('first_match_time') is-invalid @enderror"
                            autocomplete="off">
 
                     <button type="button"
-                            id="updatePredictionDeadlineButton"
+                            id="applyDefaultFirstMatchTimeButton"
                             class="btn btn-outline-primary fw-bold"
-                            title="Mettre la date limite à la veille du début de journée">
-                        MAJ date limite
-                    </button>
-
-                    <button type="button"
-                            class="btn btn-outline-secondary clear-date-button"
-                            title="Effacer la date limite"
-                            aria-label="Effacer la date limite">
-                        ×
+                            data-default-time="{{ $defaultFirstMatchTime }}">
+                        Appliquer heure par défaut
                     </button>
                 </div>
 
                 <div class="form-text">
-                    Clique sur MAJ date limite pour mettre automatiquement la date limite à la veille du début de journée.
-                    Laisse ce champ vide pour bloquer la saisie des pronostics de cette journée.
+                    Heure par défaut actuelle : {{ $defaultFirstMatchTime }}.
+                </div>
+
+                @error('first_match_time')
+                    <div class="text-danger small mt-1">
+                        {{ $message }}
+                    </div>
+                @enderror
+            </div>
+
+            <div class="col-12">
+                <div class="border rounded-3 p-3 bg-light">
+                    <input type="hidden"
+                           name="predictions_enabled"
+                           value="0">
+
+                    <div class="form-check form-switch">
+                        <input type="checkbox"
+                               id="predictionsEnabledInput"
+                               name="predictions_enabled"
+                               value="1"
+                               class="form-check-input"
+                               @checked($predictionsEnabledValue)>
+
+                        <label for="predictionsEnabledInput" class="form-check-label fw-bold">
+                            Activer la saisie des pronostics pour cette journée
+                        </label>
+                    </div>
+
+                    <div class="form-text">
+                        Si cette case est décochée, la journée ne sera pas proposée dans “Pronos” et aucun pronostic ne pourra être enregistré, même si la date du premier match est dans le futur.
+                    </div>
                 </div>
             </div>
         </div>
 
+        <div class="alert alert-info mt-4 mb-0">
+            <div class="fw-bold">
+                Règle de verrouillage
+            </div>
+
+            <div>
+                Si le premier match est prévu le
+                <span class="fw-bold">06/09/2025 à 12:00</span>,
+                les pronostics sont saisissables jusqu’à
+                <span class="fw-bold">06/09/2025 11:59:59</span>,
+                uniquement si la saisie est activée.
+                À partir de 12:00, ils sont verrouillés.
+            </div>
+        </div>
+
         <div class="d-flex justify-content-end mt-4">
-            <button class="btn btn-warning rounded-pill fw-bold px-4">
+            <button type="submit"
+                    class="btn btn-warning rounded-pill fw-bold px-4">
                 Enregistrer
             </button>
         </div>
     </form>
 </div>
 
+@endsection
+
+@push('scripts')
 <script>
     document.addEventListener('DOMContentLoaded', function () {
-        const startsAtInput = document.getElementById('startsAtInput');
-        const predictionDeadlineInput = document.getElementById('predictionDeadlineInput');
-        const updatePredictionDeadlineButton = document.getElementById('updatePredictionDeadlineButton');
+        const firstMatchDateInput = document.getElementById('firstMatchDateInput');
+        const firstMatchTimeInput = document.getElementById('firstMatchTimeInput');
+        const applyDefaultButton = document.getElementById('applyDefaultFirstMatchTimeButton');
 
-        function dateMinusOneDay(value) {
-            if (!value) {
-                return '';
+        function applyDefaultTimeIfNeeded() {
+            if (!firstMatchDateInput || !firstMatchTimeInput || !applyDefaultButton) {
+                return;
             }
 
-            const date = new Date(value + 'T00:00:00');
-
-            if (Number.isNaN(date.getTime())) {
-                return '';
+            if (!firstMatchDateInput.value) {
+                return;
             }
 
-            date.setDate(date.getDate() - 1);
+            if (firstMatchTimeInput.value) {
+                return;
+            }
 
-            const year = date.getFullYear();
-            const month = String(date.getMonth() + 1).padStart(2, '0');
-            const day = String(date.getDate()).padStart(2, '0');
-
-            return year + '-' + month + '-' + day;
+            firstMatchTimeInput.value = applyDefaultButton.dataset.defaultTime || '12:00';
         }
 
-        function updatePredictionDeadlineFromJourneeDate() {
-            if (!startsAtInput || !predictionDeadlineInput) {
-                return;
-            }
+        if (firstMatchDateInput) {
+            firstMatchDateInput.addEventListener('change', applyDefaultTimeIfNeeded);
+        }
 
-            const automaticDeadline = dateMinusOneDay(startsAtInput.value);
-
-            if (!automaticDeadline) {
-                return;
-            }
-
-            predictionDeadlineInput.value = automaticDeadline;
+        if (applyDefaultButton && firstMatchTimeInput) {
+            applyDefaultButton.addEventListener('click', function () {
+                firstMatchTimeInput.value = applyDefaultButton.dataset.defaultTime || '12:00';
+            });
         }
 
         document.querySelectorAll('.clear-date-button').forEach(function (button) {
             button.addEventListener('click', function () {
-                const group = button.closest('.input-group');
+                const target = document.getElementById(button.dataset.target);
 
-                if (!group) {
+                if (!target) {
                     return;
                 }
 
-                const input = group.querySelector('.app-date-input');
-
-                if (!input) {
-                    return;
-                }
-
-                input.value = '';
-
-                input.dispatchEvent(new Event('change', {
-                    bubbles: true
-                }));
+                target.value = '';
+                target.dispatchEvent(new Event('change', { bubbles: true }));
             });
         });
-
-        if (startsAtInput) {
-            startsAtInput.addEventListener('change', function () {
-                updatePredictionDeadlineFromJourneeDate();
-            });
-        }
-
-        if (updatePredictionDeadlineButton) {
-            updatePredictionDeadlineButton.addEventListener('click', function () {
-                updatePredictionDeadlineFromJourneeDate();
-            });
-        }
     });
 </script>
-
-@endsection
+@endpush

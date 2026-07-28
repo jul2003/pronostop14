@@ -24,8 +24,8 @@
                 {{ $season->name }}
             @endif
 
-            @if($journee->prediction_deadline)
-                · date limite journée : {{ $journee->prediction_deadline->format('d/m/Y H:i') }}
+            @if($journee->first_match_at)
+                · premier match : {{ $journee->first_match_at->format('d/m/Y H:i') }}
             @endif
         </p>
     </div>
@@ -76,7 +76,6 @@
     </div>
 
 @else
-
     <form method="POST"
           action="{{ route('admin.seasons.journees.results.store', [$season, $journee]) }}"
           autocomplete="off">
@@ -227,7 +226,6 @@
             </div>
         @endunless
     </form>
-
 @endif
 
 @endsection

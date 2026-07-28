@@ -42,6 +42,15 @@ class AppSettingService
         return (bool) $this->get($key, $default);
     }
 
+    public function time(string $key, string $default = '12:00'): string
+    {
+        $value = (string) $this->get($key, $default);
+
+        return preg_match('/^(?:[01]\d|2[0-3]):[0-5]\d$/', $value)
+            ? $value
+            : $default;
+    }
+
     public function date(string $key): ?Carbon
     {
         $value = $this->get($key);
@@ -51,6 +60,22 @@ class AppSettingService
         }
 
         return Carbon::parse($value)->startOfDay();
+    }
+
+    public function dateTime(string $key): ?Carbon
+    {
+        $value = $this->get($key);
+
+        if (! $value) {
+            return null;
+        }
+
+        return Carbon::parse($value);
+    }
+
+    public function defaultFirstMatchTime(): string
+    {
+        return $this->time('default_first_match_time', '12:00');
     }
 
     public function upcomingJourneesToPrepareCount(): int

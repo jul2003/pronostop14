@@ -45,13 +45,13 @@ class PreseasonDeadlineService
 
         $upcomingJournee = $season->journees()
             ->where('type', '!=', 'preseason')
-            ->whereNotNull('prediction_deadline')
-            ->where('prediction_deadline', '>', $now)
-            ->orderBy('prediction_deadline')
+            ->whereNotNull('first_match_at')
+            ->where('first_match_at', '>', $now)
+            ->orderBy('first_match_at')
             ->orderBy('number')
             ->first();
 
-        return $upcomingJournee?->prediction_deadline;
+        return $upcomingJournee?->first_match_at;
     }
 
     public function seasonHasStarted(Season $season): bool
@@ -71,7 +71,7 @@ class PreseasonDeadlineService
             ->where('type', 'preseason')
             ->first();
 
-        return $journee?->prediction_deadline;
+        return $journee?->first_match_at;
     }
 
     private function firstRegularJourneeDeadline(Season $season): ?Carbon
@@ -81,6 +81,6 @@ class PreseasonDeadlineService
             ->where('number', 1)
             ->first();
 
-        return $journee?->prediction_deadline;
+        return $journee?->first_match_at;
     }
 }

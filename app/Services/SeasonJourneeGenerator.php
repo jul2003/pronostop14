@@ -101,8 +101,8 @@ class SeasonJourneeGenerator
             'slug' => $data['type'] === 'regular'
                 ? $data['slug']
                 : Str::slug($data['slug']),
-            'starts_at' => null,
-            'prediction_deadline' => null,
+            'first_match_at' => null,
+            'predictions_enabled' => true,
         ]);
     }
 }

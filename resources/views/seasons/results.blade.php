@@ -41,12 +41,8 @@
     };
 
     $journeeDateLabel = function ($journee) {
-        if ($journee->starts_at) {
-            return $journee->starts_at->format('d/m');
-        }
-
-        if ($journee->prediction_deadline) {
-            return $journee->prediction_deadline->format('d/m');
+        if ($journee->first_match_at) {
+            return $journee->first_match_at->format('d/m');
         }
 
         return '';

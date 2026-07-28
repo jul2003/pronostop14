@@ -10,10 +10,10 @@ class AppDateService
     {
         $settings = app(AppSettingService::class);
 
-        $simulatedDate = $settings->date('simulated_app_date');
+        $simulatedDateTime = $settings->dateTime('simulated_app_date');
 
-        if ($simulatedDate) {
-            return $simulatedDate->copy()->setTimeFrom(now());
+        if ($simulatedDateTime) {
+            return $simulatedDateTime->copy();
         }
 
         return now();
@@ -21,6 +21,6 @@ class AppDateService
 
     public function today(): Carbon
     {
-        return $this->now()->startOfDay();
+        return $this->now()->copy()->startOfDay();
     }
 }

@@ -23,7 +23,7 @@ class TeamStandingController extends Controller
 
     public function season(Season $season, AppDateService $dateService)
     {
-        $currentDate = $dateService->today();
+        $currentDate = $dateService->now();
 
         $seasons = Season::query()
             ->orderByDesc('is_active')
@@ -49,7 +49,7 @@ class TeamStandingController extends Controller
             ->filter(function ($journee) use ($currentDate) {
                 $journeeDate = $this->journeeDate($journee);
 
-                if (! $journeeDate || ! $journeeDate->startOfDay()->lt($currentDate)) {
+                if (! $journeeDate || ! $journeeDate->lt($currentDate)) {
                     return false;
                 }
 
@@ -224,14 +224,12 @@ class TeamStandingController extends Controller
 
     private function journeeDate($journee): ?Carbon
     {
-        $date = $journee->starts_at ?: $journee->prediction_deadline;
-
-        if (! $date) {
+        if (! $journee->first_match_at) {
             return null;
         }
 
-        return $date instanceof Carbon
-            ? $date->copy()
-            : Carbon::parse($date);
+        return $journee->first_match_at instanceof Carbon
+            ? $journee->first_match_at->copy()
+            : Carbon::parse($journee->first_match_at);
     }
 }

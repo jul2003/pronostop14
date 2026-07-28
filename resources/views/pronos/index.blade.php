@@ -4,6 +4,9 @@
 
 @php
     $hasOpenMatches = $matches->contains(fn ($match) => ! $match->isPredictionLocked());
+    $predictionNotice = $predictionNotice ?? null;
+    $predictionWarning = session('prediction_warning');
+    $rankingIsAvailable = $rankingIsAvailable ?? false;
 @endphp
 
 <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4">
@@ -19,8 +22,8 @@
         <p class="text-muted mb-0">
             {{ $season->name }}
 
-            @if($journee->prediction_deadline)
-                · limite journée : {{ $journee->prediction_deadline->format('d/m/Y H:i') }}
+            @if($journee->first_match_at)
+                · premier match : {{ $journee->first_match_at->format('d/m/Y H:i') }}
             @endif
         </p>
     </div>
@@ -36,7 +39,7 @@
             Résultats & points
         </a>
 
-        @if($isLocked)
+        @if($rankingIsAvailable)
             <a href="{{ route('rankings.journee', [$season, $journee]) }}"
                class="btn btn-warning rounded-pill fw-bold px-4">
                 Classement journée
@@ -49,22 +52,17 @@
     <div class="alert alert-success">
         {{ session('success') }}
     </div>
-@endif
-
-@if($errors->any())
+@elseif($predictionWarning)
+    <div class="alert alert-warning">
+        {{ $predictionWarning }}
+    </div>
+@elseif($errors->any())
     <div class="alert alert-danger">
         {{ $errors->first() }}
     </div>
-@endif
-
-@if($isLocked)
-    <div class="alert alert-info">
-        Les pronostics sont clôturés pour tous les matchs de cette journée. Consultation uniquement.
-        Le classement de la journée est maintenant disponible.
-    </div>
-@elseif($matches->contains(fn ($match) => $match->isPredictionLocked()))
-    <div class="alert alert-warning">
-        Certains matchs sont déjà verrouillés. Tu peux encore modifier uniquement les matchs dont la date limite n’est pas dépassée.
+@elseif($predictionNotice)
+    <div class="alert alert-{{ $predictionNotice['type'] }}">
+        {{ $predictionNotice['message'] }}
     </div>
 @endif
 
@@ -132,7 +130,7 @@
                                                  class="club-logo-small">
 
                                             <span>
-                                                {{ $match->homeClub->short_name ?? $match->homeClub->name }}
+                                                {{ $match->homeClub->name }}
                                             </span>
                                         </div>
 
@@ -146,7 +144,7 @@
                                                  class="club-logo-small">
 
                                             <span>
-                                                {{ $match->awayClub->short_name ?? $match->awayClub->name }}
+                                                {{ $match->awayClub->name }}
                                             </span>
                                         </div>
                                     </div>
@@ -168,6 +166,12 @@
                                                     Verrouillé
                                                 </span>
                                             @endif
+                                        </div>
+                                    @elseif($matchIsLocked)
+                                        <div class="match-deadline-line mt-1">
+                                            <span class="badge rounded-pill text-bg-secondary">
+                                                Verrouillé
+                                            </span>
                                         </div>
                                     @endif
                                 </td>

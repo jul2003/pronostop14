@@ -5,7 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Journee;
 use App\Models\Season;
-use App\Services\AppDateService;
+use App\Services\AppSettingService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 
@@ -25,10 +25,10 @@ class JourneeController extends Controller
                 CASE
                     WHEN type = 'preseason' THEN 0
                     WHEN type = 'regular' THEN number
-                    WHEN type = 'prod2_final' THEN 100
+                    WHEN type = 'top14_playoff' THEN 100
                     WHEN type = 'access_match' THEN 101
-                    WHEN type = 'top14_playoff' THEN 102
-                    WHEN type = 'top14_semifinal' THEN 103
+                    WHEN type = 'top14_semifinal' THEN 102
+                    WHEN type = 'prod2_final' THEN 103
                     WHEN type = 'top14_final' THEN 104
                     ELSE 999
                 END
@@ -41,7 +41,7 @@ class JourneeController extends Controller
         ]);
     }
 
-    public function edit(Season $season, Journee $journee)
+    public function edit(Season $season, Journee $journee, AppSettingService $settings)
     {
         abort_if($journee->season_id !== $season->id, 404);
 
@@ -60,11 +60,16 @@ class JourneeController extends Controller
         return view('admin.journees.edit', [
             'season' => $season,
             'journee' => $journee,
+            'defaultFirstMatchTime' => $settings->defaultFirstMatchTime(),
         ]);
     }
 
-    public function update(Request $request, Season $season, Journee $journee)
-    {
+    public function update(
+        Request $request,
+        Season $season,
+        Journee $journee,
+        AppSettingService $settings
+    ) {
         abort_if($journee->season_id !== $season->id, 404);
 
         if ($season->is_locked) {
@@ -80,18 +85,27 @@ class JourneeController extends Controller
         }
 
         $data = $request->validate([
-            'starts_at' => ['nullable', 'date'],
-            'prediction_deadline' => ['nullable', 'date'],
+            'first_match_date' => ['nullable', 'date'],
+            'first_match_time' => ['nullable', 'date_format:H:i'],
+            'predictions_enabled' => ['nullable', 'boolean'],
         ]);
 
-        $journee->update([
-            'starts_at' => $request->filled('starts_at')
-                ? Carbon::parse($data['starts_at'])->startOfDay()
-                : null,
+        $firstMatchAt = null;
 
-            'prediction_deadline' => $request->filled('prediction_deadline')
-                ? Carbon::parse($data['prediction_deadline'])->endOfDay()
-                : null,
+        if ($request->filled('first_match_date')) {
+            $time = $request->filled('first_match_time')
+                ? $data['first_match_time']
+                : $settings->defaultFirstMatchTime();
+
+            $firstMatchAt = Carbon::createFromFormat(
+                'Y-m-d H:i',
+                $data['first_match_date'].' '.$time
+            );
+        }
+
+        $journee->update([
+            'first_match_at' => $firstMatchAt,
+            'predictions_enabled' => $request->boolean('predictions_enabled'),
         ]);
 
         return redirect()
@@ -101,20 +115,7 @@ class JourneeController extends Controller
 
     private function preparationIsLocked(Journee $journee): bool
     {
-        if (! $journee->starts_at) {
-            return false;
-        }
-
-        $currentAppDate = app(AppDateService::class)
-            ->now()
-            ->copy()
-            ->startOfDay();
-
-        $journeeStartDate = $journee->starts_at
-            ->copy()
-            ->startOfDay();
-
-        return $currentAppDate->greaterThanOrEqualTo($journeeStartDate);
+        return $journee->isPreparationLocked();
     }
 
     private function resolveSeason(?Season $season = null): Season

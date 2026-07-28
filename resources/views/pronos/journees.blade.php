@@ -23,13 +23,10 @@
 </div>
 
 <div class="row g-4">
-
     @forelse($journees as $journee)
 
         <div class="col-md-6 col-xl-4">
-
             <div class="rugby-card p-4 h-100">
-
                 <div class="text-uppercase text-primary fw-bold small">
                     {{ $journee->season->name }}
                 </div>
@@ -49,14 +46,14 @@
                 @if($journee->type === 'preseason')
                     @if($preseasonDeadline)
                         <div class="small text-secondary mb-3">
-                            Limite :
-                            {{ $preseasonDeadline->format('d/m/Y') }}
+                            Ouvert jusqu’au :
+                            {{ $preseasonDeadline->format('d/m/Y H:i') }}
                         </div>
                     @endif
-                @elseif($journee->prediction_deadline)
+                @elseif($journee->first_match_at)
                     <div class="small text-secondary mb-3">
-                        Limite :
-                        {{ $journee->prediction_deadline->format('d/m/Y') }}
+                        Premier match :
+                        {{ $journee->first_match_at->format('d/m/Y H:i') }}
                     </div>
                 @endif
 
@@ -66,9 +63,7 @@
                         Voir la journée
                     </a>
                 </div>
-
             </div>
-
         </div>
 
     @empty
@@ -80,7 +75,6 @@
         </div>
 
     @endforelse
-
 </div>
 
 @endsection
