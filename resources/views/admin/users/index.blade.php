@@ -61,9 +61,14 @@
                             : null;
 
                         $isActive = (bool) $user->is_active;
+                        $mustChangePassword = (bool) $user->must_change_password;
+
+                        $rowClass = ! $isActive
+                            ? 'table-secondary'
+                            : ($mustChangePassword ? 'table-warning' : '');
                     @endphp
 
-                    <tr class="{{ $isActive ? '' : 'table-secondary' }}">
+                    <tr class="{{ $rowClass }}">
                         <td class="fw-bold"
                             style="color: {{ $user->color ?? '#06142f' }}">
                             {{ $user->display_name }}
@@ -86,15 +91,23 @@
                         </td>
 
                         <td class="text-center">
-                            @if($isActive)
-                                <span class="badge rounded-pill text-bg-success">
-                                    Actif
-                                </span>
-                            @else
-                                <span class="badge rounded-pill text-bg-secondary">
-                                    Désactivé
-                                </span>
-                            @endif
+                            <div class="d-flex flex-column align-items-center gap-1">
+                                @if($isActive)
+                                    <span class="badge rounded-pill text-bg-success">
+                                        Actif
+                                    </span>
+                                @else
+                                    <span class="badge rounded-pill text-bg-secondary">
+                                        Désactivé
+                                    </span>
+                                @endif
+
+                                @if($mustChangePassword)
+                                    <span class="badge rounded-pill text-bg-warning">
+                                        Mot de passe à changer
+                                    </span>
+                                @endif
+                            </div>
                         </td>
 
                         <td>

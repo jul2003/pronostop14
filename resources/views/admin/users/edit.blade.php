@@ -6,6 +6,9 @@
     $playerColors = $playerColors ?? \App\Support\PlayerColorPalette::colors();
     $usedPlayerColors = $usedPlayerColors ?? [];
 
+    $showPasswordEmailButton = $showPasswordEmailButton ?? false;
+    $passwordEmailRecipients = $passwordEmailRecipients ?? [];
+
     $currentColor = strtoupper((string) old('color', $editedUser->color ?? ''));
 
     $firstAvailableColor = collect($playerColors)
@@ -86,12 +89,6 @@
 @if($errors->any())
     <div class="alert alert-danger">
         {{ $errors->first() }}
-    </div>
-@endif
-
-@if(session('success'))
-    <div class="alert alert-success">
-        {{ session('success') }}
     </div>
 @endif
 
@@ -258,6 +255,70 @@
     </div>
 
     <div class="col-xl-4">
+        @if($showPasswordEmailButton && auth()->user()->isSuperAdmin())
+            <div class="rugby-card p-4 mb-4 border border-warning-subtle">
+                <h3 class="h5 fw-bold mb-2">
+                    Mot de passe
+                </h3>
+
+                <p class="text-muted">
+                    Génère un nouveau mot de passe temporaire et l’envoie aux adresses email configurées pour cet utilisateur.
+                </p>
+
+                @if(empty($passwordEmailRecipients))
+                    <div class="alert alert-warning mb-0">
+                        Aucune adresse email n’est configurée pour cet utilisateur.
+                    </div>
+                @else
+                    <div class="small text-muted mb-3">
+                        Envoi à :
+
+                        <div class="d-flex flex-wrap gap-2 mt-2">
+                            @foreach($passwordEmailRecipients as $recipient)
+                                <span class="badge rounded-pill text-bg-light border">
+                                    {{ $recipient }}
+                                </span>
+                            @endforeach
+                        </div>
+                    </div>
+
+                    <button type="button"
+                            class="btn btn-outline-warning rounded-pill fw-bold px-4"
+                            data-inline-confirm-show="send-password-confirmation">
+                        Envoyer un nouveau mot de passe
+                    </button>
+
+                    <div id="send-password-confirmation" class="inline-confirmation d-none mt-3">
+                        <div class="fw-bold mb-1">
+                            Confirmer l’envoi ?
+                        </div>
+
+                        <p class="small text-muted mb-3">
+                            Un nouveau mot de passe temporaire sera généré pour {{ $editedUser->display_name }}.
+                            L’ancien mot de passe ne fonctionnera plus.
+                        </p>
+
+                        <div class="d-flex flex-wrap gap-2">
+                            <form method="POST"
+                                  action="{{ route('admin.users.send-password', $editedUser) }}">
+                                @csrf
+
+                                <button class="btn btn-warning rounded-pill fw-bold px-4">
+                                    Oui, envoyer
+                                </button>
+                            </form>
+
+                            <button type="button"
+                                    class="btn btn-outline-dark rounded-pill fw-bold px-4"
+                                    data-inline-confirm-hide="send-password-confirmation">
+                                Annuler
+                            </button>
+                        </div>
+                    </div>
+                @endif
+            </div>
+        @endif
+
         <div class="rugby-card p-4 mb-4">
             <h3 class="h5 fw-bold mb-2">
                 Statut du compte
@@ -361,6 +422,7 @@
             @elseif(! $canBeDeleted)
                 <div class="alert alert-info mb-0">
                     Suppression désactivée car cet utilisateur possède déjà :
+
                     <ul class="mb-0 mt-2">
                         @foreach($deletionBlockers as $blocker)
                             <li>{{ $blocker }}</li>

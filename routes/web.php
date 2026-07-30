@@ -378,6 +378,9 @@ Route::middleware(['auth', 'admin'])->group(function () {
     Route::put('/admin/users/{user}', [UserController::class, 'update'])
         ->name('admin.users.update');
 
+    Route::post('/admin/users/{user}/send-password', [UserController::class, 'sendPasswordByEmail'])
+        ->name('admin.users.send-password');
+
     Route::patch('/admin/users/{user}/role', [UserController::class, 'updateRole'])
         ->name('admin.users.updateRole');
 

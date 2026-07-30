@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Mail\NewUserCredentialsMail;
+use App\Mail\UserPasswordSentMail;
+use App\Models\AppSetting;
 use App\Models\User;
 use App\Support\PlayerColorPalette;
 use Illuminate\Http\Request;
@@ -96,6 +98,7 @@ class UserController extends Controller
         ]);
 
         $passwordWasGenerated = blank($data['password'] ?? null);
+
         $plainPassword = $passwordWasGenerated
             ? $this->generateTemporaryPassword()
             : $data['password'];
@@ -161,6 +164,8 @@ class UserController extends Controller
             'usedPlayerColors' => $usedPlayerColors,
             'deletionBlockers' => $deletionBlockers,
             'canBeDeleted' => empty($deletionBlockers),
+            'showPasswordEmailButton' => $this->showPasswordEmailButton(),
+            'passwordEmailRecipients' => $this->mailRecipientsForUser($user),
         ]);
     }
 
@@ -222,6 +227,49 @@ class UserController extends Controller
         return redirect()
             ->route('admin.users.edit', $user)
             ->with('success', 'Utilisateur mis à jour.');
+    }
+
+    public function sendPasswordByEmail(User $user)
+    {
+        abort_unless(auth()->user()->isSuperAdmin(), 403);
+        abort_unless($this->showPasswordEmailButton(), 403);
+
+        $mailRecipients = $this->mailRecipientsForUser($user);
+
+        if (empty($mailRecipients)) {
+            return back()->withErrors([
+                'password_email' => 'Aucune adresse email n’est configurée pour cet utilisateur.',
+            ]);
+        }
+
+        $plainPassword = $this->generateTemporaryPassword();
+
+        try {
+            DB::transaction(function () use ($user, $plainPassword, $mailRecipients) {
+                $user->forceFill([
+                    'password' => Hash::make($plainPassword),
+                    'must_change_password' => true,
+                ])->save();
+
+                Mail::to($mailRecipients)->send(
+                    new UserPasswordSentMail(
+                        user: $user,
+                        plainPassword: $plainPassword,
+                    )
+                );
+            });
+        } catch (Throwable $exception) {
+            report($exception);
+
+            return back()->withErrors([
+                'password_email' => 'Impossible d’envoyer le mail avec le nouveau mot de passe. Le mot de passe n’a pas été modifié.',
+            ]);
+        }
+
+        return back()->with(
+            'success',
+            'Nouveau mot de passe envoyé par email à '.implode(', ', $mailRecipients).'.'
+        );
     }
 
     public function updateRole(Request $request, User $user)
@@ -392,8 +440,31 @@ class UserController extends Controller
 
         return str_shuffle(
             Str::random(8)
-            . random_int(1000, 9999)
-            . $symbols[array_rand($symbols)]
+            .random_int(1000, 9999)
+            .$symbols[array_rand($symbols)]
         );
+    }
+
+    private function mailRecipientsForUser(User $user): array
+    {
+        return collect([
+            $user->email_pro,
+            $user->email_perso,
+        ])
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+    }
+
+    private function showPasswordEmailButton(): bool
+    {
+        $setting = AppSetting::where('key', 'show_password_email_button')->first();
+
+        if (! $setting) {
+            return true;
+        }
+
+        return (bool) $setting->typedValue();
     }
 }
