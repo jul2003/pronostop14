@@ -16,7 +16,7 @@ class DatabaseSeeder extends Seeder
     public function run(): void
     {
 
-        $this->call([
+        /*$this->call([
             Clubs20252026Seeder::class,
             JourneeScoringProfilesSeeder::class,
             PreseasonScoringProfilesSeeder::class,
@@ -28,5 +28,6 @@ class DatabaseSeeder extends Seeder
         if (app()->environment('local') && env('SEED_DEMO_DATA', true)) {
             $this->call(DemoPronostopSeeder::class);
         }
+        */
     }
 }
