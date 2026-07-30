@@ -10,13 +10,11 @@
 
     $composerOutdatedPackages = data_get($audit, 'composer.outdated.packages', []);
     $npmOutdatedPackages = data_get($audit, 'npm.outdated.packages', []);
-
     $composerAuditCount = (int) data_get($audit, 'composer.audit.advisory_count', 0);
     $composerAbandoned = data_get($audit, 'composer.audit.abandoned', []);
 
     $npmVulnerabilities = data_get($audit, 'npm.audit.json.metadata.vulnerabilities', []);
     $npmVulnerabilitiesTotal = $npmVulnerabilities['total'] ?? null;
-
     $gitBranchOutput = $commandText(data_get($audit, 'git.branch', []));
     $currentBranch = $gitBranchOutput ?: 'branche-inconnue';
     $maintenanceBranch = str_starts_with($currentBranch, 'maintenance/')
@@ -25,14 +23,12 @@
 
     $gitStatusOutput = $commandText(data_get($audit, 'git.status', []));
     $gitIsClean = $gitStatusOutput === '';
-
     $composerAvailable = $commandOk(data_get($audit, 'composer.version', []));
     $nodeAvailable = $commandOk(data_get($audit, 'node.version', []));
     $npmAvailable = $commandOk(data_get($audit, 'node.npm', []));
 
     $composerAuditOk = $composerAuditCount === 0 && $commandOk(data_get($audit, 'composer.audit', []));
     $npmAuditOk = $npmVulnerabilitiesTotal !== null && (int) $npmVulnerabilitiesTotal === 0;
-
     $maintenanceAuditLooksOk = $composerAvailable
         && $nodeAvailable
         && $npmAvailable
@@ -49,7 +45,6 @@
         <h2 class="fw-bold mb-1">
             Maintenance
         </h2>
-
         <p class="text-muted mb-0">
             Audit des versions, dépendances Composer/NPM et état Git du projet.
         </p>
@@ -65,7 +60,6 @@
     <div class="fw-bold">
         Lecture seule pour le moment
     </div>
-
     Cette page vérifie l’état du projet, mais ne lance aucune mise à jour automatiquement.
     Les commandes proposées restent à exécuter manuellement tant qu’on n’a pas ajouté les actions sécurisées.
 </div>
@@ -80,6 +74,65 @@
     </div>
 @endif
 
+@if(auth()->user()->isSuperAdmin())
+    <div class="rugby-card p-4 mb-4 border border-primary-subtle">
+        <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-3">
+            <div>
+                <h3 class="h5 fw-bold mb-1">
+                    Mémo mise à jour VPS depuis GitHub
+                </h3>
+
+                <p class="text-muted mb-0">
+                    Commandes à lancer manuellement sur le VPS pour récupérer la dernière version de <code>main</code>.
+                </p>
+            </div>
+
+            <span class="badge rounded-pill text-bg-primary px-3 py-2">
+                Super admin
+            </span>
+        </div>
+
+        <div class="alert alert-warning">
+            <div class="fw-bold">
+                Avant de mettre à jour
+            </div>
+
+            <div>
+                Le dépôt doit être propre. Si <code>git status</code> affiche des modifications locales,
+                ne lance pas le pull avant d’avoir compris pourquoi.
+            </div>
+        </div>
+
+        <div class="mb-3">
+            <div class="fw-bold mb-2">
+                Commandes Git
+            </div>
+
+            <pre class="bg-dark text-white rounded-4 p-3 small mb-0"><code>cd /chemin/vers/pronostop14
+
+git status
+git fetch origin
+git pull --ff-only origin main</code></pre>
+        </div>
+
+        <div>
+            <div class="fw-bold mb-2">
+                Après récupération du code
+            </div>
+
+            <pre class="bg-dark text-white rounded-4 p-3 small mb-0"><code>composer install --no-dev --optimize-autoloader
+npm ci
+npm run build
+
+php artisan migrate --force
+php artisan optimize:clear
+php artisan config:cache
+php artisan route:cache
+php artisan view:cache</code></pre>
+        </div>
+    </div>
+@endif
+
 <div class="rugby-card p-4 mb-4">
     <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-3">
         <div>
@@ -91,7 +144,6 @@
                 Résumé de l’état détecté par l’audit maintenance.
             </p>
         </div>
-
         @if($maintenanceAuditLooksOk)
             <span class="badge rounded-pill text-bg-success px-3 py-2">
                 Audit favorable
@@ -102,14 +154,12 @@
             </span>
         @endif
     </div>
-
     <div class="row g-3">
         <div class="col-md-6 col-xl-3">
             <div class="border rounded-4 p-3 h-100">
                 <div class="text-muted small fw-bold text-uppercase mb-1">
                     Composer
                 </div>
-
                 @if($composerAvailable)
                     <span class="badge rounded-pill text-bg-success">
                         Disponible
@@ -121,13 +171,11 @@
                 @endif
             </div>
         </div>
-
         <div class="col-md-6 col-xl-3">
             <div class="border rounded-4 p-3 h-100">
                 <div class="text-muted small fw-bold text-uppercase mb-1">
                     Audit Composer
                 </div>
-
                 @if($composerAuditOk)
                     <span class="badge rounded-pill text-bg-success">
                         OK
@@ -143,13 +191,11 @@
                 </div>
             </div>
         </div>
-
         <div class="col-md-6 col-xl-3">
             <div class="border rounded-4 p-3 h-100">
                 <div class="text-muted small fw-bold text-uppercase mb-1">
                     Node / NPM
                 </div>
-
                 @if($nodeAvailable && $npmAvailable)
                     <span class="badge rounded-pill text-bg-success">
                         Disponible
@@ -161,13 +207,11 @@
                 @endif
             </div>
         </div>
-
         <div class="col-md-6 col-xl-3">
             <div class="border rounded-4 p-3 h-100">
                 <div class="text-muted small fw-bold text-uppercase mb-1">
                     Audit NPM
                 </div>
-
                 @if($npmAuditOk)
                     <span class="badge rounded-pill text-bg-success">
                         OK
@@ -181,7 +225,6 @@
                         À corriger
                     </span>
                 @endif
-
                 <div class="text-muted small mt-2">
                     {{ $npmVulnerabilitiesTotal ?? 'Non calculé' }} alerte(s)
                 </div>
@@ -194,7 +237,6 @@
             <div class="fw-bold">
                 L’audit ne détecte pas de blocage évident.
             </div>
-
             Tu peux suivre la procédure “Si tout est OK” après avoir vérifié que
             <code>php artisan test</code> et <code>npm run build</code> passent bien dans le terminal.
         @else
@@ -222,7 +264,6 @@
             <div class="text-muted small mt-2">
                 SAPI : {{ data_get($audit, 'php.sapi') }}
             </div>
-
             @if(data_get($audit, 'php.binary'))
                 <div class="text-muted small mt-1">
                     Binaire : {{ data_get($audit, 'php.binary') }}
@@ -236,7 +277,6 @@
             <div class="text-muted small fw-bold text-uppercase mb-1">
                 Laravel
             </div>
-
             <div class="h4 fw-bold mb-0">
                 {{ data_get($audit, 'laravel.version') }}
             </div>
@@ -252,7 +292,6 @@
             <div class="text-muted small fw-bold text-uppercase mb-1">
                 Composer
             </div>
-
             @php
                 $composerVersion = $commandText(data_get($audit, 'composer.version', []));
             @endphp
@@ -268,7 +307,6 @@
             @endif
         </div>
     </div>
-
     <div class="col-md-6 col-xl-3">
         <div class="rugby-card p-4 h-100">
             <div class="text-muted small fw-bold text-uppercase mb-1">
@@ -278,7 +316,6 @@
             <div class="fw-bold">
                 Node : {{ $commandText(data_get($audit, 'node.version', [])) ?: 'Indisponible' }}
             </div>
-
             <div class="text-muted small">
                 NPM : {{ $commandText(data_get($audit, 'node.npm', [])) ?: 'Indisponible' }}
             </div>
@@ -294,12 +331,10 @@
                     <h3 class="h5 fw-bold mb-1">
                         État Git
                     </h3>
-
                     <p class="text-muted mb-0">
                         Avant une mise à jour, il vaut mieux avoir un dépôt propre.
                     </p>
                 </div>
-
                 @if($gitIsClean)
                     <span class="badge rounded-pill text-bg-success px-3 py-2">
                         Dépôt propre
@@ -310,7 +345,6 @@
                     </span>
                 @endif
             </div>
-
             <div class="row g-3">
                 <div class="col-md-4">
                     <div class="border rounded-4 p-3 h-100">
@@ -323,13 +357,11 @@
                         </div>
                     </div>
                 </div>
-
                 <div class="col-md-8">
                     <div class="border rounded-4 p-3 h-100">
                         <div class="text-muted small fw-bold text-uppercase mb-2">
                             Git status
                         </div>
-
                         @if($gitIsClean)
                             <div class="text-success fw-bold">
                                 Aucune modification locale détectée.
@@ -348,7 +380,6 @@
             <h3 class="h5 fw-bold mb-3">
                 Paquets Composer principaux
             </h3>
-
             <div class="table-responsive">
                 <table class="table align-middle">
                     <thead class="table-light">
@@ -358,7 +389,6 @@
                             <th>État</th>
                         </tr>
                     </thead>
-
                     <tbody>
                         @foreach(data_get($audit, 'composer.packages', []) as $packageName => $package)
                             <tr>
@@ -369,7 +399,6 @@
                                 <td>
                                     {{ $package['version'] ?? 'Indisponible' }}
                                 </td>
-
                                 <td>
                                     @if($package['success'] ?? false)
                                         <span class="badge rounded-pill text-bg-success">
@@ -379,7 +408,6 @@
                                         <span class="badge rounded-pill text-bg-danger">
                                             Erreur
                                         </span>
-
                                         <div class="text-muted small mt-1">
                                             {{ $commandText($package) ?: 'Commande impossible.' }}
                                         </div>
@@ -405,7 +433,6 @@
                         Résultat de <code>composer outdated --direct</code>.
                     </p>
                 </div>
-
                 @if(count($composerOutdatedPackages) === 0)
                     <span class="badge rounded-pill text-bg-success px-3 py-2">
                         Rien à signaler
@@ -416,7 +443,6 @@
                     </span>
                 @endif
             </div>
-
             @if(! empty(data_get($audit, 'composer.outdated.error_output')))
                 <div class="alert alert-warning">
                     <div class="fw-bold">
@@ -426,7 +452,6 @@
                     <pre class="small mb-0 mt-2">{{ data_get($audit, 'composer.outdated.error_output') }}</pre>
                 </div>
             @endif
-
             @if(count($composerOutdatedPackages) === 0)
                 <div class="text-muted">
                     Aucun paquet direct dépassé détecté, ou la commande n’a rien retourné.
@@ -443,7 +468,6 @@
                                 <th>Description</th>
                             </tr>
                         </thead>
-
                         <tbody>
                             @foreach($composerOutdatedPackages as $package)
                                 <tr>
@@ -454,7 +478,6 @@
                                     <td>
                                         {{ $package['version'] ?? '-' }}
                                     </td>
-
                                     <td>
                                         {{ $package['latest'] ?? '-' }}
                                     </td>
@@ -464,7 +487,6 @@
                                             {{ $package['latest-status'] ?? '-' }}
                                         </span>
                                     </td>
-
                                     <td class="text-muted small">
                                         {{ $package['description'] ?? '' }}
                                     </td>
@@ -489,7 +511,6 @@
                         Résultat de <code>composer audit</code>.
                     </p>
                 </div>
-
                 @if($composerAuditCount === 0)
                     <span class="badge rounded-pill text-bg-success px-3 py-2">
                         Aucune vulnérabilité
@@ -500,7 +521,6 @@
                     </span>
                 @endif
             </div>
-
             @if($composerAuditCount === 0 && empty($composerAbandoned))
                 <div class="text-muted">
                     Aucun avis de sécurité Composer détecté.
@@ -509,7 +529,6 @@
                 @if($composerAuditCount > 0)
                     <pre class="small bg-light rounded-3 p-3 border">{{ json_encode(data_get($audit, 'composer.audit.json.advisories'), JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) }}</pre>
                 @endif
-
                 @if(! empty($composerAbandoned))
                     <div class="alert alert-warning mt-3 mb-0">
                         <div class="fw-bold">
@@ -535,7 +554,6 @@
                         Résultat de <code>npm outdated</code>.
                     </p>
                 </div>
-
                 @if(count($npmOutdatedPackages) === 0)
                     <span class="badge rounded-pill text-bg-success px-3 py-2">
                         Rien à signaler
@@ -546,7 +564,6 @@
                     </span>
                 @endif
             </div>
-
             @if(data_get($audit, 'npm.outdated.skipped'))
                 <div class="alert alert-warning mb-0">
                     {{ data_get($audit, 'npm.outdated.reason') }}
@@ -567,7 +584,6 @@
                                 <th>Type</th>
                             </tr>
                         </thead>
-
                         <tbody>
                             @foreach($npmOutdatedPackages as $package)
                                 <tr>
@@ -578,7 +594,6 @@
                                     <td>
                                         {{ $package['current'] ?? '-' }}
                                     </td>
-
                                     <td>
                                         {{ $package['wanted'] ?? '-' }}
                                     </td>
@@ -586,7 +601,6 @@
                                     <td>
                                         {{ $package['latest'] ?? '-' }}
                                     </td>
-
                                     <td>
                                         {{ $package['type'] ?? '-' }}
                                     </td>
@@ -596,7 +610,6 @@
                     </table>
                 </div>
             @endif
-
             @if(! empty(data_get($audit, 'npm.outdated.error_output')))
                 <div class="alert alert-warning mt-3 mb-0">
                     <div class="fw-bold">
@@ -621,7 +634,6 @@
                         Résultat de <code>npm audit</code>.
                     </p>
                 </div>
-
                 @if($npmVulnerabilitiesTotal === null)
                     <span class="badge rounded-pill text-bg-secondary px-3 py-2">
                         Indisponible
@@ -636,7 +648,6 @@
                     </span>
                 @endif
             </div>
-
             @if(data_get($audit, 'npm.audit.skipped'))
                 <div class="alert alert-warning mb-0">
                     {{ data_get($audit, 'npm.audit.reason') }}
@@ -644,7 +655,6 @@
             @elseif($npmVulnerabilitiesTotal === null)
                 <div class="alert alert-warning mb-0">
                     L’audit NPM n’a pas retourné de résumé exploitable.
-
                     @if(! empty(data_get($audit, 'npm.audit.error_output')))
                         <pre class="small mb-0 mt-2">{{ data_get($audit, 'npm.audit.error_output') }}</pre>
                     @endif
@@ -657,7 +667,6 @@
                                 <div class="text-muted small text-uppercase fw-bold">
                                     {{ $level }}
                                 </div>
-
                                 <div class="h4 fw-bold mb-0">
                                     {{ $npmVulnerabilities[$level] ?? 0 }}
                                 </div>
@@ -676,7 +685,6 @@
                     <h3 class="h5 fw-bold mb-1">
                         Procédure après mise à jour
                     </h3>
-
                     <p class="text-muted mb-0">
                         À suivre après avoir lancé les mises à jour Composer/NPM sur une branche de maintenance.
                     </p>
@@ -686,7 +694,6 @@
                     Branche actuelle : {{ $currentBranch }}
                 </span>
             </div>
-
             <div class="alert alert-secondary">
                 <div class="fw-bold">
                     Commandes de validation à lancer avant toute fusion
@@ -696,7 +703,6 @@
 php artisan test
 npm run build</code></pre>
             </div>
-
             <div class="row g-4">
                 <div class="col-lg-6">
                     <div class="border border-success rounded-4 p-4 h-100">
@@ -704,7 +710,6 @@ npm run build</code></pre>
                             <span class="badge rounded-pill text-bg-success">
                                 OK
                             </span>
-
                             <h4 class="h6 fw-bold mb-0">
                                 Si tout passe
                             </h4>
@@ -713,7 +718,6 @@ npm run build</code></pre>
                         <p class="text-muted small">
                             Tests OK, build OK, application vérifiée rapidement dans le navigateur.
                         </p>
-
                         <pre class="bg-dark text-white rounded-4 p-3 small mb-0"><code>git status
 git add .
 git commit -m "Update dependencies and maintenance checks"
@@ -728,14 +732,12 @@ git branch -d {{ $maintenanceBranch }}
 git push origin main</code></pre>
                     </div>
                 </div>
-
                 <div class="col-lg-6">
                     <div class="border border-warning rounded-4 p-4 h-100">
                         <div class="d-flex align-items-center gap-2 mb-2">
                             <span class="badge rounded-pill text-bg-warning">
                                 Pas OK
                             </span>
-
                             <h4 class="h6 fw-bold mb-0">
                                 Si ça casse avant commit
                             </h4>
@@ -748,7 +750,6 @@ git push origin main</code></pre>
                         <pre class="bg-dark text-white rounded-4 p-3 small mb-0"><code>git status
 git reset --hard
 git clean -fd
-
 git checkout main
 git branch -D {{ $maintenanceBranch }}
 
@@ -757,14 +758,12 @@ npm install
 php artisan optimize:clear</code></pre>
                     </div>
                 </div>
-
                 <div class="col-lg-6">
                     <div class="border border-danger rounded-4 p-4 h-100">
                         <div class="d-flex align-items-center gap-2 mb-2">
                             <span class="badge rounded-pill text-bg-danger">
                                 Rollback
                             </span>
-
                             <h4 class="h6 fw-bold mb-0">
                                 Si le merge est fait mais pas encore poussé
                             </h4>
@@ -776,7 +775,6 @@ php artisan optimize:clear</code></pre>
 
                         <pre class="bg-dark text-white rounded-4 p-3 small mb-0"><code>git checkout main
 git reset --hard ORIG_HEAD
-
 composer install
 npm install
 php artisan optimize:clear
@@ -791,7 +789,6 @@ npm run build</code></pre>
                             <span class="badge rounded-pill text-bg-danger">
                                 Après push
                             </span>
-
                             <h4 class="h6 fw-bold mb-0">
                                 Si c’est déjà poussé sur GitHub
                             </h4>
@@ -801,7 +798,6 @@ npm run build</code></pre>
                             Ne fais pas de <code>reset --hard</code> sur une branche déjà partagée.
                             Il faut créer un commit de revert.
                         </p>
-
                         <pre class="bg-dark text-white rounded-4 p-3 small mb-0"><code>git checkout main
 git pull origin main
 
@@ -820,14 +816,12 @@ git push origin main</code></pre>
                 <div class="fw-bold">
                     Attention
                 </div>
-
                 <code>git reset --hard</code> et <code>git clean -fd</code> suppriment les modifications locales non commités.
                 À utiliser uniquement sur une branche de maintenance quand tu es sûr de vouloir tout jeter.
             </div>
         </div>
     </div>
 </div>
-
 <button type="button"
         id="backToTopButton"
         class="btn btn-primary rounded-circle shadow position-fixed d-none"
@@ -847,7 +841,6 @@ git push origin main</code></pre>
         if (!button) {
             return;
         }
-
         function refreshButtonVisibility() {
             if (window.scrollY > 350) {
                 button.classList.remove('d-none');
@@ -866,7 +859,6 @@ git push origin main</code></pre>
         window.addEventListener('scroll', refreshButtonVisibility, {
             passive: true
         });
-
         refreshButtonVisibility();
     }
 
