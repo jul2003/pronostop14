@@ -80,6 +80,10 @@
                             <th class="text-center">Bonus dom.</th>
                             <th class="text-center">Bonus ext.</th>
                             <th class="text-center">Date limite prono exceptionnelle</th>
+
+                            @unless($season->is_locked)
+                                <th class="text-end">Actions</th>
+                            @endunless
                         </tr>
                     </thead>
 
@@ -118,37 +122,24 @@
                                     </div>
                                 </td>
 
-                                <td class="text-center result-cell">
-                                    <div class="d-flex justify-content-center align-items-center gap-2">
-                                        <div class="prono-choice-group">
-                                            @foreach($journee->resultOptionShortLabels() as $value => $label)
-                                                <input type="radio"
-                                                       id="actual_result_{{ $match->id }}_{{ $value }}"
-                                                       name="matches[{{ $match->id }}][actual_result]"
-                                                       value="{{ $value }}"
-                                                       class="prono-choice-input"
-                                                       data-match-result-id="{{ $match->id }}"
-                                                       @checked($match->actual_result === $value)
-                                                       @disabled($season->is_locked)>
+                                <td class="text-center">
+                                    <div class="prono-choice-group">
+                                        @foreach($journee->resultOptionShortLabels() as $value => $label)
+                                            <input type="radio"
+                                                   id="actual_result_{{ $match->id }}_{{ $value }}"
+                                                   name="matches[{{ $match->id }}][actual_result]"
+                                                   value="{{ $value }}"
+                                                   class="prono-choice-input js-actual-result-input"
+                                                   data-match-id="{{ $match->id }}"
+                                                   @checked($match->actual_result === $value)
+                                                   @disabled($season->is_locked)>
 
-                                                <label for="actual_result_{{ $match->id }}_{{ $value }}"
-                                                       class="prono-choice-label"
-                                                       title="{{ $journee->resultOptionLabel($value) }}">
-                                                    {{ $label }}
-                                                </label>
-                                            @endforeach
-                                        </div>
-
-                                        @unless($season->is_locked)
-                                            <button type="button"
-                                                    class="btn btn-sm btn-outline-secondary clear-match-result-button"
-                                                    data-match-id="{{ $match->id }}"
-                                                    title="Effacer le résultat saisi"
-                                                    aria-label="Effacer le résultat saisi"
-                                                    tabindex="-1">
-                                                ×
-                                            </button>
-                                        @endunless
+                                            <label for="actual_result_{{ $match->id }}_{{ $value }}"
+                                                   class="prono-choice-label"
+                                                   title="{{ $journee->resultOptionLabel($value) }}">
+                                                {{ $label }}
+                                            </label>
+                                        @endforeach
                                     </div>
                                 </td>
 
@@ -158,8 +149,8 @@
                                            pattern="[0-9]*"
                                            name="matches[{{ $match->id }}][actual_tries]"
                                            value="{{ $match->actual_tries }}"
-                                           class="form-control form-control-sm prono-tries-input admin-tries-input mx-auto"
-                                           data-match-result-id="{{ $match->id }}"
+                                           class="form-control form-control-sm prono-tries-input admin-tries-input js-actual-tries-input mx-auto"
+                                           data-match-id="{{ $match->id }}"
                                            autocomplete="off"
                                            autocorrect="off"
                                            autocapitalize="off"
@@ -169,13 +160,13 @@
 
                                 <td class="text-center">
                                     <div class="prono-choice-group">
-                                        @foreach(['o' => 'O', '-' => '-', 'd' => 'D'] as $value => $label)
+                                        @foreach($journee->bonusOptionShortLabels() as $value => $label)
                                             <input type="radio"
                                                    id="actual_home_bonus_{{ $match->id }}_{{ $value }}"
                                                    name="matches[{{ $match->id }}][actual_home_bonus]"
                                                    value="{{ $value }}"
-                                                   class="prono-choice-input"
-                                                   data-match-result-id="{{ $match->id }}"
+                                                   class="prono-choice-input js-actual-home-bonus-input"
+                                                   data-match-id="{{ $match->id }}"
                                                    @checked($match->actual_home_bonus === $value)
                                                    @disabled($season->is_locked)>
 
@@ -189,13 +180,13 @@
 
                                 <td class="text-center">
                                     <div class="prono-choice-group">
-                                        @foreach(['o' => 'O', '-' => '-', 'd' => 'D'] as $value => $label)
+                                        @foreach($journee->bonusOptionShortLabels() as $value => $label)
                                             <input type="radio"
                                                    id="actual_away_bonus_{{ $match->id }}_{{ $value }}"
                                                    name="matches[{{ $match->id }}][actual_away_bonus]"
                                                    value="{{ $value }}"
-                                                   class="prono-choice-input"
-                                                   data-match-result-id="{{ $match->id }}"
+                                                   class="prono-choice-input js-actual-away-bonus-input"
+                                                   data-match-id="{{ $match->id }}"
                                                    @checked($match->actual_away_bonus === $value)
                                                    @disabled($season->is_locked)>
 
@@ -210,25 +201,34 @@
                                 <td class="exception-deadline-cell">
                                     <div class="input-group input-group-sm">
                                         <input type="datetime-local"
-                                               id="exception_deadline_{{ $match->id }}"
                                                name="deadline_exceptions[{{ $match->id }}][prediction_deadline]"
                                                value="{{ $exceptionDeadline ? $exceptionDeadline->format('Y-m-d\TH:i') : '' }}"
-                                               class="form-control exception-deadline-input"
+                                               class="form-control exception-deadline-input js-exception-deadline-input"
+                                               data-match-id="{{ $match->id }}"
                                                tabindex="-1"
                                                @disabled($season->is_locked)>
 
                                         @unless($season->is_locked)
                                             <button type="button"
-                                                    class="btn btn-outline-secondary clear-exception-deadline-button"
-                                                    data-target="exception_deadline_{{ $match->id }}"
-                                                    title="Supprimer la date limite exceptionnelle"
-                                                    aria-label="Supprimer la date limite exceptionnelle"
-                                                    tabindex="-1">
+                                                    class="btn btn-outline-secondary js-clear-exception-deadline-button"
+                                                    data-match-id="{{ $match->id }}"
+                                                    title="Effacer la date limite exceptionnelle"
+                                                    aria-label="Effacer la date limite exceptionnelle">
                                                 ×
                                             </button>
                                         @endunless
                                     </div>
                                 </td>
+
+                                @unless($season->is_locked)
+                                    <td class="text-end">
+                                        <button type="button"
+                                                class="btn btn-sm btn-outline-secondary rounded-pill fw-bold js-clear-result-button"
+                                                data-match-id="{{ $match->id }}">
+                                            Effacer résultat
+                                        </button>
+                                    </td>
+                                @endunless
                             </tr>
                         @endforeach
                     </tbody>
@@ -270,19 +270,6 @@
         grid-template-columns: minmax(170px, 1fr) 24px minmax(170px, 1fr);
     }
 
-    .result-cell {
-        min-width: 170px;
-    }
-
-    .clear-match-result-button {
-        min-width: 32px;
-        width: 32px;
-        height: 32px;
-        padding: 0;
-        line-height: 1;
-        font-weight: 700;
-    }
-
     .exception-deadline-cell {
         min-width: 250px;
         width: 250px;
@@ -292,8 +279,9 @@
         min-width: 190px;
     }
 
-    .clear-exception-deadline-button {
-        min-width: 36px;
+    .js-clear-exception-deadline-button {
+        min-width: 2.5rem;
+        font-size: 1.15rem;
         line-height: 1;
     }
 </style>
@@ -327,48 +315,53 @@
             });
         });
 
-        document.querySelectorAll('.clear-match-result-button').forEach(function (button) {
+        document.querySelectorAll('.js-clear-exception-deadline-button').forEach(function (button) {
             button.addEventListener('click', function () {
                 const matchId = button.dataset.matchId;
 
-                if (!matchId) {
+                const input = document.querySelector(
+                    '.js-exception-deadline-input[data-match-id="' + matchId + '"]'
+                );
+
+                if (!input || input.disabled) {
                     return;
                 }
 
-                document.querySelectorAll('[data-match-result-id="' + matchId + '"]').forEach(function (input) {
-                    if (input.disabled) {
-                        return;
-                    }
-
-                    if (input.type === 'radio') {
-                        input.checked = false;
-                    } else {
-                        input.value = '';
-                    }
-
-                    input.dispatchEvent(new Event('change', { bubbles: true }));
-                });
-
-                const triesInput = document.querySelector('.admin-tries-input[data-match-result-id="' + matchId + '"]');
-
-                if (triesInput && !triesInput.disabled) {
-                    triesInput.focus();
-                    triesInput.select();
-                }
+                input.value = '';
+                input.focus();
             });
         });
 
-        document.querySelectorAll('.clear-exception-deadline-button').forEach(function (button) {
+        document.querySelectorAll('.js-clear-result-button').forEach(function (button) {
             button.addEventListener('click', function () {
-                const target = document.getElementById(button.dataset.target);
+                const matchId = button.dataset.matchId;
 
-                if (!target || target.disabled) {
-                    return;
+                document.querySelectorAll(
+                    '.js-actual-result-input[data-match-id="' + matchId + '"]'
+                ).forEach(function (input) {
+                    input.checked = false;
+                });
+
+                document.querySelectorAll(
+                    '.js-actual-home-bonus-input[data-match-id="' + matchId + '"]'
+                ).forEach(function (input) {
+                    input.checked = false;
+                });
+
+                document.querySelectorAll(
+                    '.js-actual-away-bonus-input[data-match-id="' + matchId + '"]'
+                ).forEach(function (input) {
+                    input.checked = false;
+                });
+
+                const triesInput = document.querySelector(
+                    '.js-actual-tries-input[data-match-id="' + matchId + '"]'
+                );
+
+                if (triesInput && !triesInput.disabled) {
+                    triesInput.value = '';
+                    triesInput.focus();
                 }
-
-                target.value = '';
-                target.dispatchEvent(new Event('change', { bubbles: true }));
-                target.focus();
             });
         });
     });

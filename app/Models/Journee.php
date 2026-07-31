@@ -172,19 +172,24 @@ class Journee extends Model
 
     public function resultOptionShortLabels(): array
     {
-        return match ($this->type) {
-            'prod2_final',
-            'top14_semifinal',
-            'top14_final' => [
-                'v' => 'Éq. 1',
-                'd' => 'Éq. 2',
-            ],
-            default => [
-                'v' => 'V',
-                'n' => 'N',
-                'd' => 'D',
-            ],
-        };
+        $labels = [
+            'v' => 'v',
+            'n' => 'n',
+            'd' => 'd',
+        ];
+
+        return collect($this->allowedResultOptions())
+            ->mapWithKeys(fn (string $result) => [$result => $labels[$result] ?? $result])
+            ->all();
+    }
+
+    public function bonusOptionShortLabels(): array
+    {
+        return [
+            'o' => 'o',
+            '-' => '-',
+            'd' => 'd',
+        ];
     }
 
     public function resultOptionLabel(string $result): string
