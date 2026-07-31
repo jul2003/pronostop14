@@ -34,6 +34,13 @@
         && $npmAvailable
         && $composerAuditOk
         && $npmAuditOk;
+
+    $appTimezone = config('app.timezone', 'UTC');
+    $phpTimezone = date_default_timezone_get();
+
+    $realSiteNow = \Carbon\CarbonImmutable::now($appTimezone);
+    $realUtcNow = \Carbon\CarbonImmutable::now('UTC');
+    $realPhpNow = \Carbon\CarbonImmutable::now($phpTimezone);
 @endphp
 
 <div id="page-top" class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4">
@@ -46,7 +53,7 @@
             Maintenance
         </h2>
         <p class="text-muted mb-0">
-            Audit des versions, dépendances Composer/NPM et état Git du projet.
+            Audit des versions, dépendances Composer/NPM, état Git et heure réelle du site.
         </p>
     </div>
 
@@ -73,6 +80,99 @@
         Les mises à jour Composer/NPM ne devront pas être lancées directement depuis l’interface web en production.
     </div>
 @endif
+
+<div class="rugby-card p-4 mb-4 border border-success-subtle">
+    <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-3">
+        <div>
+            <h3 class="h5 fw-bold mb-1">
+                Heure réelle du site
+            </h3>
+
+            <p class="text-muted mb-0">
+                Cette heure vient directement du serveur / VPS. Elle ne tient pas compte de la date simulée de l’application.
+            </p>
+        </div>
+
+        <span class="badge rounded-pill text-bg-success px-3 py-2">
+            Non simulée
+        </span>
+    </div>
+
+    <div class="row g-3">
+        <div class="col-md-6 col-xl-3">
+            <div class="border rounded-4 p-3 h-100">
+                <div class="text-muted small fw-bold text-uppercase mb-1">
+                    Heure Laravel
+                </div>
+
+                <div class="h5 fw-bold mb-1">
+                    {{ $realSiteNow->format('d/m/Y H:i:s') }}
+                </div>
+
+                <div class="text-muted small">
+                    Fuseau : {{ $appTimezone }} · UTC{{ $realSiteNow->format('P') }}
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6 col-xl-3">
+            <div class="border rounded-4 p-3 h-100">
+                <div class="text-muted small fw-bold text-uppercase mb-1">
+                    Heure UTC
+                </div>
+
+                <div class="h5 fw-bold mb-1">
+                    {{ $realUtcNow->format('d/m/Y H:i:s') }}
+                </div>
+
+                <div class="text-muted small">
+                    Référence universelle
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6 col-xl-3">
+            <div class="border rounded-4 p-3 h-100">
+                <div class="text-muted small fw-bold text-uppercase mb-1">
+                    Heure PHP serveur
+                </div>
+
+                <div class="h5 fw-bold mb-1">
+                    {{ $realPhpNow->format('d/m/Y H:i:s') }}
+                </div>
+
+                <div class="text-muted small">
+                    Fuseau PHP : {{ $phpTimezone }} · UTC{{ $realPhpNow->format('P') }}
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6 col-xl-3">
+            <div class="border rounded-4 p-3 h-100">
+                <div class="text-muted small fw-bold text-uppercase mb-1">
+                    Timestamp
+                </div>
+
+                <div class="h5 fw-bold mb-1">
+                    {{ $realSiteNow->timestamp }}
+                </div>
+
+                <div class="text-muted small">
+                    Temps Unix du serveur
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="alert alert-secondary mt-3 mb-0">
+        <div class="fw-bold">
+            Contrôle VPS
+        </div>
+
+        Cette zone utilise <code>CarbonImmutable::now()</code> et non <code>AppDateService</code>.
+        Elle permet de vérifier que le VPS, PHP et le fuseau Laravel sont bien cohérents.
+    </div>
+</div>
 
 @if(auth()->user()->isSuperAdmin())
     <div class="rugby-card p-4 mb-4 border border-primary-subtle">
