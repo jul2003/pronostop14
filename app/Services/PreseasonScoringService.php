@@ -10,7 +10,6 @@ use App\Models\SeasonPreseasonUserBonusScore;
 use App\Models\User;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Str;
 
 class PreseasonScoringService
 {
@@ -83,6 +82,15 @@ class PreseasonScoringService
             $prediction->update([
                 'is_correct' => null,
                 'points' => 0,
+            ]);
+
+            return;
+        }
+
+        if ($question->answer_type === 'free_text') {
+            $prediction->update([
+                'is_correct' => $prediction->is_correct,
+                'points' => $prediction->is_correct === true ? (int) $question->points : 0,
             ]);
 
             return;
@@ -227,11 +235,6 @@ class PreseasonScoringService
         SeasonPreseasonPrediction $prediction,
         SeasonPreseasonQuestion $question
     ): bool {
-        if ($question->answer_type === 'free_text') {
-            return $this->normalizeText($prediction->text_answer)
-                === $this->normalizeText($question->result_text_answer);
-        }
-
         return $prediction->club_id !== null
             && (int) $prediction->club_id === (int) $question->result_club_id;
     }
@@ -278,13 +281,5 @@ class PreseasonScoringService
                 ]
             );
         }
-    }
-
-    private function normalizeText(?string $value): string
-    {
-        return Str::of($value ?? '')
-            ->trim()
-            ->lower()
-            ->toString();
     }
 }

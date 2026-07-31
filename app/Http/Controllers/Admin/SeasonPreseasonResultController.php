@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Season;
+use App\Models\SeasonPreseasonPrediction;
 use App\Models\SeasonPreseasonQuestion;
 use App\Services\PreseasonScoringService;
 use Illuminate\Http\Request;
@@ -16,8 +17,14 @@ class SeasonPreseasonResultController extends Controller
 
         $questions = $season->preseasonQuestions()
             ->where('is_active', true)
-            ->with('resultClub')
+            ->with([
+                'resultClub',
+                'predictions.user',
+            ])
             ->orderBy('position')
+            ->get();
+
+        $players = $season->players()
             ->get();
 
         $top14Clubs = $season->clubs()
@@ -37,6 +44,7 @@ class SeasonPreseasonResultController extends Controller
         return view('admin.seasons.preseason-results', [
             'season' => $season,
             'questions' => $questions,
+            'players' => $players,
             'top14Clubs' => $top14Clubs,
             'prod2Clubs' => $prod2Clubs,
             'seasonClubs' => $seasonClubs,
@@ -58,6 +66,9 @@ class SeasonPreseasonResultController extends Controller
             'results' => ['nullable', 'array'],
             'results.*.club_id' => ['nullable', 'integer', 'exists:clubs,id'],
             'results.*.text_answer' => ['nullable', 'string', 'max:255'],
+            'free_text_corrections' => ['nullable', 'array'],
+            'free_text_corrections.*' => ['nullable', 'array'],
+            'free_text_corrections.*.*' => ['nullable', 'in:pending,1,0'],
             'lock_season' => ['nullable', 'boolean'],
         ]);
 
@@ -94,6 +105,12 @@ class SeasonPreseasonResultController extends Controller
             ]);
         }
 
+        $this->applyManualFreeTextCorrections(
+            $season,
+            $questions,
+            $data['free_text_corrections'] ?? []
+        );
+
         $scoringService->recalculateSeason($season);
 
         if ($request->boolean('lock_season')) {
@@ -103,12 +120,53 @@ class SeasonPreseasonResultController extends Controller
 
             return redirect()
                 ->route('admin.seasons.preseason-results.edit', $season)
-                ->with('success', 'Résultats avant-saison enregistrés, points recalculés et saison verrouillée.');
+                ->with('success', 'Résultats avant-saison enregistrés, corrections manuelles appliquées, points recalculés et saison verrouillée.');
         }
 
         return redirect()
             ->route('admin.seasons.preseason-results.edit', $season)
-            ->with('success', 'Résultats avant-saison enregistrés et points recalculés.');
+            ->with('success', 'Résultats avant-saison enregistrés, corrections manuelles appliquées et points recalculés.');
+    }
+
+    private function applyManualFreeTextCorrections(
+        Season $season,
+        $questions,
+        array $corrections
+    ): void {
+        $freeTextQuestions = $questions
+            ->filter(fn (SeasonPreseasonQuestion $question) => $question->answer_type === 'free_text');
+
+        foreach ($freeTextQuestions as $question) {
+            $questionCorrections = $corrections[$question->id] ?? [];
+
+            $predictions = SeasonPreseasonPrediction::where('season_id', $season->id)
+                ->where('question_id', $question->id)
+                ->get();
+
+            foreach ($predictions as $prediction) {
+                if (! $question->hasOfficialResult()) {
+                    $prediction->update([
+                        'is_correct' => null,
+                        'points' => 0,
+                    ]);
+
+                    continue;
+                }
+
+                $value = $questionCorrections[$prediction->user_id] ?? 'pending';
+
+                $isCorrect = match ((string) $value) {
+                    '1' => true,
+                    '0' => false,
+                    default => null,
+                };
+
+                $prediction->update([
+                    'is_correct' => $isCorrect,
+                    'points' => $isCorrect === true ? (int) $question->points : 0,
+                ]);
+            }
+        }
     }
 
     private function validateClubAnswer(
