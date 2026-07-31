@@ -48,18 +48,6 @@
     </div>
 @endif
 
-@if(session('error'))
-    <div class="alert alert-danger">
-        {{ session('error') }}
-    </div>
-@endif
-
-@if(session('success'))
-    <div class="alert alert-success">
-        {{ session('success') }}
-    </div>
-@endif
-
 @if($journees->isEmpty())
 
     <div class="rugby-card p-4">
@@ -95,6 +83,7 @@
                         <th>Journée</th>
                         <th>Type</th>
                         <th class="text-center">Premier match</th>
+                        <th class="text-center">Matchs / résultats</th>
                         <th class="text-center">Pronos</th>
                         <th class="text-end">Actions</th>
                     </tr>
@@ -107,6 +96,22 @@
                                 && $currentAppDateTime->greaterThanOrEqualTo($journee->first_match_at);
 
                             $preparationIsLocked = $season->is_locked || $journeeHasStarted;
+
+                            $expectedMatchesCount = $journee->expectedMatchesCount();
+                            $matchesCount = (int) ($journee->matches_count ?? 0);
+                            $finishedMatchesCount = (int) ($journee->finished_matches_count ?? 0);
+
+                            $progressBadgeClass = 'text-bg-secondary';
+
+                            if ($expectedMatchesCount !== null) {
+                                if ($matchesCount < (int) $expectedMatchesCount) {
+                                    $progressBadgeClass = 'text-bg-danger';
+                                } elseif ($finishedMatchesCount < $matchesCount) {
+                                    $progressBadgeClass = 'text-bg-warning';
+                                } else {
+                                    $progressBadgeClass = 'text-bg-success';
+                                }
+                            }
                         @endphp
 
                         <tr>
@@ -136,6 +141,18 @@
                                 @else
                                     <span class="badge bg-danger">
                                         Manquant
+                                    </span>
+                                @endif
+                            </td>
+
+                            <td class="text-center">
+                                @if($expectedMatchesCount === null)
+                                    <span class="badge rounded-pill text-bg-secondary">
+                                        —
+                                    </span>
+                                @else
+                                    <span class="badge rounded-pill {{ $progressBadgeClass }}">
+                                        {{ $matchesCount }}/{{ $finishedMatchesCount }}
                                     </span>
                                 @endif
                             </td>

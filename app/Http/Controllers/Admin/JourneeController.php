@@ -21,6 +21,12 @@ class JourneeController extends Controller
         $season = $this->resolveSeason($season);
 
         $journees = $season->journees()
+            ->withCount([
+                'matches',
+                'matches as finished_matches_count' => function ($query) {
+                    $query->where('is_finished', true);
+                },
+            ])
             ->orderByRaw("
                 CASE
                     WHEN type = 'preseason' THEN 0
@@ -34,6 +40,10 @@ class JourneeController extends Controller
                 END
             ")
             ->get();
+
+        $journees->each(function (Journee $journee) use ($season) {
+            $journee->setRelation('season', $season);
+        });
 
         return view('admin.journees.season', [
             'season' => $season,
@@ -127,10 +137,6 @@ class JourneeController extends Controller
     private function previousJourneeForFirstMatchSuggestion(Season $season, Journee $journee): ?Journee
     {
         if ($journee->type === 'preseason') {
-            return null;
-        }
-
-        if ($journee->type === 'regular' && (int) $journee->number <= 1) {
             return null;
         }
 

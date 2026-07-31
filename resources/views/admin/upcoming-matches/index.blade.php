@@ -21,7 +21,7 @@
     </h2>
 
     <p class="text-muted mb-0">
-        Prochaines journées à préparer pour la saison active. Tu peux aussi activer ou désactiver la saisie des pronostics.
+        Prochaines journées à préparer pour la saison active. Tu peux créer les matchs et activer ou désactiver la saisie des pronostics.
     </p>
 </div>
 
@@ -57,7 +57,6 @@
                             <th>Journée</th>
                             <th class="text-center">Premier match</th>
                             <th class="text-center">Matchs</th>
-                            <th class="text-center">Résultats</th>
                             <th class="text-center">Saisie pronos</th>
                             <th class="text-end">Actions</th>
                         </tr>
@@ -67,6 +66,7 @@
                         @foreach($journees as $journee)
                             @php
                                 $expectedMatchesCount = $journee->expectedMatchesCount();
+                                $matchesCount = (int) ($journee->matches_count ?? 0);
 
                                 $firstMatchDateIsMissing = $journee->first_match_at === null;
 
@@ -74,6 +74,12 @@
                                     && $currentAppDateTime->greaterThanOrEqualTo($journee->first_match_at);
 
                                 $preparationIsLocked = $season->is_locked || $journeeHasStarted;
+
+                                $matchCountClass = '';
+
+                                if ($expectedMatchesCount !== null && $matchesCount < (int) $expectedMatchesCount) {
+                                    $matchCountClass = 'text-danger fw-bold';
+                                }
                             @endphp
 
                             <tr>
@@ -98,17 +104,13 @@
                                 </td>
 
                                 <td class="text-center">
-                                    <span class="@if($expectedMatchesCount !== null && $journee->matches_count < $expectedMatchesCount) text-danger fw-bold @endif">
-                                        {{ $journee->matches_count }}
+                                    <span class="{{ $matchCountClass }}">
+                                        {{ $matchesCount }}
 
                                         @if($expectedMatchesCount !== null)
                                             / {{ $expectedMatchesCount }}
                                         @endif
                                     </span>
-                                </td>
-
-                                <td class="text-center">
-                                    {{ $journee->finished_matches_count }} / {{ $journee->matches_count }}
                                 </td>
 
                                 <td class="text-center">
@@ -155,16 +157,11 @@
                                                 Matchs
                                             </span>
                                         @else
-                                            <a href="{{ route('admin.seasons.journees.matches', [$season, $journee]) }}"
+                                            <a href="{{ route('admin.seasons.journees.matches', [$season, $journee, 'from' => 'upcoming-matches']) }}"
                                                class="btn btn-sm btn-outline-primary rounded-pill fw-bold">
                                                 Matchs
                                             </a>
                                         @endif
-
-                                        <a href="{{ route('admin.seasons.journees.results', [$season, $journee]) }}"
-                                           class="btn btn-sm btn-outline-warning rounded-pill fw-bold">
-                                            Résultats
-                                        </a>
 
                                         @if($firstMatchDateIsMissing && ! $season->is_locked)
                                             <a href="{{ route('admin.seasons.journees.edit', [$season, $journee]) }}"

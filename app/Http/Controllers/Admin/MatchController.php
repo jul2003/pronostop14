@@ -3,11 +3,9 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\Club;
 use App\Models\Journee;
 use App\Models\MatchGame;
 use App\Models\MatchPredictionDeadlineException;
-use App\Models\Prono;
 use App\Models\Season;
 use App\Services\ScoringService;
 use Illuminate\Http\Request;
@@ -122,7 +120,7 @@ class MatchController extends Controller
         ]);
 
         return redirect()
-            ->route('admin.seasons.journees.matches', [$season, $journee])
+            ->route('admin.seasons.journees.matches', $this->matchesPageRouteParameters($season, $journee, $request))
             ->with('success', 'Match ajouté.');
     }
 
@@ -188,7 +186,6 @@ class MatchController extends Controller
             'matches.*.actual_tries' => ['nullable', 'integer', 'min:0'],
             'matches.*.actual_home_bonus' => ['nullable', 'in:o,-,d'],
             'matches.*.actual_away_bonus' => ['nullable', 'in:o,-,d'],
-
             'deadline_exceptions' => ['nullable', 'array'],
             'deadline_exceptions.*.prediction_deadline' => ['nullable', 'date'],
         ]);
@@ -381,8 +378,19 @@ class MatchController extends Controller
         }
 
         return redirect()
-            ->route('admin.seasons.journees.matches', [$season, $journee])
+            ->route('admin.seasons.journees.matches', $this->matchesPageRouteParameters($season, $journee, $request))
             ->with('success', 'Matchs ajoutés.');
+    }
+
+    private function matchesPageRouteParameters(Season $season, Journee $journee, Request $request): array
+    {
+        $parameters = [$season, $journee];
+
+        if ($request->query('from') === 'upcoming-matches' || $request->input('from') === 'upcoming-matches') {
+            $parameters['from'] = 'upcoming-matches';
+        }
+
+        return $parameters;
     }
 
     private function ensureJourneeBelongsToSeason(Season $season, Journee $journee): void

@@ -9,13 +9,23 @@
         fn ($club) => in_array((int) $club->id, $usedClubIds, true)
     );
 
-    $backUrl = route('admin.seasons.journees', $season);
-    $backLabel = 'Retour aux journées';
+    $fromUpcomingMatches = request('from') === 'upcoming-matches';
 
-    if (request('from') === 'upcoming-matches') {
-        $backUrl = route('admin.upcoming-matches.index');
-        $backLabel = 'Retour aux matchs à saisir';
-    }
+    $backUrl = $fromUpcomingMatches
+        ? route('admin.upcoming-matches.index')
+        : route('admin.seasons.journees', $season);
+
+    $backLabel = $fromUpcomingMatches
+        ? 'Retour aux matchs à saisir'
+        : 'Retour aux journées';
+
+    $matchesRouteParameters = $fromUpcomingMatches
+        ? [$season, $journee, 'from' => 'upcoming-matches']
+        : [$season, $journee];
+
+    $destroyRouteParameters = fn ($match) => $fromUpcomingMatches
+        ? [$match, 'from' => 'upcoming-matches']
+        : [$match];
 
     $preparationIsLocked = $season->is_locked || $journee->isLocked();
 @endphp
@@ -74,20 +84,7 @@
     </div>
 @endif
 
-@if(session('error'))
-    <div class="alert alert-danger">
-        {{ session('error') }}
-    </div>
-@endif
-
-@if(session('success'))
-    <div class="alert alert-success">
-        {{ session('success') }}
-    </div>
-@endif
-
 <div class="row g-4">
-
     <div class="col-lg-5">
         <div class="rugby-card p-4">
             <div class="d-flex justify-content-between align-items-center mb-3">
@@ -101,13 +98,10 @@
             </div>
 
             @if($availableClubs->count() < 2)
-
                 <div class="alert alert-success mb-0">
                     Tous les clubs disponibles ont déjà été utilisés pour cette journée.
                 </div>
-
             @else
-
                 <div id="availableClubs" class="club-picker">
                     @foreach($availableClubs as $club)
                         <button type="button"
@@ -117,19 +111,15 @@
                                 @disabled($preparationIsLocked)>
 
                             <div class="d-flex align-items-center gap-2">
-
                                 <img src="{{ $club->logo_url }}"
                                      alt="{{ $club->name }}"
                                      class="club-logo">
 
                                 <span>{{ $club->name }}</span>
-
                             </div>
-
                         </button>
                     @endforeach
                 </div>
-
             @endif
         </div>
     </div>
@@ -156,9 +146,15 @@
                 </div>
             @else
                 <form method="POST"
-                      action="{{ route('admin.seasons.journees.matches.storeBulk', [$season, $journee]) }}"
+                      action="{{ route('admin.seasons.journees.matches.storeBulk', $matchesRouteParameters) }}"
                       id="bulkMatchesForm">
                     @csrf
+
+                    @if($fromUpcomingMatches)
+                        <input type="hidden"
+                               name="from"
+                               value="upcoming-matches">
+                    @endif
 
                     <div id="selectedClubsInputs"></div>
 
@@ -181,7 +177,6 @@
 
     <div class="col-12">
         <div class="rugby-card p-4">
-
             <div class="d-flex justify-content-between align-items-center mb-3">
                 <h3 class="h5 fw-bold mb-0">
                     Matchs enregistrés
@@ -193,19 +188,14 @@
             </div>
 
             @if($matches->isEmpty())
-
                 <div class="alert alert-info mb-0">
                     Aucun match enregistré pour cette journée.
                 </div>
-
             @else
-
                 <ul id="matchesList" class="list-group">
                     @foreach($matches as $match)
-
                         <li class="list-group-item d-flex justify-content-between align-items-center"
                             data-id="{{ $match->id }}">
-
                             <div class="d-flex align-items-center gap-3">
                                 @if($preparationIsLocked)
                                     <span class="text-muted">
@@ -227,7 +217,7 @@
 
                             @unless($preparationIsLocked)
                                 <form method="POST"
-                                      action="{{ route('admin.matches.destroy', $match) }}">
+                                      action="{{ route('admin.matches.destroy', $destroyRouteParameters($match)) }}">
                                     @csrf
                                     @method('DELETE')
 
@@ -236,17 +226,12 @@
                                     </button>
                                 </form>
                             @endunless
-
                         </li>
-
                     @endforeach
                 </ul>
-
             @endif
-
         </div>
     </div>
-
 </div>
 
 @endsection
@@ -257,7 +242,6 @@
 
         <script>
             const selectedClubs = [];
-
             const availableClubs = document.getElementById('availableClubs');
             const draftMatches = document.getElementById('draftMatches');
             const selectedClubsInputs = document.getElementById('selectedClubsInputs');
@@ -321,13 +305,16 @@
                         const away = selectedClubs[i + 1];
 
                         const item = document.createElement('div');
+
                         item.className = 'list-group-item';
 
                         const title = document.createElement('div');
+
                         title.className = 'fw-bold mb-2';
                         title.textContent = `Match ${Math.floor(i / 2) + 1}`;
 
                         const clubsWrapper = document.createElement('div');
+
                         clubsWrapper.className = 'd-flex flex-wrap gap-2';
 
                         clubsWrapper.appendChild(
@@ -431,12 +418,11 @@
                     animation: 150,
                     handle: '.drag-handle',
                     ghostClass: 'opacity-50',
-
                     onEnd: function () {
                         const matches = [...list.querySelectorAll('li')]
                             .map(item => item.dataset.id);
 
-                        fetch("{{ route('admin.seasons.journees.matches.reorder', [$season, $journee]) }}", {
+                        fetch("{{ route('admin.seasons.journees.matches.reorder', $matchesRouteParameters) }}", {
                             method: 'POST',
                             headers: {
                                 'Content-Type': 'application/json',
