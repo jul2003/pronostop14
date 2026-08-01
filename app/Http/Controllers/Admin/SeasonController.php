@@ -69,8 +69,8 @@ class SeasonController extends Controller
             ]);
 
             if (
-                $previousActiveSeason &&
-                $previousActiveSeason->journee_scoring_setup_hash === $journeeHash
+                $previousActiveSeason
+                && $previousActiveSeason->journee_scoring_setup_hash === $journeeHash
             ) {
                 $scoringSetup->copyFromSeason($previousActiveSeason, $season);
             } else {
@@ -78,8 +78,8 @@ class SeasonController extends Controller
             }
 
             if (
-                $previousActiveSeason &&
-                $previousActiveSeason->preseason_setup_hash === $preseasonHash
+                $previousActiveSeason
+                && $previousActiveSeason->preseason_setup_hash === $preseasonHash
             ) {
                 $preseasonSetup->copyFromSeason($previousActiveSeason, $season);
             } else {
@@ -338,18 +338,18 @@ class SeasonController extends Controller
             ->keyBy('id');
 
         $selectedPlayerIds = $data['players'] ?? [];
-
         $newPlayerDeadline = $preseasonDeadlineService->deadlineForNewParticipant($season);
 
         $syncData = [];
 
         foreach ($selectedPlayerIds as $index => $userId) {
-            $currentPlayer = $currentPlayers->get($userId);
+            $currentPlayer = $currentPlayers->get((int) $userId);
 
             $syncData[$userId] = [
                 'display_order' => $currentPlayer?->pivot?->display_order ?? $index + 1,
-                'preseason_prediction_deadline' => $currentPlayer?->pivot?->preseason_prediction_deadline
-                    ?: $newPlayerDeadline?->format('Y-m-d H:i:s'),
+                'preseason_prediction_deadline' => $currentPlayer
+                    ? $currentPlayer->pivot->preseason_prediction_deadline
+                    : $newPlayerDeadline?->format('Y-m-d H:i:s'),
             ];
         }
 
