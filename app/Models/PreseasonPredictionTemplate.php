@@ -9,6 +9,8 @@ class PreseasonPredictionTemplate extends Model
     protected $fillable = [
         'label',
         'answer_type',
+        'auto_result_rule',
+        'auto_result_journee_number',
         'correction_group',
         'correction_mode',
         'scoring_profile_id',
@@ -18,6 +20,7 @@ class PreseasonPredictionTemplate extends Model
 
     protected $casts = [
         'is_active' => 'boolean',
+        'auto_result_journee_number' => 'integer',
     ];
 
     public function profile()

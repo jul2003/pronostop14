@@ -6,12 +6,18 @@ use Illuminate\Database\Eloquent\Model;
 
 class SeasonPreseasonQuestion extends Model
 {
+    public const AUTO_RESULT_RULE_TOP14_LEADER = 'top14_leader';
+
+    public const AUTO_RESULT_RULE_TOP14_LAST = 'top14_last';
+
     protected $fillable = [
         'season_id',
         'source_template_id',
         'scoring_profile_id',
         'label',
         'answer_type',
+        'auto_result_rule',
+        'auto_result_journee_number',
         'correction_group',
         'correction_mode',
         'points',
@@ -25,6 +31,7 @@ class SeasonPreseasonQuestion extends Model
     protected $casts = [
         'is_active' => 'boolean',
         'result_recorded_at' => 'datetime',
+        'auto_result_journee_number' => 'integer',
     ];
 
     public function season()
@@ -79,5 +86,23 @@ class SeasonPreseasonQuestion extends Model
         }
 
         return $this->result_club_id !== null;
+    }
+
+    public function supportsAutoResult(): bool
+    {
+        return $this->answer_type === 'top14_club';
+    }
+
+    public function autoResultRuleLabel(): string
+    {
+        return self::autoResultRuleOptions()[$this->auto_result_rule] ?? 'Aucun';
+    }
+
+    public static function autoResultRuleOptions(): array
+    {
+        return [
+            self::AUTO_RESULT_RULE_TOP14_LEADER => 'Leader TOP 14 à la journée cible',
+            self::AUTO_RESULT_RULE_TOP14_LAST => 'Dernier TOP 14 à la journée cible',
+        ];
     }
 }

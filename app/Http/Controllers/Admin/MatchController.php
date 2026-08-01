@@ -7,8 +7,12 @@ use App\Models\Journee;
 use App\Models\MatchGame;
 use App\Models\MatchPredictionDeadlineException;
 use App\Models\Season;
+use App\Models\SeasonPreseasonQuestion;
+use App\Services\PreseasonAutoResultService;
+use App\Services\PreseasonScoringService;
 use App\Services\ScoringService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 
 class MatchController extends Controller
@@ -28,7 +32,10 @@ class MatchController extends Controller
         ]);
 
         $matches = $journee->matches()
-            ->with(['homeClub', 'awayClub'])
+            ->with([
+                'homeClub',
+                'awayClub',
+            ])
             ->orderBy('position')
             ->orderBy('id')
             ->get();
@@ -81,6 +88,7 @@ class MatchController extends Controller
         $top14ClubIds = $season->clubs()
             ->wherePivot('competition', 'top14')
             ->pluck('clubs.id')
+            ->map(fn ($id) => (int) $id)
             ->toArray();
 
         if (
@@ -170,7 +178,9 @@ class MatchController extends Controller
         Request $request,
         Season $season,
         Journee $journee,
-        ScoringService $scoringService
+        ScoringService $scoringService,
+        PreseasonAutoResultService $preseasonAutoResultService,
+        PreseasonScoringService $preseasonScoringService
     ) {
         $this->ensureJourneeBelongsToSeason($season, $journee);
 
@@ -186,8 +196,13 @@ class MatchController extends Controller
             'matches.*.actual_tries' => ['nullable', 'integer', 'min:0'],
             'matches.*.actual_home_bonus' => ['nullable', 'in:o,-,d'],
             'matches.*.actual_away_bonus' => ['nullable', 'in:o,-,d'],
+
             'deadline_exceptions' => ['nullable', 'array'],
             'deadline_exceptions.*.prediction_deadline' => ['nullable', 'date'],
+
+            'accept_preseason_auto_result' => ['nullable', 'boolean'],
+            'auto_result_question_id' => ['nullable', 'integer', 'exists:season_preseason_questions,id'],
+            'auto_result_club_id' => ['nullable', 'integer', 'exists:clubs,id'],
         ]);
 
         foreach ($data['deadline_exceptions'] ?? [] as $matchId => $exceptionData) {
@@ -239,7 +254,11 @@ class MatchController extends Controller
             }
 
             $match->refresh();
-            $match->load('journee.season.scoringRules', 'pronos.user');
+
+            $match->load([
+                'journee.season.scoringRules',
+                'pronos.user',
+            ]);
 
             foreach ($match->pronos as $prono) {
                 $prono->update([
@@ -257,9 +276,45 @@ class MatchController extends Controller
 
         $scoringService->updateJourneeRanking($journee);
 
-        return redirect()
+        $acceptedAutoResult = null;
+
+        if ($request->boolean('accept_preseason_auto_result')) {
+            $acceptedAutoResult = $this->acceptPreseasonAutoResult(
+                $season,
+                $data,
+                $preseasonAutoResultService,
+                $preseasonScoringService
+            );
+
+            if (! $acceptedAutoResult['success']) {
+                return redirect()
+                    ->route('admin.seasons.journees.results', [$season, $journee])
+                    ->with('error', $acceptedAutoResult['message']);
+            }
+        }
+
+        $autoResultSuggestions = $preseasonAutoResultService
+            ->suggestionsAfterJourneeResultsSaved($season, $journee);
+
+        if ($acceptedAutoResult) {
+            $successMessage = $acceptedAutoResult['message'];
+        } else {
+            $successMessage = 'Résultats et exceptions de dates enregistrés.';
+
+            if (! empty($autoResultSuggestions)) {
+                $successMessage .= ' Résultat avant-saison détecté : validation requise.';
+            }
+        }
+
+        $redirect = redirect()
             ->route('admin.seasons.journees.results', [$season, $journee])
-            ->with('success', 'Résultats et exceptions de dates enregistrés.');
+            ->with('success', $successMessage);
+
+        if (! empty($autoResultSuggestions)) {
+            $redirect->with('preseason_auto_result_suggestions', $autoResultSuggestions);
+        }
+
+        return $redirect;
     }
 
     public function reorder(Request $request, Season $season, Journee $journee)
@@ -382,9 +437,64 @@ class MatchController extends Controller
             ->with('success', 'Matchs ajoutés.');
     }
 
+    private function acceptPreseasonAutoResult(
+        Season $season,
+        array $data,
+        PreseasonAutoResultService $preseasonAutoResultService,
+        PreseasonScoringService $preseasonScoringService
+    ): array {
+        $questionId = $data['auto_result_question_id'] ?? null;
+        $clubId = $data['auto_result_club_id'] ?? null;
+
+        if (! $questionId || ! $clubId) {
+            return [
+                'success' => false,
+                'message' => 'Résultat automatique incomplet : la question ou le club est manquant.',
+            ];
+        }
+
+        $question = $season->preseasonQuestions()
+            ->whereKey((int) $questionId)
+            ->first();
+
+        if (! $question instanceof SeasonPreseasonQuestion) {
+            return [
+                'success' => false,
+                'message' => 'La question avant-saison concernée est introuvable pour cette saison.',
+            ];
+        }
+
+        $suggestion = $preseasonAutoResultService->suggestionForQuestion($season, $question);
+
+        if (! $suggestion || (int) $suggestion['club_id'] !== (int) $clubId) {
+            return [
+                'success' => false,
+                'message' => 'Ce résultat automatique n’est plus certain. Le résultat avant-saison n’a pas été mémorisé.',
+            ];
+        }
+
+        DB::transaction(function () use ($question, $clubId, $season, $preseasonScoringService) {
+            $question->update([
+                'result_club_id' => $clubId,
+                'result_text_answer' => null,
+                'result_recorded_at' => now(),
+            ]);
+
+            $preseasonScoringService->recalculateSeason($season);
+        });
+
+        return [
+            'success' => true,
+            'message' => 'Résultat avant-saison mémorisé et points recalculés : '.$suggestion['question_label'].' → '.$suggestion['club_name'].'.',
+        ];
+    }
+
     private function matchesPageRouteParameters(Season $season, Journee $journee, Request $request): array
     {
-        $parameters = [$season, $journee];
+        $parameters = [
+            $season,
+            $journee,
+        ];
 
         if ($request->query('from') === 'upcoming-matches' || $request->input('from') === 'upcoming-matches') {
             $parameters['from'] = 'upcoming-matches';
@@ -395,7 +505,7 @@ class MatchController extends Controller
 
     private function ensureJourneeBelongsToSeason(Season $season, Journee $journee): void
     {
-        if ($journee->season_id !== $season->id) {
+        if ((int) $journee->season_id !== (int) $season->id) {
             abort(404);
         }
     }

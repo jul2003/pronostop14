@@ -2,13 +2,23 @@
 
 @section('content')
 
+@php
+    $answerTypeOptions = [
+        'top14_club' => 'Club TOP 14',
+        'prod2_club' => 'Club PRO D2',
+        'season_club' => 'Club saison',
+        'free_text' => 'Texte libre',
+    ];
+
+    $autoResultRuleOptions = $autoResultRuleOptions ?? \App\Models\SeasonPreseasonQuestion::autoResultRuleOptions();
+@endphp
+
 @include('admin.partials.back-link', [
     'href' => route('admin.seasons.index'),
     'label' => 'Retour aux saisons',
 ])
 
 <div id="page-top" class="mb-4">
-
     <div class="mt-3 text-uppercase text-primary fw-bold small">
         Administration
     </div>
@@ -23,7 +33,7 @@
                 @if($season->is_locked)
                     Cette saison est verrouillée. Les questions, groupes de correction et bonus avant-saison sont consultables uniquement.
                 @else
-                    Questions, groupes de correction et bonus avant-saison propres à cette saison.
+                    Questions, groupes de correction, bonus et détection automatique propres à cette saison.
                 @endif
             </p>
         </div>
@@ -45,29 +55,19 @@
             Saison verrouillée
         </div>
 
-        La configuration avant-saison de cette saison ne peut plus être modifiée. Pour corriger les questions, les groupes ou les bonus, il faut d’abord déverrouiller la saison depuis sa page d’édition.
+        La configuration avant-saison de cette saison ne peut plus être modifiée.
+        Pour corriger les questions, les groupes ou les bonus, il faut d’abord déverrouiller la saison depuis sa page d’édition.
     </div>
 @else
     <div class="alert alert-info">
-        Les modifications faites ici concernent uniquement cette saison. Si tu veux que cette configuration serve de référence pour les prochaines saisons, utilise le bouton Appliquer aux paramètres globaux.
+        Les modifications faites ici concernent uniquement cette saison.
+        Le calcul automatique est disponible seulement pour les questions de type <strong>Club TOP 14</strong>.
     </div>
 @endif
 
 @if($errors->any())
     <div class="alert alert-danger">
         {{ $errors->first() }}
-    </div>
-@endif
-
-@if(session('error'))
-    <div class="alert alert-danger">
-        {{ session('error') }}
-    </div>
-@endif
-
-@if(session('success'))
-    <div class="alert alert-success">
-        {{ session('success') }}
     </div>
 @endif
 
@@ -84,7 +84,7 @@
                         @if($season->is_locked)
                             Consulte les questions avant-saison propres à cette saison.
                         @else
-                            Modifie, ajoute, supprime ou réordonne les questions propres à cette saison. Les groupes de correction sont gérés dans le bloc séparé ci-dessous.
+                            Modifie, ajoute, supprime ou réordonne les questions. Pour les questions TOP 14, tu peux aussi définir le calcul automatique.
                         @endif
                     </p>
                 </div>
@@ -102,14 +102,16 @@
                     @method('PUT')
 
                     <div class="table-responsive">
-                        <table class="table align-middle mb-0">
+                        <table class="table align-middle mb-0 preseason-questions-table">
                             <thead class="table-light">
                                 <tr>
                                     <th style="width: 60px;"></th>
-                                    <th>Question</th>
-                                    <th style="width: 180px;">Type</th>
-                                    <th style="width: 260px;">Barème</th>
-                                    <th class="text-center" style="width: 110px;">Points</th>
+                                    <th style="min-width: 280px;">Question</th>
+                                    <th style="width: 170px;">Type</th>
+                                    <th style="width: 240px;">Barème</th>
+                                    <th style="width: 240px;">Calcul auto</th>
+                                    <th class="text-center" style="width: 95px;">J cible</th>
+                                    <th class="text-center" style="width: 100px;">Points</th>
                                     <th class="text-center" style="width: 90px;">Active</th>
                                     <th class="text-end" style="width: 120px;">Suppression</th>
                                 </tr>
@@ -117,6 +119,12 @@
 
                             <tbody id="seasonPreseasonQuestionsList">
                                 @foreach($questions->sortBy('position') as $question)
+                                    @php
+                                        $questionType = old("questions.{$question->id}.answer_type", $question->answer_type);
+                                        $questionAutoRule = old("questions.{$question->id}.auto_result_rule", $question->auto_result_rule);
+                                        $questionAutoJournee = old("questions.{$question->id}.auto_result_journee_number", $question->auto_result_journee_number);
+                                    @endphp
+
                                     <tr data-id="{{ $question->id }}" draggable="{{ $season->is_locked ? 'false' : 'true' }}">
                                         <td>
                                             <button type="button"
@@ -155,16 +163,12 @@
 
                                         <td>
                                             <select name="questions[{{ $question->id }}][answer_type]"
-                                                    class="form-select"
+                                                    class="form-select js-question-answer-type"
+                                                    data-question-id="{{ $question->id }}"
                                                     required
                                                     @disabled($season->is_locked)>
-                                                @foreach([
-                                                    'top14_club' => 'Club TOP 14',
-                                                    'prod2_club' => 'Club PRO D2',
-                                                    'season_club' => 'Club saison',
-                                                    'free_text' => 'Texte libre',
-                                                ] as $value => $label)
-                                                    <option value="{{ $value }}" @selected(old("questions.{$question->id}.answer_type", $question->answer_type) === $value)>
+                                                @foreach($answerTypeOptions as $value => $label)
+                                                    <option value="{{ $value }}" @selected($questionType === $value)>
                                                         {{ $label }}
                                                     </option>
                                                 @endforeach
@@ -184,6 +188,45 @@
                                                         {{ $profile->name }}
                                                     </option>
                                                 @endforeach
+                                            </select>
+                                        </td>
+
+                                        <td>
+                                            <select name="questions[{{ $question->id }}][auto_result_rule]"
+                                                    class="form-select js-auto-result-rule"
+                                                    data-question-id="{{ $question->id }}"
+                                                    @disabled($season->is_locked)>
+                                                <option value="">
+                                                    Aucun
+                                                </option>
+
+                                                @foreach($autoResultRuleOptions as $value => $label)
+                                                    <option value="{{ $value }}" @selected($questionAutoRule === $value)>
+                                                        {{ $label }}
+                                                    </option>
+                                                @endforeach
+                                            </select>
+
+                                            <div class="small text-muted mt-1 js-auto-result-help"
+                                                 data-question-id="{{ $question->id }}">
+                                                TOP 14 uniquement.
+                                            </div>
+                                        </td>
+
+                                        <td>
+                                            <select name="questions[{{ $question->id }}][auto_result_journee_number]"
+                                                    class="form-select text-center js-auto-result-journee"
+                                                    data-question-id="{{ $question->id }}"
+                                                    @disabled($season->is_locked)>
+                                                <option value="">
+                                                    —
+                                                </option>
+
+                                                @for($number = 1; $number <= 26; $number++)
+                                                    <option value="{{ $number }}" @selected((string) $questionAutoJournee === (string) $number)>
+                                                        J{{ $number }}
+                                                    </option>
+                                                @endfor
                                             </select>
                                         </td>
 
@@ -252,7 +295,9 @@
                     Ajouter une question
                 </h3>
 
-                <form method="POST" action="{{ route('admin.seasons.preseason.questions.store', $season) }}">
+                <form method="POST"
+                      action="{{ route('admin.seasons.preseason.questions.store', $season) }}"
+                      id="newPreseasonQuestionForm">
                     @csrf
 
                     <div class="row g-3 align-items-end">
@@ -274,20 +319,13 @@
                             </label>
 
                             <select name="answer_type"
-                                    class="form-select"
+                                    class="form-select js-new-question-answer-type"
                                     required>
-                                <option value="top14_club" @selected(old('answer_type') === 'top14_club')>
-                                    Club TOP 14
-                                </option>
-                                <option value="prod2_club" @selected(old('answer_type') === 'prod2_club')>
-                                    Club PRO D2
-                                </option>
-                                <option value="season_club" @selected(old('answer_type') === 'season_club')>
-                                    Club saison
-                                </option>
-                                <option value="free_text" @selected(old('answer_type') === 'free_text')>
-                                    Texte libre
-                                </option>
+                                @foreach($answerTypeOptions as $value => $label)
+                                    <option value="{{ $value }}" @selected(old('answer_type', 'top14_club') === $value)>
+                                        {{ $label }}
+                                    </option>
+                                @endforeach
                             </select>
                         </div>
 
@@ -307,6 +345,44 @@
                                         {{ $profile->name }}
                                     </option>
                                 @endforeach
+                            </select>
+                        </div>
+
+                        <div class="col-md-2">
+                            <label class="form-label fw-bold">
+                                Calcul auto
+                            </label>
+
+                            <select name="auto_result_rule"
+                                    class="form-select js-new-auto-result-rule">
+                                <option value="">
+                                    Aucun
+                                </option>
+
+                                @foreach($autoResultRuleOptions as $value => $label)
+                                    <option value="{{ $value }}" @selected(old('auto_result_rule') === $value)>
+                                        {{ $label }}
+                                    </option>
+                                @endforeach
+                            </select>
+                        </div>
+
+                        <div class="col-md-1">
+                            <label class="form-label fw-bold">
+                                J cible
+                            </label>
+
+                            <select name="auto_result_journee_number"
+                                    class="form-select text-center js-new-auto-result-journee">
+                                <option value="">
+                                    —
+                                </option>
+
+                                @for($number = 1; $number <= 26; $number++)
+                                    <option value="{{ $number }}" @selected((string) old('auto_result_journee_number') === (string) $number)>
+                                        J{{ $number }}
+                                    </option>
+                                @endfor
                             </select>
                         </div>
 
@@ -343,7 +419,8 @@
                                        id="new_question_active"
                                        @checked(old('is_active', true))>
 
-                                <label class="form-check-label fw-bold" for="new_question_active">
+                                <label class="form-check-label fw-bold"
+                                       for="new_question_active">
                                     Active
                                 </label>
                             </div>
@@ -458,7 +535,7 @@
                                                @disabled($season->is_locked)>
                                     </div>
 
-                                    <div class="col-md-4">
+                                    <div class="col-md-3">
                                         <label class="form-label fw-bold">
                                             Code
                                         </label>
@@ -470,7 +547,7 @@
                                                @disabled($season->is_locked)>
                                     </div>
 
-                                    <div class="col-md-3 d-flex align-items-end">
+                                    <div class="col-md-2 d-flex align-items-end">
                                         <div class="form-check">
                                             <input type="checkbox"
                                                    name="correction_groups[{{ $correctionGroup->id }}][is_active]"
@@ -580,7 +657,8 @@
                     Ajouter un groupe de correction
                 </h3>
 
-                <form method="POST" action="{{ route('admin.seasons.preseason.correction-groups.store', $season) }}">
+                <form method="POST"
+                      action="{{ route('admin.seasons.preseason.correction-groups.store', $season) }}">
                     @csrf
 
                     <div class="row g-3">
@@ -593,7 +671,6 @@
                                    name="label"
                                    value="{{ old('label') }}"
                                    class="form-control"
-                                   placeholder="Demi-finalistes TOP 14"
                                    required>
                         </div>
 
@@ -605,8 +682,7 @@
                             <input type="text"
                                    name="code"
                                    value="{{ old('code') }}"
-                                   class="form-control"
-                                   placeholder="top14_semifinalists">
+                                   class="form-control">
                         </div>
 
                         <div class="col-md-2">
@@ -621,7 +697,7 @@
                                    required>
                         </div>
 
-                        <div class="col-md-2 d-flex align-items-end">
+                        <div class="col-md-3 d-flex align-items-end">
                             <div class="form-check">
                                 <input type="checkbox"
                                        name="is_active"
@@ -630,20 +706,21 @@
                                        id="new_correction_group_active"
                                        @checked(old('is_active', true))>
 
-                                <label class="form-check-label fw-bold" for="new_correction_group_active">
+                                <label class="form-check-label fw-bold"
+                                       for="new_correction_group_active">
                                     Actif
                                 </label>
                             </div>
                         </div>
 
                         <div class="col-12">
-                            <label class="form-label fw-bold">
-                                Questions du groupe
-                            </label>
+                            <div class="fw-bold mb-2">
+                                Questions liées
+                            </div>
 
                             @if($questions->isEmpty())
                                 <div class="alert alert-warning mb-0">
-                                    Ajoute d’abord des questions avant de créer un groupe.
+                                    Ajoute au moins une question avant de créer un groupe.
                                 </div>
                             @else
                                 <div class="row g-2">
@@ -992,7 +1069,8 @@
                                        id="new_bonus_active"
                                        @checked(old('is_active', true))>
 
-                                <label class="form-check-label fw-bold" for="new_bonus_active">
+                                <label class="form-check-label fw-bold"
+                                       for="new_bonus_active">
                                     Actif
                                 </label>
                             </div>
@@ -1007,20 +1085,21 @@
                                        id="new_bonus_stop"
                                        @checked(old('stop_after_match'))>
 
-                                <label class="form-check-label fw-bold" for="new_bonus_stop">
+                                <label class="form-check-label fw-bold"
+                                       for="new_bonus_stop">
                                     Stop après réussite
                                 </label>
                             </div>
                         </div>
 
                         <div class="col-12">
-                            <label class="form-label fw-bold">
+                            <div class="fw-bold mb-2">
                                 Questions liées
-                            </label>
+                            </div>
 
                             @if($questions->isEmpty())
                                 <div class="alert alert-warning mb-0">
-                                    Ajoute d’abord des questions avant de lier un bonus.
+                                    Ajoute au moins une question avant de créer un bonus.
                                 </div>
                             @else
                                 <div class="row g-2">
@@ -1098,7 +1177,7 @@
                     </p>
 
                     <p class="mb-0 text-muted">
-                        Les prochaines saisons pourront repartir de ces nouveaux paramètres globaux.
+                        Les prochaines saisons pourront repartir de ces nouveaux paramètres globaux, y compris les règles de calcul automatique.
                     </p>
                 </div>
 
@@ -1149,7 +1228,21 @@
         </div>
     </div>
 </div>
+
 @endsection
+
+@push('styles')
+<style>
+    .preseason-questions-table th,
+    .preseason-questions-table td {
+        vertical-align: top;
+    }
+
+    .auto-result-disabled-note {
+        opacity: 0.7;
+    }
+</style>
+@endpush
 
 @push('scripts')
 <script>
@@ -1173,12 +1266,7 @@
         const modalElement = document.getElementById('deleteConfirmModal');
 
         if (window.bootstrap && modalElement) {
-            bootstrap.Modal.getOrCreateInstance(modalElement).show();
-            return;
-        }
-
-        if (confirm('Supprimer définitivement : ' + (label || 'cet élément') + ' ?')) {
-            form.submit();
+            window.bootstrap.Modal.getOrCreateInstance(modalElement).show();
         }
     }
 
@@ -1225,6 +1313,7 @@
 
             if (!item || !event.target.closest('.drag-handle')) {
                 event.preventDefault();
+
                 return;
             }
 
@@ -1239,6 +1328,7 @@
             }
 
             draggedItem = null;
+
             refreshPositions(container, itemSelector, positionSelector);
         });
 
@@ -1337,6 +1427,99 @@
         refreshButtonVisibility();
     }
 
+    function refreshAutoResultFieldsForQuestion(questionId) {
+        const typeSelect = document.querySelector('.js-question-answer-type[data-question-id="' + questionId + '"]');
+        const ruleSelect = document.querySelector('.js-auto-result-rule[data-question-id="' + questionId + '"]');
+        const journeeSelect = document.querySelector('.js-auto-result-journee[data-question-id="' + questionId + '"]');
+        const help = document.querySelector('.js-auto-result-help[data-question-id="' + questionId + '"]');
+
+        if (!typeSelect || !ruleSelect || !journeeSelect) {
+            return;
+        }
+
+        const isTop14 = typeSelect.value === 'top14_club';
+        const hasRule = ruleSelect.value !== '';
+
+        ruleSelect.disabled = !isTop14 || typeSelect.disabled;
+        journeeSelect.disabled = !isTop14 || !hasRule || typeSelect.disabled;
+
+        if (!isTop14) {
+            ruleSelect.value = '';
+            journeeSelect.value = '';
+        }
+
+        if (!hasRule) {
+            journeeSelect.value = '';
+        }
+
+        if (help) {
+            if (isTop14) {
+                help.textContent = hasRule ? 'Détection après enregistrement des résultats.' : 'Aucun calcul automatique.';
+            } else {
+                help.textContent = 'TOP 14 uniquement.';
+            }
+
+            help.classList.toggle('auto-result-disabled-note', !isTop14);
+        }
+    }
+
+    function setupAutoResultFields() {
+        document.querySelectorAll('.js-question-answer-type').forEach(function (typeSelect) {
+            const questionId = typeSelect.dataset.questionId;
+
+            typeSelect.addEventListener('change', function () {
+                refreshAutoResultFieldsForQuestion(questionId);
+            });
+
+            refreshAutoResultFieldsForQuestion(questionId);
+        });
+
+        document.querySelectorAll('.js-auto-result-rule').forEach(function (ruleSelect) {
+            const questionId = ruleSelect.dataset.questionId;
+
+            ruleSelect.addEventListener('change', function () {
+                refreshAutoResultFieldsForQuestion(questionId);
+            });
+
+            refreshAutoResultFieldsForQuestion(questionId);
+        });
+
+        const newTypeSelect = document.querySelector('.js-new-question-answer-type');
+        const newRuleSelect = document.querySelector('.js-new-auto-result-rule');
+        const newJourneeSelect = document.querySelector('.js-new-auto-result-journee');
+
+        function refreshNewQuestionAutoFields() {
+            if (!newTypeSelect || !newRuleSelect || !newJourneeSelect) {
+                return;
+            }
+
+            const isTop14 = newTypeSelect.value === 'top14_club';
+            const hasRule = newRuleSelect.value !== '';
+
+            newRuleSelect.disabled = !isTop14;
+            newJourneeSelect.disabled = !isTop14 || !hasRule;
+
+            if (!isTop14) {
+                newRuleSelect.value = '';
+                newJourneeSelect.value = '';
+            }
+
+            if (!hasRule) {
+                newJourneeSelect.value = '';
+            }
+        }
+
+        if (newTypeSelect) {
+            newTypeSelect.addEventListener('change', refreshNewQuestionAutoFields);
+        }
+
+        if (newRuleSelect) {
+            newRuleSelect.addEventListener('change', refreshNewQuestionAutoFields);
+        }
+
+        refreshNewQuestionAutoFields();
+    }
+
     document.addEventListener('DOMContentLoaded', function () {
         const deleteButton = document.getElementById('deleteConfirmButton');
 
@@ -1394,6 +1577,7 @@
             });
         }
 
+        setupAutoResultFields();
         setupCorrectionGroupAnchorLinks();
         setupBackToTopButton();
     });

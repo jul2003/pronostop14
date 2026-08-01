@@ -2,6 +2,10 @@
 
 @section('content')
 
+@php
+    $autoResultSuggestions = collect(session('preseason_auto_result_suggestions', []));
+@endphp
+
 <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-start gap-3 mb-4">
     <div>
         <a href="{{ route('admin.seasons.journees', $season) }}"
@@ -51,6 +55,23 @@
     </div>
 @endif
 
+@if($autoResultSuggestions->isNotEmpty())
+    <div class="alert alert-info d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3">
+        <div>
+            L’application a détecté un ou plusieurs résultats avant-saison qui semblent désormais mathématiquement certains.
+            Une validation est demandée avant mémorisation.
+        </div>
+
+        <button type="button"
+                id="preseasonAutoResultOpenButton"
+                class="btn btn-primary rounded-pill fw-bold px-4"
+                data-bs-toggle="modal"
+                data-bs-target="#preseasonAutoResultSuggestionsModal">
+            Ouvrir la validation
+        </button>
+    </div>
+@endif
+
 @if($errors->any())
     <div class="alert alert-danger">
         {{ $errors->first() }}
@@ -64,6 +85,7 @@
     </div>
 
 @else
+
     <form method="POST"
           action="{{ route('admin.seasons.journees.results.store', [$season, $journee]) }}"
           autocomplete="off">
@@ -81,9 +103,9 @@
                             <th class="text-center">Bonus ext.</th>
                             <th class="text-center">Date limite prono exceptionnelle</th>
 
-                            @unless($season->is_locked)
+                            @if(! $season->is_locked)
                                 <th class="text-end">Actions</th>
-                            @endunless
+                            @endif
                         </tr>
                     </thead>
 
@@ -208,7 +230,7 @@
                                                tabindex="-1"
                                                @disabled($season->is_locked)>
 
-                                        @unless($season->is_locked)
+                                        @if(! $season->is_locked)
                                             <button type="button"
                                                     class="btn btn-outline-secondary js-clear-exception-deadline-button"
                                                     data-match-id="{{ $match->id }}"
@@ -216,11 +238,11 @@
                                                     aria-label="Effacer la date limite exceptionnelle">
                                                 ×
                                             </button>
-                                        @endunless
+                                        @endif
                                     </div>
                                 </td>
 
-                                @unless($season->is_locked)
+                                @if(! $season->is_locked)
                                     <td class="text-end">
                                         <button type="button"
                                                 class="btn btn-sm btn-outline-secondary rounded-pill fw-bold js-clear-result-button"
@@ -228,7 +250,7 @@
                                             Effacer résultat
                                         </button>
                                     </td>
-                                @endunless
+                                @endif
                             </tr>
                         @endforeach
                     </tbody>
@@ -236,15 +258,126 @@
             </div>
         </div>
 
-        @unless($season->is_locked)
+        @if(! $season->is_locked)
             <div class="mt-4">
                 <button type="submit"
                         class="btn btn-warning rounded-pill fw-bold px-4">
                     Enregistrer les résultats et exceptions
                 </button>
             </div>
-        @endunless
+        @endif
     </form>
+
+@endif
+
+@if($autoResultSuggestions->isNotEmpty())
+    <div class="modal fade"
+         id="preseasonAutoResultSuggestionsModal"
+         tabindex="-1"
+         aria-labelledby="preseasonAutoResultSuggestionsModalLabel"
+         aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <div>
+                        <div class="text-uppercase text-primary fw-bold small">
+                            Détection automatique
+                        </div>
+
+                        <h5 class="modal-title fw-bold"
+                            id="preseasonAutoResultSuggestionsModalLabel">
+                            Résultat avant-saison détecté
+                        </h5>
+                    </div>
+
+                    <button type="button"
+                            class="btn-close"
+                            data-bs-dismiss="modal"
+                            aria-label="Fermer"></button>
+                </div>
+
+                <div class="modal-body">
+                    <p class="text-muted">
+                        L’application a détecté un résultat avant-saison mathématiquement certain.
+                        Rien n’est mémorisé tant que tu ne valides pas.
+                    </p>
+
+                    <div class="d-flex flex-column gap-3">
+                        @foreach($autoResultSuggestions as $suggestion)
+                            <div class="border rounded-4 p-3">
+                                <div class="d-flex flex-wrap justify-content-between align-items-start gap-3">
+                                    <div>
+                                        <div class="fw-bold">
+                                            {{ $suggestion['question_label'] }}
+                                        </div>
+
+                                        <div class="text-muted small">
+                                            {{ $suggestion['rule_label'] }} — J{{ $suggestion['target_journee_number'] }}
+                                        </div>
+                                    </div>
+
+                                    <div class="d-flex align-items-center gap-2">
+                                        @if(! empty($suggestion['club_logo_url']))
+                                            <img src="{{ $suggestion['club_logo_url'] }}"
+                                                 alt="{{ $suggestion['club_name'] }}"
+                                                 class="club-logo-small">
+                                        @endif
+
+                                        <span class="fw-bold">
+                                            {{ $suggestion['club_name'] }}
+                                        </span>
+                                    </div>
+                                </div>
+
+                                <div class="alert alert-light border mt-3 mb-3">
+                                    {{ $suggestion['explanation'] }}
+                                </div>
+
+                                @if(! empty($suggestion['is_replacement']))
+                                    <div class="alert alert-warning">
+                                        Un résultat officiel existe déjà :
+                                        <strong>{{ $suggestion['existing_club_name'] }}</strong>.
+                                        La validation remplacera ce résultat par
+                                        <strong>{{ $suggestion['club_name'] }}</strong>.
+                                    </div>
+                                @endif
+
+                                <form method="POST"
+                                      action="{{ route('admin.seasons.journees.results.store', [$season, $journee]) }}">
+                                    @csrf
+
+                                    <input type="hidden"
+                                           name="accept_preseason_auto_result"
+                                           value="1">
+
+                                    <input type="hidden"
+                                           name="auto_result_question_id"
+                                           value="{{ $suggestion['question_id'] }}">
+
+                                    <input type="hidden"
+                                           name="auto_result_club_id"
+                                           value="{{ $suggestion['club_id'] }}">
+
+                                    <button type="submit"
+                                            class="btn btn-warning rounded-pill fw-bold px-4">
+                                        {{ ! empty($suggestion['is_replacement']) ? 'Oui, remplacer et recalculer' : 'Oui, mémoriser et recalculer' }}
+                                    </button>
+                                </form>
+                            </div>
+                        @endforeach
+                    </div>
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button"
+                            class="btn btn-outline-secondary rounded-pill fw-bold"
+                            data-bs-dismiss="modal">
+                        Non, laisser en attente
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
 @endif
 
 @endsection
@@ -364,6 +497,37 @@
                 }
             });
         });
+
+        const autoResultModalElement = document.getElementById('preseasonAutoResultSuggestionsModal');
+        const autoResultOpenButton = document.getElementById('preseasonAutoResultOpenButton');
+
+        function openAutoResultModal(attempt) {
+            if (!autoResultModalElement) {
+                return;
+            }
+
+            if (window.bootstrap && window.bootstrap.Modal) {
+                window.bootstrap.Modal.getOrCreateInstance(autoResultModalElement).show();
+
+                return;
+            }
+
+            if (autoResultOpenButton) {
+                autoResultOpenButton.click();
+            }
+
+            if (!autoResultModalElement.classList.contains('show') && attempt < 20) {
+                window.setTimeout(function () {
+                    openAutoResultModal(attempt + 1);
+                }, 150);
+            }
+        }
+
+        if (autoResultModalElement) {
+            window.setTimeout(function () {
+                openAutoResultModal(0);
+            }, 150);
+        }
     });
 </script>
 @endpush
