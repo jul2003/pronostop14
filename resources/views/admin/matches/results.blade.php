@@ -4,6 +4,16 @@
 
 @php
     $autoResultSuggestions = collect(session('preseason_auto_result_suggestions', []));
+
+    $positionLabel = function ($position) {
+        $position = (int) $position;
+
+        if ($position === 1) {
+            return '1er';
+        }
+
+        return $position.'e';
+    };
 @endphp
 
 <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-start gap-3 mb-4">
@@ -298,12 +308,18 @@
 
                 <div class="modal-body">
                     <p class="text-muted">
-                        L’application a détecté un résultat avant-saison mathématiquement certain.
+                        L’application a détecté un résultat avant-saison à partir du paramétrage de la question.
                         Rien n’est mémorisé tant que tu ne valides pas.
                     </p>
 
                     <div class="d-flex flex-column gap-3">
                         @foreach($autoResultSuggestions as $suggestion)
+                            @php
+                                $targetJourneeNumber = $suggestion['target_journee_number'] ?? null;
+                                $autoResultPosition = $suggestion['auto_result_position'] ?? null;
+                                $isTop14PositionRule = ($suggestion['rule'] ?? null) === \App\Models\SeasonPreseasonQuestion::AUTO_RESULT_RULE_TOP14_POSITION;
+                            @endphp
+
                             <div class="border rounded-4 p-3">
                                 <div class="d-flex flex-wrap justify-content-between align-items-start gap-3">
                                     <div>
@@ -312,7 +328,7 @@
                                         </div>
 
                                         <div class="text-muted small">
-                                            {{ $suggestion['rule_label'] }} — J{{ $suggestion['target_journee_number'] }}
+                                            {{ $suggestion['rule_label'] }}
                                         </div>
                                     </div>
 
@@ -327,6 +343,59 @@
                                             {{ $suggestion['club_name'] }}
                                         </span>
                                     </div>
+                                </div>
+
+                                <div class="row g-2 mt-3">
+                                    @if($isTop14PositionRule)
+                                        <div class="col-md-6">
+                                            <div class="border rounded-3 p-3 bg-light h-100">
+                                                <div class="text-muted small fw-bold text-uppercase">
+                                                    Position paramétrée
+                                                </div>
+
+                                                <div class="fw-bold">
+                                                    {{ $autoResultPosition ? $positionLabel($autoResultPosition) : 'Non définie' }}
+                                                    du TOP 14
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div class="col-md-6">
+                                            <div class="border rounded-3 p-3 bg-light h-100">
+                                                <div class="text-muted small fw-bold text-uppercase">
+                                                    Journée cible paramétrée
+                                                </div>
+
+                                                <div class="fw-bold">
+                                                    {{ $targetJourneeNumber ? 'J'.$targetJourneeNumber : 'Non définie' }}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    @elseif($targetJourneeNumber)
+                                        <div class="col-md-6">
+                                            <div class="border rounded-3 p-3 bg-light h-100">
+                                                <div class="text-muted small fw-bold text-uppercase">
+                                                    Journée cible paramétrée
+                                                </div>
+
+                                                <div class="fw-bold">
+                                                    J{{ $targetJourneeNumber }}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    @else
+                                        <div class="col-md-6">
+                                            <div class="border rounded-3 p-3 bg-light h-100">
+                                                <div class="text-muted small fw-bold text-uppercase">
+                                                    Source du calcul
+                                                </div>
+
+                                                <div class="fw-bold">
+                                                    Match concerné par la règle
+                                                </div>
+                                            </div>
+                                        </div>
+                                    @endif
                                 </div>
 
                                 <div class="alert alert-light border mt-3 mb-3">

@@ -11,6 +11,15 @@
     ];
 
     $autoResultRuleOptions = $autoResultRuleOptions ?? \App\Models\SeasonPreseasonQuestion::autoResultRuleOptions();
+
+    $autoResultRuleMetadata = collect(array_keys($autoResultRuleOptions))
+        ->mapWithKeys(fn ($rule) => [
+            $rule => [
+                'compatible_answer_types' => \App\Models\SeasonPreseasonQuestion::autoResultRuleCompatibleAnswerTypes($rule),
+                'requires_journee' => \App\Models\SeasonPreseasonQuestion::autoResultRuleRequiresJourneeNumber($rule),
+                'requires_position' => \App\Models\SeasonPreseasonQuestion::autoResultRuleRequiresPosition($rule),
+            ],
+        ]);
 @endphp
 
 @include('admin.partials.back-link', [
@@ -61,7 +70,7 @@
 @else
     <div class="alert alert-info">
         Les modifications faites ici concernent uniquement cette saison.
-        Le calcul automatique est disponible seulement pour les questions de type <strong>Club TOP 14</strong>.
+        Le calcul automatique permet de proposer des réponses officielles avant-saison après saisie des résultats.
     </div>
 @endif
 
@@ -84,7 +93,7 @@
                         @if($season->is_locked)
                             Consulte les questions avant-saison propres à cette saison.
                         @else
-                            Modifie, ajoute, supprime ou réordonne les questions. Pour les questions TOP 14, tu peux aussi définir le calcul automatique.
+                            Modifie, ajoute, supprime ou réordonne les questions. Les règles automatiques restent toujours validées manuellement au moment des résultats.
                         @endif
                     </p>
                 </div>
@@ -108,10 +117,11 @@
                                     <th style="width: 60px;"></th>
                                     <th style="min-width: 280px;">Question</th>
                                     <th style="width: 170px;">Type</th>
-                                    <th style="width: 240px;">Barème</th>
-                                    <th style="width: 240px;">Calcul auto</th>
+                                    <th style="width: 220px;">Barème</th>
+                                    <th style="width: 250px;">Calcul auto</th>
                                     <th class="text-center" style="width: 95px;">J cible</th>
-                                    <th class="text-center" style="width: 100px;">Points</th>
+                                    <th class="text-center" style="width: 105px;">Position</th>
+                                    <th class="text-center" style="width: 95px;">Points</th>
                                     <th class="text-center" style="width: 90px;">Active</th>
                                     <th class="text-end" style="width: 120px;">Suppression</th>
                                 </tr>
@@ -123,6 +133,7 @@
                                         $questionType = old("questions.{$question->id}.answer_type", $question->answer_type);
                                         $questionAutoRule = old("questions.{$question->id}.auto_result_rule", $question->auto_result_rule);
                                         $questionAutoJournee = old("questions.{$question->id}.auto_result_journee_number", $question->auto_result_journee_number);
+                                        $questionAutoPosition = old("questions.{$question->id}.auto_result_position", $question->auto_result_position);
                                     @endphp
 
                                     <tr data-id="{{ $question->id }}" draggable="{{ $season->is_locked ? 'false' : 'true' }}">
@@ -201,7 +212,19 @@
                                                 </option>
 
                                                 @foreach($autoResultRuleOptions as $value => $label)
-                                                    <option value="{{ $value }}" @selected($questionAutoRule === $value)>
+                                                    @php
+                                                        $metadata = $autoResultRuleMetadata[$value] ?? [
+                                                            'compatible_answer_types' => [],
+                                                            'requires_journee' => false,
+                                                            'requires_position' => false,
+                                                        ];
+                                                    @endphp
+
+                                                    <option value="{{ $value }}"
+                                                            data-compatible-answer-types="{{ implode(',', $metadata['compatible_answer_types']) }}"
+                                                            data-requires-journee="{{ $metadata['requires_journee'] ? '1' : '0' }}"
+                                                            data-requires-position="{{ $metadata['requires_position'] ? '1' : '0' }}"
+                                                            @selected($questionAutoRule === $value)>
                                                         {{ $label }}
                                                     </option>
                                                 @endforeach
@@ -209,7 +232,7 @@
 
                                             <div class="small text-muted mt-1 js-auto-result-help"
                                                  data-question-id="{{ $question->id }}">
-                                                TOP 14 uniquement.
+                                                Sélectionne une règle compatible avec le type.
                                             </div>
                                         </td>
 
@@ -225,6 +248,23 @@
                                                 @for($number = 1; $number <= 26; $number++)
                                                     <option value="{{ $number }}" @selected((string) $questionAutoJournee === (string) $number)>
                                                         J{{ $number }}
+                                                    </option>
+                                                @endfor
+                                            </select>
+                                        </td>
+
+                                        <td>
+                                            <select name="questions[{{ $question->id }}][auto_result_position]"
+                                                    class="form-select text-center js-auto-result-position"
+                                                    data-question-id="{{ $question->id }}"
+                                                    @disabled($season->is_locked)>
+                                                <option value="">
+                                                    —
+                                                </option>
+
+                                                @for($position = 1; $position <= 14; $position++)
+                                                    <option value="{{ $position }}" @selected((string) $questionAutoPosition === (string) $position)>
+                                                        {{ $position }}
                                                     </option>
                                                 @endfor
                                             </select>
@@ -301,7 +341,7 @@
                     @csrf
 
                     <div class="row g-3 align-items-end">
-                        <div class="col-md-4">
+                        <div class="col-md-3">
                             <label class="form-label fw-bold">
                                 Question
                             </label>
@@ -360,7 +400,19 @@
                                 </option>
 
                                 @foreach($autoResultRuleOptions as $value => $label)
-                                    <option value="{{ $value }}" @selected(old('auto_result_rule') === $value)>
+                                    @php
+                                        $metadata = $autoResultRuleMetadata[$value] ?? [
+                                            'compatible_answer_types' => [],
+                                            'requires_journee' => false,
+                                            'requires_position' => false,
+                                        ];
+                                    @endphp
+
+                                    <option value="{{ $value }}"
+                                            data-compatible-answer-types="{{ implode(',', $metadata['compatible_answer_types']) }}"
+                                            data-requires-journee="{{ $metadata['requires_journee'] ? '1' : '0' }}"
+                                            data-requires-position="{{ $metadata['requires_position'] ? '1' : '0' }}"
+                                            @selected(old('auto_result_rule') === $value)>
                                         {{ $label }}
                                     </option>
                                 @endforeach
@@ -381,6 +433,25 @@
                                 @for($number = 1; $number <= 26; $number++)
                                     <option value="{{ $number }}" @selected((string) old('auto_result_journee_number') === (string) $number)>
                                         J{{ $number }}
+                                    </option>
+                                @endfor
+                            </select>
+                        </div>
+
+                        <div class="col-md-1">
+                            <label class="form-label fw-bold">
+                                Position
+                            </label>
+
+                            <select name="auto_result_position"
+                                    class="form-select text-center js-new-auto-result-position">
+                                <option value="">
+                                    —
+                                </option>
+
+                                @for($position = 1; $position <= 14; $position++)
+                                    <option value="{{ $position }}" @selected((string) old('auto_result_position') === (string) $position)>
+                                        {{ $position }}
                                     </option>
                                 @endfor
                             </select>
@@ -1427,86 +1498,104 @@
         refreshButtonVisibility();
     }
 
-    function refreshAutoResultFieldsForQuestion(questionId) {
-        const typeSelect = document.querySelector('.js-question-answer-type[data-question-id="' + questionId + '"]');
-        const ruleSelect = document.querySelector('.js-auto-result-rule[data-question-id="' + questionId + '"]');
-        const journeeSelect = document.querySelector('.js-auto-result-journee[data-question-id="' + questionId + '"]');
-        const help = document.querySelector('.js-auto-result-help[data-question-id="' + questionId + '"]');
+    function optionCompatibleWithAnswerType(option, answerType) {
+        if (!option.value) {
+            return true;
+        }
 
-        if (!typeSelect || !ruleSelect || !journeeSelect) {
+        const compatibleTypes = (option.dataset.compatibleAnswerTypes || '')
+            .split(',')
+            .filter(Boolean);
+
+        return compatibleTypes.includes(answerType);
+    }
+
+    function selectedRuleOption(ruleSelect) {
+        return ruleSelect.options[ruleSelect.selectedIndex] || null;
+    }
+
+    function refreshAutoResultFields(typeSelect, ruleSelect, journeeSelect, positionSelect, helpElement) {
+        if (!typeSelect || !ruleSelect || !journeeSelect || !positionSelect) {
             return;
         }
 
-        const isTop14 = typeSelect.value === 'top14_club';
-        const hasRule = ruleSelect.value !== '';
+        const answerType = typeSelect.value;
 
-        ruleSelect.disabled = !isTop14 || typeSelect.disabled;
-        journeeSelect.disabled = !isTop14 || !hasRule || typeSelect.disabled;
+        Array.from(ruleSelect.options).forEach(function (option) {
+            option.hidden = !optionCompatibleWithAnswerType(option, answerType);
+        });
 
-        if (!isTop14) {
+        const currentOption = selectedRuleOption(ruleSelect);
+
+        if (currentOption && currentOption.value && !optionCompatibleWithAnswerType(currentOption, answerType)) {
             ruleSelect.value = '';
+        }
+
+        const option = selectedRuleOption(ruleSelect);
+        const hasRule = !!ruleSelect.value;
+        const requiresJournee = option && option.dataset.requiresJournee === '1';
+        const requiresPosition = option && option.dataset.requiresPosition === '1';
+        const typeIsDisabled = typeSelect.disabled;
+
+        ruleSelect.disabled = typeIsDisabled;
+        journeeSelect.disabled = typeIsDisabled || !hasRule || !requiresJournee;
+        positionSelect.disabled = typeIsDisabled || !hasRule || !requiresPosition;
+
+        if (!requiresJournee) {
             journeeSelect.value = '';
         }
 
-        if (!hasRule) {
-            journeeSelect.value = '';
+        if (!requiresPosition) {
+            positionSelect.value = '';
         }
 
-        if (help) {
-            if (isTop14) {
-                help.textContent = hasRule ? 'Détection après enregistrement des résultats.' : 'Aucun calcul automatique.';
+        if (helpElement) {
+            if (!hasRule) {
+                helpElement.textContent = 'Aucun calcul automatique.';
+            } else if (requiresPosition) {
+                helpElement.textContent = 'La position est utilisée après la journée cible complète.';
+            } else if (requiresJournee) {
+                helpElement.textContent = 'Détection mathématique jusqu’à la journée cible.';
             } else {
-                help.textContent = 'TOP 14 uniquement.';
+                helpElement.textContent = 'Détection après saisie du match concerné.';
             }
-
-            help.classList.toggle('auto-result-disabled-note', !isTop14);
         }
     }
 
     function setupAutoResultFields() {
         document.querySelectorAll('.js-question-answer-type').forEach(function (typeSelect) {
             const questionId = typeSelect.dataset.questionId;
+            const ruleSelect = document.querySelector('.js-auto-result-rule[data-question-id="' + questionId + '"]');
+            const journeeSelect = document.querySelector('.js-auto-result-journee[data-question-id="' + questionId + '"]');
+            const positionSelect = document.querySelector('.js-auto-result-position[data-question-id="' + questionId + '"]');
+            const help = document.querySelector('.js-auto-result-help[data-question-id="' + questionId + '"]');
 
-            typeSelect.addEventListener('change', function () {
-                refreshAutoResultFieldsForQuestion(questionId);
-            });
+            function refresh() {
+                refreshAutoResultFields(typeSelect, ruleSelect, journeeSelect, positionSelect, help);
+            }
 
-            refreshAutoResultFieldsForQuestion(questionId);
-        });
+            typeSelect.addEventListener('change', refresh);
 
-        document.querySelectorAll('.js-auto-result-rule').forEach(function (ruleSelect) {
-            const questionId = ruleSelect.dataset.questionId;
+            if (ruleSelect) {
+                ruleSelect.addEventListener('change', refresh);
+            }
 
-            ruleSelect.addEventListener('change', function () {
-                refreshAutoResultFieldsForQuestion(questionId);
-            });
-
-            refreshAutoResultFieldsForQuestion(questionId);
+            refresh();
         });
 
         const newTypeSelect = document.querySelector('.js-new-question-answer-type');
         const newRuleSelect = document.querySelector('.js-new-auto-result-rule');
         const newJourneeSelect = document.querySelector('.js-new-auto-result-journee');
+        const newPositionSelect = document.querySelector('.js-new-auto-result-position');
 
         function refreshNewQuestionAutoFields() {
-            if (!newTypeSelect || !newRuleSelect || !newJourneeSelect) {
-                return;
-            }
-
-            const isTop14 = newTypeSelect.value === 'top14_club';
-            const hasRule = newRuleSelect.value !== '';
-
-            newRuleSelect.disabled = !isTop14;
-            newJourneeSelect.disabled = !isTop14 || !hasRule;
-
-            if (!isTop14) {
-                newRuleSelect.value = '';
-                newJourneeSelect.value = '';
-            }
-
-            if (!hasRule) {
-                newJourneeSelect.value = '';
-            }
+            refreshAutoResultFields(
+                newTypeSelect,
+                newRuleSelect,
+                newJourneeSelect,
+                newPositionSelect,
+                null
+            );
         }
 
         if (newTypeSelect) {

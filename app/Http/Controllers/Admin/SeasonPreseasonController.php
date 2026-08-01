@@ -56,6 +56,7 @@ class SeasonPreseasonController extends Controller
             'questions.*.answer_type' => ['required', 'string', 'max:50'],
             'questions.*.auto_result_rule' => ['nullable', Rule::in($this->autoResultRuleValues())],
             'questions.*.auto_result_journee_number' => ['nullable', 'integer', 'min:1', 'max:26'],
+            'questions.*.auto_result_position' => ['nullable', 'integer', 'min:1', 'max:14'],
             'questions.*.scoring_profile_id' => ['nullable', 'integer', 'exists:scoring_profiles,id'],
             'questions.*.points' => ['required', 'integer'],
             'questions.*.position' => ['required', 'integer', 'min:0'],
@@ -75,7 +76,8 @@ class SeasonPreseasonController extends Controller
                 $autoResultConfig = $this->normalizedAutoResultConfig(
                     $questionData['answer_type'],
                     $questionData['auto_result_rule'] ?? null,
-                    $questionData['auto_result_journee_number'] ?? null
+                    $questionData['auto_result_journee_number'] ?? null,
+                    $questionData['auto_result_position'] ?? null
                 );
 
                 $question->update([
@@ -83,6 +85,7 @@ class SeasonPreseasonController extends Controller
                     'answer_type' => $questionData['answer_type'],
                     'auto_result_rule' => $autoResultConfig['auto_result_rule'],
                     'auto_result_journee_number' => $autoResultConfig['auto_result_journee_number'],
+                    'auto_result_position' => $autoResultConfig['auto_result_position'],
                     'scoring_profile_id' => $questionData['scoring_profile_id'] ?? null,
                     'points' => $questionData['points'],
                     'position' => $questionData['position'],
@@ -107,6 +110,7 @@ class SeasonPreseasonController extends Controller
             'answer_type' => ['required', 'string', 'max:50'],
             'auto_result_rule' => ['nullable', Rule::in($this->autoResultRuleValues())],
             'auto_result_journee_number' => ['nullable', 'integer', 'min:1', 'max:26'],
+            'auto_result_position' => ['nullable', 'integer', 'min:1', 'max:14'],
             'scoring_profile_id' => ['nullable', 'integer', 'exists:scoring_profiles,id'],
             'points' => ['required', 'integer'],
             'position' => ['required', 'integer', 'min:0'],
@@ -116,7 +120,8 @@ class SeasonPreseasonController extends Controller
         $autoResultConfig = $this->normalizedAutoResultConfig(
             $data['answer_type'],
             $data['auto_result_rule'] ?? null,
-            $data['auto_result_journee_number'] ?? null
+            $data['auto_result_journee_number'] ?? null,
+            $data['auto_result_position'] ?? null
         );
 
         $season->preseasonQuestions()->create([
@@ -126,6 +131,7 @@ class SeasonPreseasonController extends Controller
             'answer_type' => $data['answer_type'],
             'auto_result_rule' => $autoResultConfig['auto_result_rule'],
             'auto_result_journee_number' => $autoResultConfig['auto_result_journee_number'],
+            'auto_result_position' => $autoResultConfig['auto_result_position'],
             'points' => $data['points'],
             'position' => $data['position'],
             'is_active' => $request->boolean('is_active'),
@@ -446,7 +452,8 @@ class SeasonPreseasonController extends Controller
                 $autoResultConfig = $this->normalizedAutoResultConfig(
                     $question->answer_type,
                     $question->auto_result_rule,
-                    $question->auto_result_journee_number
+                    $question->auto_result_journee_number,
+                    $question->auto_result_position
                 );
 
                 $template->fill([
@@ -454,6 +461,7 @@ class SeasonPreseasonController extends Controller
                     'answer_type' => $question->answer_type,
                     'auto_result_rule' => $autoResultConfig['auto_result_rule'],
                     'auto_result_journee_number' => $autoResultConfig['auto_result_journee_number'],
+                    'auto_result_position' => $autoResultConfig['auto_result_position'],
                     'scoring_profile_id' => $question->scoring_profile_id,
                     'position' => $question->position,
                     'is_active' => $question->is_active,
@@ -603,41 +611,61 @@ class SeasonPreseasonController extends Controller
         return array_keys(SeasonPreseasonQuestion::autoResultRuleOptions());
     }
 
-    private function normalizedAutoResultConfig(string $answerType, ?string $rule, mixed $journeeNumber): array
-    {
-        if ($answerType !== 'top14_club') {
-            return [
-                'auto_result_rule' => null,
-                'auto_result_journee_number' => null,
-            ];
-        }
-
+    private function normalizedAutoResultConfig(
+        string $answerType,
+        ?string $rule,
+        mixed $journeeNumber,
+        mixed $autoResultPosition
+    ): array {
         if (blank($rule) || ! array_key_exists($rule, SeasonPreseasonQuestion::autoResultRuleOptions())) {
-            return [
-                'auto_result_rule' => null,
-                'auto_result_journee_number' => null,
-            ];
+            return $this->emptyAutoResultConfig();
         }
 
-        if ($journeeNumber === null || $journeeNumber === '') {
-            return [
-                'auto_result_rule' => null,
-                'auto_result_journee_number' => null,
-            ];
+        if (! SeasonPreseasonQuestion::autoResultRuleSupportsAnswerType($rule, $answerType)) {
+            return $this->emptyAutoResultConfig();
         }
 
-        $journeeNumber = (int) $journeeNumber;
+        $normalizedJourneeNumber = null;
 
-        if ($journeeNumber < 1 || $journeeNumber > 26) {
-            return [
-                'auto_result_rule' => null,
-                'auto_result_journee_number' => null,
-            ];
+        if (SeasonPreseasonQuestion::autoResultRuleRequiresJourneeNumber($rule)) {
+            if ($journeeNumber === null || $journeeNumber === '') {
+                return $this->emptyAutoResultConfig();
+            }
+
+            $normalizedJourneeNumber = (int) $journeeNumber;
+
+            if ($normalizedJourneeNumber < 1 || $normalizedJourneeNumber > 26) {
+                return $this->emptyAutoResultConfig();
+            }
+        }
+
+        $normalizedAutoResultPosition = null;
+
+        if (SeasonPreseasonQuestion::autoResultRuleRequiresPosition($rule)) {
+            if ($autoResultPosition === null || $autoResultPosition === '') {
+                return $this->emptyAutoResultConfig();
+            }
+
+            $normalizedAutoResultPosition = (int) $autoResultPosition;
+
+            if ($normalizedAutoResultPosition < 1 || $normalizedAutoResultPosition > 14) {
+                return $this->emptyAutoResultConfig();
+            }
         }
 
         return [
             'auto_result_rule' => $rule,
-            'auto_result_journee_number' => $journeeNumber,
+            'auto_result_journee_number' => $normalizedJourneeNumber,
+            'auto_result_position' => $normalizedAutoResultPosition,
+        ];
+    }
+
+    private function emptyAutoResultConfig(): array
+    {
+        return [
+            'auto_result_rule' => null,
+            'auto_result_journee_number' => null,
+            'auto_result_position' => null,
         ];
     }
 
