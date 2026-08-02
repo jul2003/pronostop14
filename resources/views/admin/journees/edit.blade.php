@@ -8,6 +8,16 @@
     $suggestedFirstMatchAt = $suggestedFirstMatchAt ?? null;
     $suggestedFirstMatchSourceJournee = $suggestedFirstMatchSourceJournee ?? null;
 
+    $fromUpcomingMatches = $fromUpcomingMatches ?? request('from') === 'upcoming-matches';
+
+    $backUrl = $fromUpcomingMatches
+        ? route('admin.upcoming-matches.index')
+        : route('admin.seasons.journees', $season);
+
+    $backLabel = $fromUpcomingMatches
+        ? 'Retour aux matchs à saisir'
+        : 'Retour aux journées';
+
     $sourceFirstMatchAt = $journee->first_match_at ?: $suggestedFirstMatchAt;
 
     $firstMatchDateValue = old(
@@ -29,8 +39,8 @@
 @endphp
 
 @include('admin.partials.back-link', [
-    'href' => route('admin.seasons.journees', $season),
-    'label' => 'Retour aux journées',
+    'href' => $backUrl,
+    'label' => $backLabel,
 ])
 
 <div class="mb-4">
@@ -46,18 +56,6 @@
         La saisie des pronostics reste ouverte uniquement si elle est activée et tant que la date et l’heure actuelles sont strictement inférieures à la date du premier match.
     </p>
 </div>
-
-@if($errors->any())
-    <div class="alert alert-danger">
-        {{ $errors->first() }}
-    </div>
-@endif
-
-@if(session('success'))
-    <div class="alert alert-success">
-        {{ session('success') }}
-    </div>
-@endif
 
 @if($firstMatchSuggestionIsApplied)
     <div class="alert alert-info">
@@ -82,6 +80,12 @@
         @csrf
         @method('PUT')
 
+        @if($fromUpcomingMatches)
+            <input type="hidden"
+                   name="from"
+                   value="upcoming-matches">
+        @endif
+
         <div class="row g-4">
             <div class="col-lg-6">
                 <label for="firstMatchDateInput" class="form-label fw-bold">
@@ -99,10 +103,15 @@
                     <button type="button"
                             class="btn btn-outline-secondary clear-date-button"
                             data-target="firstMatchDateInput"
-                            title="Effacer la date"
-                            aria-label="Effacer la date">
+                            data-time-target="firstMatchTimeInput"
+                            title="Effacer la date et l’heure"
+                            aria-label="Effacer la date et l’heure">
                         ×
                     </button>
+                </div>
+
+                <div class="form-text">
+                    Laisse la date vide pour supprimer la date du premier match.
                 </div>
 
                 @error('first_match_date')
@@ -135,6 +144,7 @@
 
                 <div class="form-text">
                     Heure par défaut actuelle : {{ $defaultFirstMatchTime }}.
+                    Quand tu changes la date, cette heure est automatiquement appliquée.
                 </div>
 
                 @error('first_match_time')
@@ -203,8 +213,12 @@
         const firstMatchTimeInput = document.getElementById('firstMatchTimeInput');
         const applyDefaultButton = document.getElementById('applyDefaultFirstMatchTimeButton');
 
-        function applyDefaultTimeIfNeeded() {
-            if (!firstMatchDateInput || !firstMatchTimeInput || !applyDefaultButton) {
+        function defaultFirstMatchTime() {
+            return applyDefaultButton?.dataset.defaultTime || '12:00';
+        }
+
+        function applyDefaultTimeOnDateChange() {
+            if (!firstMatchDateInput || !firstMatchTimeInput) {
                 return;
             }
 
@@ -212,33 +226,32 @@
                 return;
             }
 
-            if (firstMatchTimeInput.value) {
-                return;
-            }
-
-            firstMatchTimeInput.value = applyDefaultButton.dataset.defaultTime || '12:00';
+            firstMatchTimeInput.value = defaultFirstMatchTime();
         }
 
         if (firstMatchDateInput) {
-            firstMatchDateInput.addEventListener('change', applyDefaultTimeIfNeeded);
+            firstMatchDateInput.addEventListener('change', applyDefaultTimeOnDateChange);
         }
 
         if (applyDefaultButton && firstMatchTimeInput) {
             applyDefaultButton.addEventListener('click', function () {
-                firstMatchTimeInput.value = applyDefaultButton.dataset.defaultTime || '12:00';
+                firstMatchTimeInput.value = defaultFirstMatchTime();
             });
         }
 
         document.querySelectorAll('.clear-date-button').forEach(function (button) {
             button.addEventListener('click', function () {
                 const target = document.getElementById(button.dataset.target);
+                const timeTarget = document.getElementById(button.dataset.timeTarget);
 
-                if (!target) {
-                    return;
+                if (target) {
+                    target.value = '';
+                    target.dispatchEvent(new Event('change', { bubbles: true }));
                 }
 
-                target.value = '';
-                target.dispatchEvent(new Event('change', { bubbles: true }));
+                if (timeTarget) {
+                    timeTarget.value = '';
+                }
             });
         });
     });

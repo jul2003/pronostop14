@@ -3,7 +3,30 @@
 @section('content')
 
 @php
-    $autoResultSuggestions = collect(session('preseason_auto_result_suggestions', []));
+    $autoResultSuggestions = collect(
+        session('preseason_auto_result_suggestions', [])
+    );
+
+    $previousJournee = $previousJournee ?? null;
+    $nextJournee = $nextJournee ?? null;
+
+    $fromPendingResults = request('from') === 'pending-results';
+
+    $backUrl = $fromPendingResults
+        ? route('admin.pending-results.index')
+        : route('admin.seasons.journees', $season);
+
+    $backLabel = $fromPendingResults
+        ? 'Retour aux résultats à saisir'
+        : 'Retour aux journées';
+
+    $currentResultsRouteParameters = $fromPendingResults
+        ? [$season, $journee, 'from' => 'pending-results']
+        : [$season, $journee];
+
+    $journeeResultsRouteParameters = fn ($targetJournee) => $fromPendingResults
+        ? [$season, $targetJournee, 'from' => 'pending-results']
+        : [$season, $targetJournee];
 
     $positionLabel = function ($position) {
         $position = (int) $position;
@@ -18,9 +41,9 @@
 
 <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-start gap-3 mb-4">
     <div>
-        <a href="{{ route('admin.seasons.journees', $season) }}"
+        <a href="{{ $backUrl }}"
            class="text-decoration-none fw-bold">
-            ← Retour aux journées
+            ← {{ $backLabel }}
         </a>
 
         <div class="mt-3 text-uppercase text-primary fw-bold small">
@@ -52,6 +75,30 @@
     </div>
 </div>
 
+@if($previousJournee || $nextJournee)
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4">
+        <div>
+            @if($previousJournee)
+                <a href="{{ route('admin.seasons.journees.results', $journeeResultsRouteParameters($previousJournee)) }}"
+                   class="btn btn-outline-primary rounded-pill fw-bold px-4"
+                   title="{{ $previousJournee->name }}">
+                    ← Journée précédente : {{ $previousJournee->name }}
+                </a>
+            @endif
+        </div>
+
+        <div class="ms-auto">
+            @if($nextJournee)
+                <a href="{{ route('admin.seasons.journees.results', $journeeResultsRouteParameters($nextJournee)) }}"
+                   class="btn btn-outline-primary rounded-pill fw-bold px-4"
+                   title="{{ $nextJournee->name }}">
+                    Journée suivante : {{ $nextJournee->name }} →
+                </a>
+            @endif
+        </div>
+    </div>
+@endif
+
 @if($season->is_locked)
     <div class="alert alert-warning">
         <div class="fw-bold">
@@ -82,24 +129,21 @@
     </div>
 @endif
 
-@if($errors->any())
-    <div class="alert alert-danger">
-        {{ $errors->first() }}
-    </div>
-@endif
-
 @if($matches->isEmpty())
-
     <div class="alert alert-info">
         Aucun match disponible pour cette journée.
     </div>
-
 @else
-
     <form method="POST"
-          action="{{ route('admin.seasons.journees.results.store', [$season, $journee]) }}"
+          action="{{ route('admin.seasons.journees.results.store', $currentResultsRouteParameters) }}"
           autocomplete="off">
         @csrf
+
+        @if($fromPendingResults)
+            <input type="hidden"
+                   name="from"
+                   value="pending-results">
+        @endif
 
         <div class="rugby-card p-0 overflow-hidden">
             <div class="table-responsive">
@@ -111,18 +155,23 @@
                             <th class="text-center">Essais</th>
                             <th class="text-center">Bonus dom.</th>
                             <th class="text-center">Bonus ext.</th>
-                            <th class="text-center">Date limite prono exceptionnelle</th>
-
-                            @if(! $season->is_locked)
-                                <th class="text-end">Actions</th>
-                            @endif
+                            <th class="text-center">
+                                Date limite prono exceptionnelle
+                            </th>
                         </tr>
                     </thead>
 
                     <tbody>
                         @foreach($matches as $match)
                             @php
-                                $exceptionDeadline = $match->predictionDeadlineException?->prediction_deadline;
+                                $exceptionDeadline = $match
+                                    ->predictionDeadlineException
+                                    ?->prediction_deadline;
+
+                                $hasResultEntry = filled($match->actual_result)
+                                    || filled($match->actual_tries)
+                                    || filled($match->actual_home_bonus)
+                                    || filled($match->actual_away_bonus);
                             @endphp
 
                             <tr>
@@ -154,24 +203,37 @@
                                     </div>
                                 </td>
 
-                                <td class="text-center">
-                                    <div class="prono-choice-group">
-                                        @foreach($journee->resultOptionShortLabels() as $value => $label)
-                                            <input type="radio"
-                                                   id="actual_result_{{ $match->id }}_{{ $value }}"
-                                                   name="matches[{{ $match->id }}][actual_result]"
-                                                   value="{{ $value }}"
-                                                   class="prono-choice-input js-actual-result-input"
-                                                   data-match-id="{{ $match->id }}"
-                                                   @checked($match->actual_result === $value)
-                                                   @disabled($season->is_locked)>
+                                <td class="text-center result-choice-cell">
+                                    <div class="d-flex justify-content-center align-items-center gap-2">
+                                        <div class="prono-choice-group">
+                                            @foreach($journee->resultOptionShortLabels() as $value => $label)
+                                                <input type="radio"
+                                                       id="actual_result_{{ $match->id }}_{{ $value }}"
+                                                       name="matches[{{ $match->id }}][actual_result]"
+                                                       value="{{ $value }}"
+                                                       class="prono-choice-input js-actual-result-input"
+                                                       data-match-id="{{ $match->id }}"
+                                                       @checked($match->actual_result === $value)
+                                                       @disabled($season->is_locked)>
 
-                                            <label for="actual_result_{{ $match->id }}_{{ $value }}"
-                                                   class="prono-choice-label"
-                                                   title="{{ $journee->resultOptionLabel($value) }}">
-                                                {{ $label }}
-                                            </label>
-                                        @endforeach
+                                                <label for="actual_result_{{ $match->id }}_{{ $value }}"
+                                                       class="prono-choice-label"
+                                                       title="{{ $journee->resultOptionLabel($value) }}">
+                                                    {{ $label }}
+                                                </label>
+                                            @endforeach
+                                        </div>
+
+                                        @unless($season->is_locked)
+                                            <button type="button"
+                                                    class="btn btn-sm btn-outline-danger rounded-circle clear-result-icon-button js-clear-result-button {{ $hasResultEntry ? '' : 'd-none' }}"
+                                                    data-match-id="{{ $match->id }}"
+                                                    title="Effacer le résultat"
+                                                    aria-label="Effacer le résultat de {{ $match->homeClub->name }} contre {{ $match->awayClub->name }}"
+                                                    aria-hidden="{{ $hasResultEntry ? 'false' : 'true' }}">
+                                                ×
+                                            </button>
+                                        @endunless
                                     </div>
                                 </td>
 
@@ -240,7 +302,7 @@
                                                tabindex="-1"
                                                @disabled($season->is_locked)>
 
-                                        @if(! $season->is_locked)
+                                        @unless($season->is_locked)
                                             <button type="button"
                                                     class="btn btn-outline-secondary js-clear-exception-deadline-button"
                                                     data-match-id="{{ $match->id }}"
@@ -248,19 +310,9 @@
                                                     aria-label="Effacer la date limite exceptionnelle">
                                                 ×
                                             </button>
-                                        @endif
+                                        @endunless
                                     </div>
                                 </td>
-
-                                @if(! $season->is_locked)
-                                    <td class="text-end">
-                                        <button type="button"
-                                                class="btn btn-sm btn-outline-secondary rounded-pill fw-bold js-clear-result-button"
-                                                data-match-id="{{ $match->id }}">
-                                            Effacer résultat
-                                        </button>
-                                    </td>
-                                @endif
                             </tr>
                         @endforeach
                     </tbody>
@@ -268,16 +320,15 @@
             </div>
         </div>
 
-        @if(! $season->is_locked)
+        @unless($season->is_locked)
             <div class="mt-4">
                 <button type="submit"
                         class="btn btn-warning rounded-pill fw-bold px-4">
                     Enregistrer les résultats et exceptions
                 </button>
             </div>
-        @endif
+        @endunless
     </form>
-
 @endif
 
 @if($autoResultSuggestions->isNotEmpty())
@@ -294,16 +345,17 @@
                             Détection automatique
                         </div>
 
-                        <h5 class="modal-title fw-bold"
+                        <h2 class="modal-title h5 fw-bold mb-0"
                             id="preseasonAutoResultSuggestionsModalLabel">
                             Résultat avant-saison détecté
-                        </h5>
+                        </h2>
                     </div>
 
                     <button type="button"
                             class="btn-close"
                             data-bs-dismiss="modal"
-                            aria-label="Fermer"></button>
+                            aria-label="Fermer">
+                    </button>
                 </div>
 
                 <div class="modal-body">
@@ -317,7 +369,9 @@
                             @php
                                 $targetJourneeNumber = $suggestion['target_journee_number'] ?? null;
                                 $autoResultPosition = $suggestion['auto_result_position'] ?? null;
-                                $isTop14PositionRule = ($suggestion['rule'] ?? null) === \App\Models\SeasonPreseasonQuestion::AUTO_RESULT_RULE_TOP14_POSITION;
+
+                                $isTop14PositionRule = ($suggestion['rule'] ?? null)
+                                    === \App\Models\SeasonPreseasonQuestion::AUTO_RESULT_RULE_TOP14_POSITION;
                             @endphp
 
                             <div class="border rounded-4 p-3">
@@ -412,8 +466,14 @@
                                 @endif
 
                                 <form method="POST"
-                                      action="{{ route('admin.seasons.journees.results.store', [$season, $journee]) }}">
+                                      action="{{ route('admin.seasons.journees.results.store', $currentResultsRouteParameters) }}">
                                     @csrf
+
+                                    @if($fromPendingResults)
+                                        <input type="hidden"
+                                               name="from"
+                                               value="pending-results">
+                                    @endif
 
                                     <input type="hidden"
                                            name="accept_preseason_auto_result"
@@ -429,7 +489,9 @@
 
                                     <button type="submit"
                                             class="btn btn-warning rounded-pill fw-bold px-4">
-                                        {{ ! empty($suggestion['is_replacement']) ? 'Oui, remplacer et recalculer' : 'Oui, mémoriser et recalculer' }}
+                                        {{ ! empty($suggestion['is_replacement'])
+                                            ? 'Oui, remplacer et recalculer'
+                                            : 'Oui, mémoriser et recalculer' }}
                                     </button>
                                 </form>
                             </div>
@@ -469,7 +531,27 @@
     }
 
     .admin-results-table .match-line {
-        grid-template-columns: minmax(170px, 1fr) 24px minmax(170px, 1fr);
+        grid-template-columns:
+            minmax(170px, 1fr)
+            24px
+            minmax(170px, 1fr);
+    }
+
+    .result-choice-cell {
+        min-width: 190px;
+    }
+
+    .clear-result-icon-button {
+        display: inline-flex;
+        flex: 0 0 auto;
+        align-items: center;
+        justify-content: center;
+        width: 1.75rem;
+        height: 1.75rem;
+        padding: 0;
+        font-size: 1.25rem;
+        font-weight: 700;
+        line-height: 1;
     }
 
     .exception-deadline-cell {
@@ -492,10 +574,67 @@
 @push('scripts')
 <script>
     document.addEventListener('DOMContentLoaded', function () {
-        const triesInputs = Array.from(document.querySelectorAll('.admin-tries-input'))
-            .filter(function (input) {
-                return !input.disabled;
-            });
+        const triesInputs = Array.from(
+            document.querySelectorAll('.admin-tries-input')
+        ).filter(function (input) {
+            return !input.disabled;
+        });
+
+        function matchHasResultEntry(matchId) {
+            const resultInput = document.querySelector(
+                '.js-actual-result-input[data-match-id="'
+                    + matchId
+                    + '"]:checked'
+            );
+
+            const homeBonusInput = document.querySelector(
+                '.js-actual-home-bonus-input[data-match-id="'
+                    + matchId
+                    + '"]:checked'
+            );
+
+            const awayBonusInput = document.querySelector(
+                '.js-actual-away-bonus-input[data-match-id="'
+                    + matchId
+                    + '"]:checked'
+            );
+
+            const triesInput = document.querySelector(
+                '.js-actual-tries-input[data-match-id="'
+                    + matchId
+                    + '"]'
+            );
+
+            const hasTries = triesInput
+                && triesInput.value.trim() !== '';
+
+            return Boolean(
+                resultInput
+                || homeBonusInput
+                || awayBonusInput
+                || hasTries
+            );
+        }
+
+        function updateClearResultButton(matchId) {
+            const button = document.querySelector(
+                '.js-clear-result-button[data-match-id="'
+                    + matchId
+                    + '"]'
+            );
+
+            if (!button) {
+                return;
+            }
+
+            const hasResultEntry = matchHasResultEntry(matchId);
+
+            button.classList.toggle('d-none', !hasResultEntry);
+            button.setAttribute(
+                'aria-hidden',
+                hasResultEntry ? 'false' : 'true'
+            );
+        }
 
         triesInputs.forEach(function (input, index) {
             input.addEventListener('keydown', function (event) {
@@ -503,7 +642,10 @@
                     return;
                 }
 
-                const nextIndex = event.shiftKey ? index - 1 : index + 1;
+                const nextIndex = event.shiftKey
+                    ? index - 1
+                    : index + 1;
+
                 const nextInput = triesInputs[nextIndex];
 
                 if (!nextInput) {
@@ -511,64 +653,102 @@
                 }
 
                 event.preventDefault();
-
                 nextInput.focus();
                 nextInput.select();
             });
         });
 
-        document.querySelectorAll('.js-clear-exception-deadline-button').forEach(function (button) {
-            button.addEventListener('click', function () {
-                const matchId = button.dataset.matchId;
+        document
+            .querySelectorAll(
+                '.js-actual-result-input, '
+                + '.js-actual-tries-input, '
+                + '.js-actual-home-bonus-input, '
+                + '.js-actual-away-bonus-input'
+            )
+            .forEach(function (input) {
+                input.addEventListener('input', function () {
+                    updateClearResultButton(input.dataset.matchId);
+                });
 
-                const input = document.querySelector(
-                    '.js-exception-deadline-input[data-match-id="' + matchId + '"]'
-                );
-
-                if (!input || input.disabled) {
-                    return;
-                }
-
-                input.value = '';
-                input.focus();
+                input.addEventListener('change', function () {
+                    updateClearResultButton(input.dataset.matchId);
+                });
             });
-        });
 
-        document.querySelectorAll('.js-clear-result-button').forEach(function (button) {
-            button.addEventListener('click', function () {
-                const matchId = button.dataset.matchId;
+        document
+            .querySelectorAll('.js-clear-result-button')
+            .forEach(function (button) {
+                updateClearResultButton(button.dataset.matchId);
 
-                document.querySelectorAll(
-                    '.js-actual-result-input[data-match-id="' + matchId + '"]'
-                ).forEach(function (input) {
-                    input.checked = false;
+                button.addEventListener('click', function () {
+                    const matchId = button.dataset.matchId;
+
+                    document.querySelectorAll(
+                        '.js-actual-result-input[data-match-id="'
+                            + matchId
+                            + '"]'
+                    ).forEach(function (input) {
+                        input.checked = false;
+                    });
+
+                    document.querySelectorAll(
+                        '.js-actual-home-bonus-input[data-match-id="'
+                            + matchId
+                            + '"]'
+                    ).forEach(function (input) {
+                        input.checked = false;
+                    });
+
+                    document.querySelectorAll(
+                        '.js-actual-away-bonus-input[data-match-id="'
+                            + matchId
+                            + '"]'
+                    ).forEach(function (input) {
+                        input.checked = false;
+                    });
+
+                    const triesInput = document.querySelector(
+                        '.js-actual-tries-input[data-match-id="'
+                            + matchId
+                            + '"]'
+                    );
+
+                    if (triesInput && !triesInput.disabled) {
+                        triesInput.value = '';
+                    }
+
+                    updateClearResultButton(matchId);
                 });
-
-                document.querySelectorAll(
-                    '.js-actual-home-bonus-input[data-match-id="' + matchId + '"]'
-                ).forEach(function (input) {
-                    input.checked = false;
-                });
-
-                document.querySelectorAll(
-                    '.js-actual-away-bonus-input[data-match-id="' + matchId + '"]'
-                ).forEach(function (input) {
-                    input.checked = false;
-                });
-
-                const triesInput = document.querySelector(
-                    '.js-actual-tries-input[data-match-id="' + matchId + '"]'
-                );
-
-                if (triesInput && !triesInput.disabled) {
-                    triesInput.value = '';
-                    triesInput.focus();
-                }
             });
-        });
 
-        const autoResultModalElement = document.getElementById('preseasonAutoResultSuggestionsModal');
-        const autoResultOpenButton = document.getElementById('preseasonAutoResultOpenButton');
+        document
+            .querySelectorAll('.js-clear-exception-deadline-button')
+            .forEach(function (button) {
+                button.addEventListener('click', function () {
+                    const matchId = button.dataset.matchId;
+
+                    const input = document.querySelector(
+                        '.js-exception-deadline-input[data-match-id="'
+                            + matchId
+                            + '"]'
+                    );
+
+                    if (!input || input.disabled) {
+                        return;
+                    }
+
+                    input.value = '';
+                    input.focus();
+                });
+            });
+
+        const autoResultModalElement = document.getElementById(
+            'preseasonAutoResultSuggestionsModal'
+        );
+
+        const autoResultOpenButton = document.getElementById(
+            'preseasonAutoResultOpenButton'
+        );
 
         function openAutoResultModal(attempt) {
             if (!autoResultModalElement) {
@@ -576,7 +756,9 @@
             }
 
             if (window.bootstrap && window.bootstrap.Modal) {
-                window.bootstrap.Modal.getOrCreateInstance(autoResultModalElement).show();
+                window.bootstrap.Modal
+                    .getOrCreateInstance(autoResultModalElement)
+                    .show();
 
                 return;
             }
@@ -585,7 +767,10 @@
                 autoResultOpenButton.click();
             }
 
-            if (!autoResultModalElement.classList.contains('show') && attempt < 20) {
+            if (
+                !autoResultModalElement.classList.contains('show')
+                && attempt < 20
+            ) {
                 window.setTimeout(function () {
                     openAutoResultModal(attempt + 1);
                 }, 150);

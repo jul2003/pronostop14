@@ -7,6 +7,8 @@
     $predictionNotice = $predictionNotice ?? null;
     $predictionWarning = session('prediction_warning');
     $rankingIsAvailable = $rankingIsAvailable ?? false;
+    $previousJournee = $previousJournee ?? null;
+    $nextJournee = $nextJournee ?? null;
 @endphp
 
 <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4">
@@ -48,6 +50,30 @@
     </div>
 </div>
 
+@if($previousJournee || $nextJournee)
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4">
+        <div>
+            @if($previousJournee)
+                <a href="{{ route('pronos.show', [$season, $previousJournee]) }}"
+                   class="btn btn-outline-primary rounded-pill fw-bold px-4"
+                   title="{{ $previousJournee->name }}">
+                    ← Journée précédente : {{ $previousJournee->name }}
+                </a>
+            @endif
+        </div>
+
+        <div class="ms-auto">
+            @if($nextJournee)
+                <a href="{{ route('pronos.show', [$season, $nextJournee]) }}"
+                   class="btn btn-outline-primary rounded-pill fw-bold px-4"
+                   title="{{ $nextJournee->name }}">
+                    Journée suivante : {{ $nextJournee->name }} →
+                </a>
+            @endif
+        </div>
+    </div>
+@endif
+
 @if($predictionWarning)
     <div class="alert alert-warning">
         {{ $predictionWarning }}
@@ -84,6 +110,7 @@
                             <th class="text-center">Essais</th>
                             <th class="text-center">Bonus dom.</th>
                             <th class="text-center">Bonus ext.</th>
+                            <th class="text-center">Action</th>
                         </tr>
                     </thead>
 
@@ -210,7 +237,7 @@
 
                                 <td class="text-center">
                                     <div class="prono-choice-group bonus-choice-group">
-                                        @foreach($journee->bonusOptionShortLabels() as $value => $label)
+                                        @foreach(['o' => 'O', '-' => '-', 'd' => 'D'] as $value => $label)
                                             <input type="radio"
                                                    id="predicted_home_bonus_{{ $match->id }}_{{ $value }}"
                                                    name="pronos[{{ $match->id }}][predicted_home_bonus]"
@@ -230,7 +257,7 @@
 
                                 <td class="text-center">
                                     <div class="prono-choice-group bonus-choice-group">
-                                        @foreach($journee->bonusOptionShortLabels() as $value => $label)
+                                        @foreach(['o' => 'O', '-' => '-', 'd' => 'D'] as $value => $label)
                                             <input type="radio"
                                                    id="predicted_away_bonus_{{ $match->id }}_{{ $value }}"
                                                    name="pronos[{{ $match->id }}][predicted_away_bonus]"
@@ -247,6 +274,26 @@
                                         @endforeach
                                     </div>
                                 </td>
+
+                                <td class="text-center prono-action-cell">
+                                    @if($prono && ! $matchIsLocked)
+                                        <button type="button"
+                                                class="btn btn-outline-danger btn-sm rounded-pill fw-bold px-3"
+                                                data-bs-toggle="modal"
+                                                data-bs-target="#deletePronoModal{{ $match->id }}"
+                                                aria-haspopup="dialog">
+                                            Effacer
+                                        </button>
+                                    @elseif($prono)
+                                        <span class="small text-muted">
+                                            Verrouillé
+                                        </span>
+                                    @else
+                                        <span class="text-muted">
+                                            —
+                                        </span>
+                                    @endif
+                                </td>
                             </tr>
                         @endforeach
                     </tbody>
@@ -255,11 +302,119 @@
         </div>
 
         @if($hasOpenMatches)
-            <button class="btn btn-warning rounded-pill fw-bold mt-4 px-4">
+            <button type="submit"
+                    class="btn btn-warning rounded-pill fw-bold mt-4 px-4">
                 Enregistrer mes pronostics
             </button>
         @endif
     </form>
+
+    @foreach($matches as $match)
+        @php
+            $prono = $match->pronos->first();
+            $matchIsLocked = $match->isPredictionLocked();
+        @endphp
+
+        @if($prono && ! $matchIsLocked)
+            <div class="modal fade prono-delete-modal"
+                 id="deletePronoModal{{ $match->id }}"
+                 tabindex="-1"
+                 aria-labelledby="deletePronoModalLabel{{ $match->id }}"
+                 aria-hidden="true">
+
+                <div class="modal-dialog modal-dialog-centered">
+                    <div class="modal-content border-0 shadow">
+                        <div class="modal-header border-0 pb-0">
+                            <div>
+                                <div class="text-uppercase text-danger fw-bold small mb-1">
+                                    Effacer un pronostic
+                                </div>
+
+                                <h2 class="modal-title h5 fw-bold mb-0"
+                                    id="deletePronoModalLabel{{ $match->id }}">
+                                    Confirmer l’effacement
+                                </h2>
+                            </div>
+
+                            <button type="button"
+                                    class="btn-close"
+                                    data-bs-dismiss="modal"
+                                    aria-label="Fermer">
+                            </button>
+                        </div>
+
+                        <div class="modal-body">
+                            <p class="text-muted mb-3">
+                                Tu vas effacer le pronostic enregistré pour ce match :
+                            </p>
+
+                            <div class="prono-delete-match">
+                                <div class="prono-delete-team">
+                                    <img src="{{ $match->homeClub->logo_url }}"
+                                         alt="{{ $match->homeClub->name }}"
+                                         class="prono-delete-logo">
+
+                                    <span class="fw-bold">
+                                        {{ $match->homeClub->name }}
+                                    </span>
+                                </div>
+
+                                <div class="fw-bold text-muted">
+                                    -
+                                </div>
+
+                                <div class="prono-delete-team">
+                                    <img src="{{ $match->awayClub->logo_url }}"
+                                         alt="{{ $match->awayClub->name }}"
+                                         class="prono-delete-logo">
+
+                                    <span class="fw-bold">
+                                        {{ $match->awayClub->name }}
+                                    </span>
+                                </div>
+                            </div>
+
+                            <p class="small text-muted mt-3 mb-3">
+                                Tu pourras saisir de nouveau ce pronostic tant que le match reste ouvert.
+                            </p>
+
+                            <div class="alert alert-warning mb-0">
+                                <div class="fw-bold mb-1">
+                                    Attention
+                                </div>
+
+                                Les autres modifications effectuées sur cette journée mais pas encore
+                                enregistrées seront perdues.
+                            </div>
+                        </div>
+
+                        <div class="modal-footer border-0 pt-0">
+                            <button type="button"
+                                    class="btn btn-outline-secondary rounded-pill fw-bold px-4"
+                                    data-bs-dismiss="modal">
+                                Annuler
+                            </button>
+
+                            <form method="POST"
+                                  action="{{ route('pronos.store', [$season, $journee]) }}"
+                                  class="m-0">
+                                @csrf
+
+                                <input type="hidden"
+                                       name="delete_prono_match_id"
+                                       value="{{ $match->id }}">
+
+                                <button type="submit"
+                                        class="btn btn-danger rounded-pill fw-bold px-4">
+                                    Effacer le pronostic
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        @endif
+    @endforeach
 @endif
 
 @endsection
@@ -274,6 +429,10 @@
 
     .pronos-entry-table .match-cell {
         min-width: 360px;
+    }
+
+    .pronos-entry-table .prono-action-cell {
+        min-width: 110px;
     }
 
     .pronos-entry-table .match-home span,
@@ -294,6 +453,67 @@
 
     .bonus-choice-label {
         cursor: pointer;
+    }
+
+    .prono-delete-modal .modal-content {
+        border-radius: 1.25rem;
+    }
+
+    .prono-delete-match {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+        align-items: center;
+        gap: 1rem;
+        padding: 1rem;
+        background: rgba(0, 0, 0, 0.025);
+        border: 1px solid rgba(0, 0, 0, 0.1);
+        border-radius: 1rem;
+    }
+
+    .prono-delete-team {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        min-width: 0;
+        text-align: center;
+    }
+
+    .prono-delete-logo {
+        width: 42px;
+        height: 42px;
+        object-fit: contain;
+    }
+
+    @media (max-width: 575.98px) {
+        .prono-delete-match {
+            gap: 0.5rem;
+            padding: 0.75rem;
+        }
+
+        .prono-delete-team {
+            font-size: 0.875rem;
+        }
+
+        .prono-delete-logo {
+            width: 34px;
+            height: 34px;
+        }
+
+        .prono-delete-modal .modal-footer {
+            flex-direction: column-reverse;
+            align-items: stretch;
+        }
+
+        .prono-delete-modal .modal-footer .btn,
+        .prono-delete-modal .modal-footer form {
+            width: 100%;
+        }
+
+        .prono-delete-modal .modal-footer form .btn {
+            width: 100%;
+        }
     }
 </style>
 @endpush

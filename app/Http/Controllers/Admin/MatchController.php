@@ -54,8 +54,11 @@ class MatchController extends Controller
             ->values()
             ->toArray();
 
-        $clubs = $knockoutMatchSetupService->eligibleClubsForJournee($season, $journee);
-        $automaticSetup = $knockoutMatchSetupService->automaticSetupForJournee($season, $journee);
+        $clubs = $knockoutMatchSetupService
+            ->eligibleClubsForJournee($season, $journee);
+
+        $automaticSetup = $knockoutMatchSetupService
+            ->automaticSetupForJournee($season, $journee);
 
         return view('admin.matches.manage', [
             'season' => $season,
@@ -106,6 +109,20 @@ class MatchController extends Controller
             return back()->withErrors($clubValidationError);
         }
 
+        if ($this->shouldPreventDuplicateMatchInSeason($journee)) {
+            $duplicateMatch = $this->duplicateMatchInSeason(
+                $season,
+                (int) $data['home_club_id'],
+                (int) $data['away_club_id']
+            );
+
+            if ($duplicateMatch) {
+                return back()->withErrors([
+                    'clubs' => $this->duplicateMatchMessage($duplicateMatch),
+                ]);
+            }
+        }
+
         $clubAlreadyUsed = MatchGame::where('journee_id', $journee->id)
             ->where(function ($query) use ($data) {
                 $query->whereIn('home_club_id', [
@@ -134,7 +151,10 @@ class MatchController extends Controller
         ]);
 
         return redirect()
-            ->route('admin.seasons.journees.matches', $this->matchesPageRouteParameters($season, $journee, $request))
+            ->route(
+                'admin.seasons.journees.matches',
+                $this->matchesPageRouteParameters($season, $journee, $request)
+            )
             ->with('success', 'Match ajouté.');
     }
 
@@ -173,10 +193,36 @@ class MatchController extends Controller
             ->orderBy('id')
             ->get();
 
+        $resultsJournees = $season->journees()
+            ->where('type', '!=', 'preseason')
+            ->whereHas('matches')
+            ->orderBy('number')
+            ->orderBy('id')
+            ->get();
+
+        $currentJourneeIndex = $resultsJournees->search(
+            fn (Journee $resultsJournee) => (int) $resultsJournee->id === (int) $journee->id
+        );
+
+        $previousJournee = null;
+        $nextJournee = null;
+
+        if ($currentJourneeIndex !== false) {
+            if ($currentJourneeIndex > 0) {
+                $previousJournee = $resultsJournees->get($currentJourneeIndex - 1);
+            }
+
+            if ($currentJourneeIndex < $resultsJournees->count() - 1) {
+                $nextJournee = $resultsJournees->get($currentJourneeIndex + 1);
+            }
+        }
+
         return view('admin.matches.results', [
             'season' => $season,
             'journee' => $journee,
             'matches' => $matches,
+            'previousJournee' => $previousJournee,
+            'nextJournee' => $nextJournee,
         ]);
     }
 
@@ -192,22 +238,33 @@ class MatchController extends Controller
 
         if ($season->is_locked) {
             return redirect()
-                ->route('admin.seasons.journees.results', [$season, $journee])
-                ->with('error', 'Cette saison est verrouillée : les résultats ne peuvent plus être modifiés.');
+                ->route(
+                    'admin.seasons.journees.results',
+                    $this->resultsPageRouteParameters($season, $journee, $request)
+                )
+                ->with(
+                    'error',
+                    'Cette saison est verrouillée : les résultats ne peuvent plus être modifiés.'
+                );
         }
 
         $data = $request->validate([
             'matches' => ['nullable', 'array'],
-            'matches.*.actual_result' => ['nullable', Rule::in($journee->allowedResultOptions())],
+            'matches.*.actual_result' => [
+                'nullable',
+                Rule::in($journee->allowedResultOptions()),
+            ],
             'matches.*.actual_tries' => ['nullable', 'integer', 'min:0'],
             'matches.*.actual_home_bonus' => ['nullable', 'in:o,-,d'],
             'matches.*.actual_away_bonus' => ['nullable', 'in:o,-,d'],
-
             'deadline_exceptions' => ['nullable', 'array'],
             'deadline_exceptions.*.prediction_deadline' => ['nullable', 'date'],
-
             'accept_preseason_auto_result' => ['nullable', 'boolean'],
-            'auto_result_question_id' => ['nullable', 'integer', 'exists:season_preseason_questions,id'],
+            'auto_result_question_id' => [
+                'nullable',
+                'integer',
+                'exists:season_preseason_questions,id',
+            ],
             'auto_result_club_id' => ['nullable', 'integer', 'exists:clubs,id'],
         ]);
 
@@ -294,7 +351,10 @@ class MatchController extends Controller
 
             if (! $acceptedAutoResult['success']) {
                 return redirect()
-                    ->route('admin.seasons.journees.results', [$season, $journee])
+                    ->route(
+                        'admin.seasons.journees.results',
+                        $this->resultsPageRouteParameters($season, $journee, $request)
+                    )
                     ->with('error', $acceptedAutoResult['message']);
             }
         }
@@ -313,7 +373,10 @@ class MatchController extends Controller
         }
 
         $redirect = redirect()
-            ->route('admin.seasons.journees.results', [$season, $journee])
+            ->route(
+                'admin.seasons.journees.results',
+                $this->resultsPageRouteParameters($season, $journee, $request)
+            )
             ->with('success', $successMessage);
 
         if (! empty($autoResultSuggestions)) {
@@ -385,63 +448,144 @@ class MatchController extends Controller
         ]);
 
         $clubIds = array_map('intval', $data['clubs']);
+        $pairs = array_chunk($clubIds, 2);
 
-        if (count($clubIds) % 2 !== 0) {
+        $eligibleClubs = $knockoutMatchSetupService
+            ->eligibleClubsForJournee($season, $journee)
+            ->keyBy('id');
+
+        $eligibleClubIds = $eligibleClubs
+            ->keys()
+            ->map(fn ($id) => (int) $id)
+            ->values()
+            ->all();
+
+        if (empty($eligibleClubIds)) {
             return back()->withErrors([
-                'clubs' => 'Le nombre de clubs sélectionnés doit être pair.',
+                'clubs' => 'Aucun club éligible n’est disponible pour cette journée. Vérifie les résultats nécessaires avant de créer les matchs.',
             ]);
         }
 
-        if (count($clubIds) !== count(array_unique($clubIds))) {
-            return back()->withErrors([
-                'clubs' => 'Un club ne peut pas être utilisé deux fois.',
-            ]);
-        }
-
-        $clubValidationError = $this->eligibleClubValidationError(
-            $season,
-            $journee,
-            $clubIds,
-            $knockoutMatchSetupService
-        );
-
-        if ($clubValidationError) {
-            return back()->withErrors($clubValidationError);
-        }
-
-        $alreadyUsedClubIds = MatchGame::where('journee_id', $journee->id)
+        $usedClubIds = MatchGame::where('journee_id', $journee->id)
             ->get()
             ->flatMap(fn ($match) => [
                 (int) $match->home_club_id,
                 (int) $match->away_club_id,
             ])
             ->unique()
-            ->toArray();
+            ->values()
+            ->all();
 
-        foreach ($clubIds as $clubId) {
-            if (in_array($clubId, $alreadyUsedClubIds, true)) {
-                return back()->withErrors([
-                    'clubs' => 'Un des clubs sélectionnés est déjà utilisé sur cette journée.',
-                ]);
-            }
-        }
+        $usedClubIdsById = array_fill_keys($usedClubIds, true);
+        $createdCount = 0;
+        $warnings = [];
+        $seenPairKeys = [];
 
         $nextPosition = ((int) MatchGame::where('journee_id', $journee->id)->max('position')) + 1;
 
-        foreach (array_chunk($clubIds, 2) as $pair) {
+        foreach ($pairs as $pair) {
+            if (count($pair) < 2) {
+                $warnings[] = 'Sélection incomplète ignorée : un club n’a pas été associé à un adversaire.';
+
+                continue;
+            }
+
+            $homeClubId = (int) $pair[0];
+            $awayClubId = (int) $pair[1];
+            $pairLabel = $this->pairLabel($eligibleClubs, $homeClubId, $awayClubId);
+
+            if ($homeClubId === $awayClubId) {
+                $warnings[] = 'Match ignoré : '.$pairLabel.' utilise deux fois le même club.';
+
+                continue;
+            }
+
+            if (
+                ! in_array($homeClubId, $eligibleClubIds, true)
+                || ! in_array($awayClubId, $eligibleClubIds, true)
+            ) {
+                $warnings[] = 'Match ignoré : '.$pairLabel.' contient un club qui n’est pas éligible pour cette journée.';
+
+                continue;
+            }
+
+            if (
+                isset($usedClubIdsById[$homeClubId])
+                || isset($usedClubIdsById[$awayClubId])
+            ) {
+                $warnings[] = 'Match ignoré : '.$pairLabel.' utilise un club déjà présent sur cette journée.';
+
+                continue;
+            }
+
+            $pairKey = $homeClubId.'-'.$awayClubId;
+
+            if (isset($seenPairKeys[$pairKey])) {
+                $warnings[] = 'Match ignoré : '.$pairLabel.' est présent deux fois dans la sélection.';
+
+                continue;
+            }
+
+            if ($this->shouldPreventDuplicateMatchInSeason($journee)) {
+                $duplicateMatch = $this->duplicateMatchInSeason(
+                    $season,
+                    $homeClubId,
+                    $awayClubId
+                );
+
+                if ($duplicateMatch) {
+                    $warnings[] = 'Match ignoré : '.$this->duplicateMatchMessage($duplicateMatch);
+
+                    continue;
+                }
+            }
+
             MatchGame::create([
                 'journee_id' => $journee->id,
-                'home_club_id' => $pair[0],
-                'away_club_id' => $pair[1],
+                'home_club_id' => $homeClubId,
+                'away_club_id' => $awayClubId,
                 'position' => $nextPosition,
             ]);
 
+            $createdCount++;
             $nextPosition++;
+
+            $seenPairKeys[$pairKey] = true;
+            $usedClubIdsById[$homeClubId] = true;
+            $usedClubIdsById[$awayClubId] = true;
         }
 
-        return redirect()
-            ->route('admin.seasons.journees.matches', $this->matchesPageRouteParameters($season, $journee, $request))
-            ->with('success', 'Matchs ajoutés.');
+        $redirect = redirect()
+            ->route(
+                'admin.seasons.journees.matches',
+                $this->matchesPageRouteParameters($season, $journee, $request)
+            );
+
+        if ($createdCount > 0) {
+            $redirect->with(
+                'success',
+                $createdCount
+                    .' match'
+                    .($createdCount > 1 ? 's' : '')
+                    .' ajouté'
+                    .($createdCount > 1 ? 's' : '')
+                    .'.'
+            );
+        }
+
+        if (! empty($warnings)) {
+            if ($createdCount === 0) {
+                array_unshift($warnings, 'Aucun match ajouté.');
+            }
+
+            $redirect->with('warning', $warnings);
+        }
+
+        if ($createdCount === 0 && empty($warnings)) {
+            $redirect->with('warning', 'Aucun match ajouté.');
+        }
+
+        return $redirect;
     }
 
     private function acceptPreseasonAutoResult(
@@ -471,7 +615,8 @@ class MatchController extends Controller
             ];
         }
 
-        $suggestion = $preseasonAutoResultService->suggestionForQuestion($season, $question);
+        $suggestion = $preseasonAutoResultService
+            ->suggestionForQuestion($season, $question);
 
         if (! $suggestion || (int) $suggestion['club_id'] !== (int) $clubId) {
             return [
@@ -480,7 +625,12 @@ class MatchController extends Controller
             ];
         }
 
-        DB::transaction(function () use ($question, $clubId, $season, $preseasonScoringService) {
+        DB::transaction(function () use (
+            $question,
+            $clubId,
+            $season,
+            $preseasonScoringService
+        ) {
             $question->update([
                 'result_club_id' => $clubId,
                 'result_text_answer' => null,
@@ -492,7 +642,11 @@ class MatchController extends Controller
 
         return [
             'success' => true,
-            'message' => 'Résultat avant-saison mémorisé et points recalculés : '.$suggestion['question_label'].' → '.$suggestion['club_name'].'.',
+            'message' => 'Résultat avant-saison mémorisé et points recalculés : '
+                .$suggestion['question_label']
+                .' → '
+                .$suggestion['club_name']
+                .'.',
         ];
     }
 
@@ -526,22 +680,102 @@ class MatchController extends Controller
         return null;
     }
 
-    private function matchesPageRouteParameters(Season $season, Journee $journee, Request $request): array
+    private function shouldPreventDuplicateMatchInSeason(Journee $journee): bool
     {
+        return $journee->type === 'regular';
+    }
+
+    private function duplicateMatchInSeason(
+        Season $season,
+        int $homeClubId,
+        int $awayClubId
+    ): ?MatchGame {
+        return MatchGame::query()
+            ->with([
+                'journee',
+                'homeClub',
+                'awayClub',
+            ])
+            ->where('home_club_id', $homeClubId)
+            ->where('away_club_id', $awayClubId)
+            ->whereHas('journee', function ($query) use ($season) {
+                $query->where('season_id', $season->id)
+                    ->where('type', 'regular');
+            })
+            ->orderBy('id')
+            ->first();
+    }
+
+    private function duplicateMatchMessage(MatchGame $match): string
+    {
+        $journeeName = $match->journee?->name ?? 'une autre journée';
+        $homeClubName = $match->homeClub?->name ?? 'club domicile';
+        $awayClubName = $match->awayClub?->name ?? 'club extérieur';
+
+        return 'ce match existe déjà dans la saison : '
+            .$journeeName
+            .' — '
+            .$homeClubName
+            .' - '
+            .$awayClubName
+            .'.';
+    }
+
+    private function pairLabel(
+        $clubs,
+        int $homeClubId,
+        int $awayClubId
+    ): string {
+        $homeClubName = $clubs->get($homeClubId)?->name ?? 'club #'.$homeClubId;
+        $awayClubName = $clubs->get($awayClubId)?->name ?? 'club #'.$awayClubId;
+
+        return $homeClubName.' - '.$awayClubName;
+    }
+
+    private function resultsPageRouteParameters(
+        Season $season,
+        Journee $journee,
+        Request $request
+    ): array {
         $parameters = [
             $season,
             $journee,
         ];
 
-        if ($request->query('from') === 'upcoming-matches' || $request->input('from') === 'upcoming-matches') {
+        if (
+            $request->query('from') === 'pending-results'
+            || $request->input('from') === 'pending-results'
+        ) {
+            $parameters['from'] = 'pending-results';
+        }
+
+        return $parameters;
+    }
+
+    private function matchesPageRouteParameters(
+        Season $season,
+        Journee $journee,
+        Request $request
+    ): array {
+        $parameters = [
+            $season,
+            $journee,
+        ];
+
+        if (
+            $request->query('from') === 'upcoming-matches'
+            || $request->input('from') === 'upcoming-matches'
+        ) {
             $parameters['from'] = 'upcoming-matches';
         }
 
         return $parameters;
     }
 
-    private function ensureJourneeBelongsToSeason(Season $season, Journee $journee): void
-    {
+    private function ensureJourneeBelongsToSeason(
+        Season $season,
+        Journee $journee
+    ): void {
         if ((int) $journee->season_id !== (int) $season->id) {
             abort(404);
         }

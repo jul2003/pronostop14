@@ -2,6 +2,18 @@
 
 @section('content')
 
+@php
+    $hasEditableQuestions = $hasEditableQuestions
+        ?? $questions->contains(
+            fn ($question) => ! $question->hasOfficialResult()
+        );
+
+    $hasClosedQuestions = $hasClosedQuestions
+        ?? $questions->contains(
+            fn ($question) => $question->hasOfficialResult()
+        );
+@endphp
+
 <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-start gap-3 mb-4">
     <div>
         <div class="text-uppercase text-primary fw-bold small">
@@ -29,12 +41,6 @@
     </div>
 </div>
 
-@if($errors->any())
-    <div class="alert alert-danger">
-        {{ $errors->first() }}
-    </div>
-@endif
-
 @if($isNotOpen)
     <div class="alert alert-info">
         Les pronostics avant-saison ne sont pas encore ouverts.
@@ -43,6 +49,16 @@
 @elseif($isLocked)
     <div class="alert alert-warning">
         Les pronostics avant-saison sont clôturés. Consultation uniquement.
+    </div>
+@elseif(! $hasEditableQuestions)
+    <div class="alert alert-info">
+        Tous les résultats de ces questions sont déjà enregistrés.
+        Il n’y a plus de pronostic avant-saison disponible à la saisie.
+    </div>
+@elseif($hasClosedQuestions)
+    <div class="alert alert-info">
+        Certaines questions sont déjà clôturées parce que leur résultat officiel est enregistré.
+        Elles restent visibles, mais elles ne peuvent plus être saisies ni modifiées.
     </div>
 @endif
 
@@ -75,13 +91,21 @@
                         @foreach($questions as $question)
                             @php
                                 $prediction = $predictions->get($question->id);
+                                $questionHasOfficialResult = $question->hasOfficialResult();
+                                $questionIsDisabled = $isLocked
+                                    || $isNotOpen
+                                    || $questionHasOfficialResult;
 
-                                $currentAnswer = old(
-                                    "answers.{$question->id}",
-                                    $question->answer_type === 'free_text'
-                                        ? $prediction?->text_answer
-                                        : $prediction?->club_id
-                                );
+                                $storedAnswer = $question->answer_type === 'free_text'
+                                    ? $prediction?->text_answer
+                                    : $prediction?->club_id;
+
+                                $currentAnswer = $questionHasOfficialResult
+                                    ? $storedAnswer
+                                    : old(
+                                        "answers.{$question->id}",
+                                        $storedAnswer
+                                    );
 
                                 $clubs = match ($question->answer_type) {
                                     'top14_club' => $top14Clubs,
@@ -91,13 +115,21 @@
                                 };
                             @endphp
 
-                            <tr>
+                            <tr class="{{ $questionHasOfficialResult ? 'table-light' : '' }}">
                                 <td>
-                                    <div class="fw-bold">
-                                        {{ $question->label }}
+                                    <div class="d-flex flex-wrap align-items-center gap-2">
+                                        <div class="fw-bold">
+                                            {{ $question->label }}
+                                        </div>
+
+                                        @if($questionHasOfficialResult)
+                                            <span class="badge rounded-pill text-bg-secondary">
+                                                Résultat déjà enregistré
+                                            </span>
+                                        @endif
                                     </div>
 
-                                    <div class="text-muted small">
+                                    <div class="text-muted small mt-1">
                                         {{ $question->points }} point(s)
                                     </div>
                                 </td>
@@ -108,19 +140,22 @@
                                                name="answers[{{ $question->id }}]"
                                                value="{{ $currentAnswer }}"
                                                class="form-control"
+                                               placeholder="{{ $questionHasOfficialResult && blank($currentAnswer) ? 'Aucune réponse saisie avant la clôture' : '' }}"
                                                autocomplete="off"
                                                autocorrect="off"
                                                autocapitalize="off"
                                                spellcheck="false"
-                                               @disabled($isLocked || $isNotOpen)>
+                                               @disabled($questionIsDisabled)>
                                     @else
                                         <select name="answers[{{ $question->id }}]"
                                                 class="form-select preseason-answer-select"
                                                 data-question-label="{{ mb_strtolower($question->label) }}"
                                                 autocomplete="off"
-                                                @disabled($isLocked || $isNotOpen)>
+                                                @disabled($questionIsDisabled)>
                                             <option value="">
-                                                Choisir...
+                                                {{ $questionHasOfficialResult
+                                                    ? 'Aucune réponse saisie avant la clôture'
+                                                    : 'Choisir...' }}
                                             </option>
 
                                             @foreach($clubs as $club)
@@ -131,6 +166,16 @@
                                             @endforeach
                                         </select>
                                     @endif
+
+                                    @if($questionHasOfficialResult)
+                                        <div class="small text-muted mt-2">
+                                            @if($prediction)
+                                                Ta réponse est conservée, mais elle ne peut plus être modifiée.
+                                            @else
+                                                Saisie indisponible : le résultat officiel est déjà enregistré.
+                                            @endif
+                                        </div>
+                                    @endif
                                 </td>
                             </tr>
                         @endforeach
@@ -139,17 +184,20 @@
             </div>
         </div>
 
-        @unless($isLocked || $isNotOpen)
+        @if(! $isLocked && ! $isNotOpen && $hasEditableQuestions)
             <div class="d-flex justify-content-end mt-4">
                 <button type="submit"
                         class="btn btn-warning rounded-pill fw-bold px-4">
                     Enregistrer mes pronostics avant-saison
                 </button>
             </div>
-        @endunless
+        @endif
     </form>
 @endif
 
+@endsection
+
+@push('scripts')
 <script>
     document.addEventListener('DOMContentLoaded', function () {
         function groupForSelect(select) {
@@ -173,10 +221,11 @@
             ];
 
             groups.forEach(function (group) {
-                const selects = Array.from(document.querySelectorAll('.preseason-answer-select'))
-                    .filter(function (select) {
-                        return groupForSelect(select) === group;
-                    });
+                const selects = Array.from(
+                    document.querySelectorAll('.preseason-answer-select')
+                ).filter(function (select) {
+                    return groupForSelect(select) === group;
+                });
 
                 const selectedValues = selects
                     .map(function (select) {
@@ -194,20 +243,23 @@
                             return;
                         }
 
-                        option.disabled =
-                            selectedValues.includes(option.value)
+                        option.disabled = selectedValues.includes(option.value)
                             && select.value !== option.value;
                     });
                 });
             });
         }
 
-        document.querySelectorAll('.preseason-answer-select').forEach(function (select) {
-            select.addEventListener('change', refreshUniquePreseasonSelections);
-        });
+        document
+            .querySelectorAll('.preseason-answer-select')
+            .forEach(function (select) {
+                select.addEventListener(
+                    'change',
+                    refreshUniquePreseasonSelections
+                );
+            });
 
         refreshUniquePreseasonSelections();
     });
 </script>
-
-@endsection
+@endpush

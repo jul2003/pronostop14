@@ -39,25 +39,8 @@
     </div>
 @endif
 
-@if($errors->any())
-    <div class="alert alert-danger">
-        {{ $errors->first() }}
-    </div>
-@endif
-
-@if(session('error'))
-    <div class="alert alert-danger">
-        {{ session('error') }}
-    </div>
-@endif
-
-@if(session('success'))
-    <div class="alert alert-success">
-        {{ session('success') }}
-    </div>
-@endif
-
-<form method="POST" action="{{ route('admin.seasons.players.sync', $season) }}">
+<form method="POST"
+      action="{{ route('admin.seasons.players.sync', $season) }}">
     @csrf
 
     <div class="rugby-card p-0 overflow-hidden">
@@ -65,11 +48,26 @@
             <table class="table table-hover align-middle mb-0">
                 <thead class="table-light">
                     <tr>
-                        <th style="width: 70px;" class="text-center">Joue</th>
-                        <th>Pseudo</th>
-                        <th>Nom</th>
-                        <th>Email</th>
-                        <th class="text-center">Rôle</th>
+                        <th style="width: 70px;"
+                            class="text-center">
+                            Joue
+                        </th>
+
+                        <th>
+                            Pseudo
+                        </th>
+
+                        <th>
+                            Nom
+                        </th>
+
+                        <th>
+                            Email
+                        </th>
+
+                        <th class="text-center">
+                            Rôle
+                        </th>
                     </tr>
                 </thead>
 
@@ -85,33 +83,50 @@
                                        @disabled($season->is_locked)>
                             </td>
 
-                            <td class="fw-bold" style="color: {{ $user->color ?? '#06142f' }}">
+                            <td class="fw-bold"
+                                style="color: {{ $user->color ?? '#06142f' }}">
                                 @if($season->is_locked)
-                                    <span class="text-muted me-2">☰</span>
+                                    <span class="text-muted me-2">
+                                        ☰
+                                    </span>
                                 @else
-                                    <span class="drag-handle text-muted me-2" style="cursor: grab;">☰</span>
+                                    <span class="drag-handle text-muted me-2"
+                                          style="cursor: grab;">
+                                        ☰
+                                    </span>
                                 @endif
 
                                 {{ $user->nickname ?? $user->name }}
                             </td>
 
-                            <td>{{ $user->name }}</td>
+                            <td>
+                                {{ $user->name }}
+                            </td>
 
-                            <td class="text-muted">{{ $user->email }}</td>
+                            <td class="text-muted">
+                                {{ $user->email }}
+                            </td>
 
                             <td class="text-center">
                                 @if($user->role === 'super_admin')
-                                    <span class="badge text-bg-warning rounded-pill">Super Admin</span>
+                                    <span class="badge text-bg-warning rounded-pill">
+                                        Super Admin
+                                    </span>
                                 @elseif($user->role === 'admin')
-                                    <span class="badge text-bg-primary rounded-pill">Admin</span>
+                                    <span class="badge text-bg-primary rounded-pill">
+                                        Admin
+                                    </span>
                                 @else
-                                    <span class="badge text-bg-success rounded-pill">Joueur</span>
+                                    <span class="badge text-bg-success rounded-pill">
+                                        Joueur
+                                    </span>
                                 @endif
                             </td>
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="5" class="text-center text-muted py-4">
+                            <td colspan="5"
+                                class="text-center text-muted py-4">
                                 Aucun utilisateur disponible.
                             </td>
                         </tr>
@@ -149,16 +164,28 @@
 
                     onEnd: function () {
                         const players = [...list.querySelectorAll('tr')]
-                            .filter(row => row.querySelector('input[type="checkbox"]').checked)
-                            .map(row => row.dataset.id);
+                            .filter(function (row) {
+                                const checkbox = row.querySelector(
+                                    'input[type="checkbox"]'
+                                );
+
+                                return checkbox && checkbox.checked;
+                            })
+                            .map(function (row) {
+                                return row.dataset.id;
+                            });
 
                         fetch("{{ route('admin.seasons.players.reorder', $season) }}", {
                             method: 'POST',
+
                             headers: {
                                 'Content-Type': 'application/json',
                                 'X-CSRF-TOKEN': '{{ csrf_token() }}',
                             },
-                            body: JSON.stringify({ players }),
+
+                            body: JSON.stringify({
+                                players: players
+                            }),
                         });
                     },
                 });

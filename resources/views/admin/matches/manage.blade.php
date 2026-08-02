@@ -86,12 +86,6 @@
     </div>
 @endif
 
-@if($errors->any())
-    <div class="alert alert-danger">
-        {{ $errors->first() }}
-    </div>
-@endif
-
 @if(! empty($automaticSetup['title']) || ! empty($automaticSetup['message']) || $automaticPairs->isNotEmpty())
     <div class="rugby-card p-4 mb-4 border border-primary-subtle">
         <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-3">
@@ -211,14 +205,14 @@
                     Aucun duo de clubs disponible pour créer un match sur cette journée.
                 </div>
             @else
-                <div id="availableClubs" class="club-picker">
+                <div id="availableClubs"
+                     class="club-picker">
                     @foreach($availableClubs as $club)
                         <button type="button"
                                 class="club-picker-item"
                                 data-club-id="{{ $club->id }}"
                                 data-club-name="{{ $club->name }}"
                                 @disabled($preparationIsLocked)>
-
                             <div class="d-flex align-items-center gap-2">
                                 <img src="{{ $club->logo_url }}"
                                      alt="{{ $club->name }}"
@@ -267,7 +261,8 @@
 
                     <div id="selectedClubsInputs"></div>
 
-                    <div id="draftMatches" class="draft-matches">
+                    <div id="draftMatches"
+                         class="draft-matches">
                         <div class="alert alert-info mb-0">
                             Aucun club sélectionné pour le moment.
                         </div>
@@ -301,7 +296,8 @@
                     Aucun match enregistré pour cette journée.
                 </div>
             @else
-                <ul id="matchesList" class="list-group">
+                <ul id="matchesList"
+                    class="list-group">
                     @foreach($matches as $match)
                         <li class="list-group-item d-flex justify-content-between align-items-center"
                             data-id="{{ $match->id }}">
@@ -379,6 +375,7 @@
                 button.type = 'button';
                 button.className = 'selected-club-chip';
                 button.textContent = club.name;
+
                 button.addEventListener('click', function () {
                     removeSelectedClub(index);
                 });
@@ -390,7 +387,7 @@
                 clearChildren(selectedClubsInputs);
                 clearChildren(draftMatches);
 
-                selectedClubs.forEach(club => {
+                selectedClubs.forEach(function (club) {
                     const input = document.createElement('input');
 
                     input.type = 'hidden';
@@ -412,20 +409,16 @@
                     for (let i = 0; i < selectedClubs.length; i += 2) {
                         const home = selectedClubs[i];
                         const away = selectedClubs[i + 1];
-
                         const item = document.createElement('div');
+                        const title = document.createElement('div');
+                        const clubsWrapper = document.createElement('div');
 
                         item.className = 'list-group-item';
-
-                        const title = document.createElement('div');
 
                         title.className = 'fw-bold mb-2';
                         title.textContent = `Match ${Math.floor(i / 2) + 1}`;
 
-                        const clubsWrapper = document.createElement('div');
-
                         clubsWrapper.className = 'd-flex flex-wrap gap-2';
-
                         clubsWrapper.appendChild(
                             createSelectedClubButton(home, i)
                         );
@@ -439,13 +432,11 @@
 
                             pending.className = 'text-muted';
                             pending.textContent = 'En attente...';
-
                             clubsWrapper.appendChild(pending);
                         }
 
                         item.appendChild(title);
                         item.appendChild(clubsWrapper);
-
                         list.appendChild(item);
                     }
 
@@ -458,7 +449,6 @@
                         );
 
                         warning.classList.add('mt-3');
-
                         draftMatches.appendChild(warning);
                     }
                 }
@@ -469,14 +459,16 @@
                 resetSelection.disabled = selectedClubs.length === 0;
 
                 if (availableCount && availableClubs) {
-                    availableCount.textContent = availableClubs.querySelectorAll('.club-picker-item:not(.d-none)').length;
+                    availableCount.textContent = availableClubs
+                        .querySelectorAll('.club-picker-item:not(.d-none)')
+                        .length;
                 }
             }
 
             function resetDraft() {
                 selectedClubs.length = 0;
 
-                document.querySelectorAll('.club-picker-item').forEach(button => {
+                document.querySelectorAll('.club-picker-item').forEach(function (button) {
                     button.classList.remove('d-none');
                 });
 
@@ -499,7 +491,7 @@
                 renderDraftMatches();
             }
 
-            document.querySelectorAll('.club-picker-item').forEach(button => {
+            document.querySelectorAll('.club-picker-item').forEach(function (button) {
                 button.addEventListener('click', function () {
                     selectedClubs.push({
                         id: this.dataset.clubId,
@@ -507,19 +499,17 @@
                     });
 
                     this.classList.add('d-none');
-
                     renderDraftMatches();
                 });
             });
 
             resetSelection?.addEventListener('click', resetDraft);
-
             renderDraftMatches();
 
             window.addEventListener('load', function () {
                 const list = document.getElementById('matchesList');
 
-                if (! list || ! window.Sortable) {
+                if (!list || !window.Sortable) {
                     return;
                 }
 
@@ -527,9 +517,12 @@
                     animation: 150,
                     handle: '.drag-handle',
                     ghostClass: 'opacity-50',
+
                     onEnd: function () {
                         const matches = [...list.querySelectorAll('li')]
-                            .map(item => item.dataset.id);
+                            .map(function (item) {
+                                return item.dataset.id;
+                            });
 
                         fetch("{{ route('admin.seasons.journees.matches.reorder', $matchesRouteParameters) }}", {
                             method: 'POST',
@@ -537,7 +530,7 @@
                                 'Content-Type': 'application/json',
                                 'X-CSRF-TOKEN': '{{ csrf_token() }}',
                             },
-                            body: JSON.stringify({ matches }),
+                            body: JSON.stringify({ matches: matches }),
                         });
                     },
                 });

@@ -64,6 +64,8 @@
             }
 
             $openMatchesCount = $openMatches->count();
+            $matchesCount = (int) $journee->matches_count;
+            $submittedPronosCount = (int) $journee->user_pronos_count;
         @endphp
 
         <div class="col-md-6 col-xl-4">
@@ -83,6 +85,24 @@
                         {{ $journee->matches_count }} match(s)
                     @endif
                 </div>
+
+                @if(! $isPreseason)
+                    <div class="mb-3">
+                        @if($submittedPronosCount === 0)
+                            <span class="badge rounded-pill text-bg-secondary">
+                                Non saisi
+                            </span>
+                        @elseif($submittedPronosCount >= $matchesCount)
+                            <span class="badge rounded-pill text-bg-success">
+                                Pronostics saisis
+                            </span>
+                        @else
+                            <span class="badge rounded-pill text-bg-warning">
+                                {{ $submittedPronosCount }} / {{ $matchesCount }} pronostics saisis
+                            </span>
+                        @endif
+                    </div>
+                @endif
 
                 @if($isPreseason)
                     @if($preseasonDeadline)
@@ -124,16 +144,16 @@
                 @endif
 
                 <div class="d-flex flex-wrap gap-2">
-                    <a href="{{ route('pronos.show', [$journee->season, $journee]) }}"
-                       class="btn btn-primary rounded-pill">
+                    <a
+                        href="{{ route('pronos.show', [$journee->season, $journee]) }}"
+                        class="btn btn-primary rounded-pill"
+                    >
                         Voir la journée
                     </a>
                 </div>
             </div>
         </div>
-
     @empty
-
         <div class="col-12">
             <div class="alert alert-info">
                 Aucun pronostic ouvert pour le moment.

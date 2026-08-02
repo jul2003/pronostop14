@@ -15,6 +15,7 @@ use App\Http\Controllers\Admin\SeasonScoringRuleController;
 use App\Http\Controllers\Admin\SettingController;
 use App\Http\Controllers\Admin\UpcomingMatchController;
 use App\Http\Controllers\Admin\UserController;
+use App\Http\Controllers\Admin\DataModelController;
 use App\Http\Controllers\InitialSetupController;
 use App\Http\Controllers\PlayerProfileController;
 use App\Http\Controllers\PronoController;
@@ -128,6 +129,9 @@ Route::middleware(['auth', 'admin'])->group(function () {
 
     Route::get('/admin/maintenance', [MaintenanceController::class, 'index'])
         ->name('admin.maintenance.index');
+
+    Route::get('/admin/modele-donnees', DataModelController::class)
+        ->name('admin.data-model.index');
 
     Route::get('/admin/parametres-application', [AppSettingController::class, 'index'])
         ->name('admin.app-settings.index');

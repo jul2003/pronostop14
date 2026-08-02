@@ -33,47 +33,13 @@ class PronoController extends Controller
         $preseasonDeadline = $preseasonDeadlineService->deadlineForUser($season, auth()->user());
         $preseasonIsLocked = $preseasonDeadlineService->isLockedForUser($season, auth()->user());
 
-        $journees = Journee::with([
-            'season',
-            'matches.journee',
-            'matches.predictionDeadlineException',
-        ])
-            ->withCount('matches')
-            ->where('season_id', $season->id)
-            ->orderBy('number')
-            ->get()
-            ->filter(function ($journee) use ($preseasonDeadline, $preseasonIsLocked) {
-                if ($journee->type === 'preseason') {
-                    if (! $preseasonDeadline || $preseasonIsLocked) {
-                        return false;
-                    }
-
-                    return $journee->season
-                        ->preseasonQuestions()
-                        ->where('is_active', true)
-                        ->exists();
-                }
-
-                if ($journee->predictions_enabled === false) {
-                    return false;
-                }
-
-                if (! $journee->first_match_at) {
-                    return false;
-                }
-
-                if (! $journee->hasExpectedMatchesCount()) {
-                    return false;
-                }
-
-                if ((int) $journee->matches_count === 0) {
-                    return false;
-                }
-
-                return $journee->matches
-                    ->contains(fn ($match) => ! $match->isPredictionLocked());
-            })
-            ->values();
+        $journees = $this->availableJourneesForUser(
+            $season,
+            $preseasonDeadline,
+            $preseasonIsLocked,
+            true,
+            true
+        );
 
         return view('pronos.journees', [
             'season' => $season,
@@ -110,6 +76,31 @@ class PronoController extends Controller
 
         $hasOpenMatches = $matches->contains(fn ($match) => ! $match->isPredictionLocked());
 
+        $availableJournees = $this->availableJourneesForUser(
+            $season,
+            null,
+            false,
+            false,
+            false
+        );
+
+        $currentJourneeIndex = $availableJournees->search(
+            fn ($availableJournee) => $availableJournee->id === $journee->id
+        );
+
+        $previousJournee = null;
+        $nextJournee = null;
+
+        if ($currentJourneeIndex !== false) {
+            if ($currentJourneeIndex > 0) {
+                $previousJournee = $availableJournees->get($currentJourneeIndex - 1);
+            }
+
+            if ($currentJourneeIndex < $availableJournees->count() - 1) {
+                $nextJournee = $availableJournees->get($currentJourneeIndex + 1);
+            }
+        }
+
         return view('pronos.index', [
             'season' => $season,
             'journee' => $journee,
@@ -117,6 +108,8 @@ class PronoController extends Controller
             'isLocked' => ! $hasOpenMatches,
             'rankingIsAvailable' => $journee->isLocked() && ! $hasOpenMatches,
             'predictionNotice' => $this->predictionNoticeForJournee($journee, $matches),
+            'previousJournee' => $previousJournee,
+            'nextJournee' => $nextJournee,
         ]);
     }
 
@@ -145,6 +138,19 @@ class PronoController extends Controller
             ->where('journee_id', $journee->id)
             ->get()
             ->keyBy('id');
+
+        if ($request->has('delete_prono_match_id')) {
+            $data = $request->validate([
+                'delete_prono_match_id' => ['required', 'integer'],
+            ]);
+
+            return $this->deletePronoForMatch(
+                $season,
+                $journee,
+                $matches,
+                (int) $data['delete_prono_match_id']
+            );
+        }
 
         $blockMessage = $this->predictionBlockMessage($journee, $matches);
 
@@ -201,6 +207,118 @@ class PronoController extends Controller
             ->with('success', 'Pronostics enregistrés.');
     }
 
+    private function deletePronoForMatch(
+        Season $season,
+        Journee $journee,
+        $matches,
+        int $matchId
+    ) {
+        $match = $matches->get($matchId);
+
+        if (! $match) {
+            abort(404);
+        }
+
+        if ($match->isPredictionLocked()) {
+            return redirect()
+                ->route('pronos.show', [$season, $journee])
+                ->with(
+                    'prediction_warning',
+                    'Saisie clôturée pour '.$match->homeClub->name.' - '.$match->awayClub->name.' : ce pronostic ne peut plus être effacé.'
+                );
+        }
+
+        $deleted = Prono::where('user_id', auth()->id())
+            ->where('match_game_id', $match->id)
+            ->delete();
+
+        if (! $deleted) {
+            return redirect()
+                ->route('pronos.show', [$season, $journee])
+                ->with('prediction_warning', 'Aucun pronostic à effacer pour ce match.');
+        }
+
+        return redirect()
+            ->route('pronos.show', [$season, $journee])
+            ->with(
+                'success',
+                'Pronostic effacé pour '.$match->homeClub->name.' - '.$match->awayClub->name.'.'
+            );
+    }
+
+    private function availableJourneesForUser(
+        Season $season,
+        $preseasonDeadline,
+        bool $preseasonIsLocked,
+        bool $includePreseason,
+        bool $withUserPronoCount
+    ) {
+        $counts = ['matches'];
+
+        if ($withUserPronoCount) {
+            $userId = auth()->id();
+
+            $counts['matches as user_pronos_count'] = function ($query) use ($userId) {
+                $query->whereHas('pronos', function ($query) use ($userId) {
+                    $query->where('user_id', $userId);
+                });
+            };
+        }
+
+        return Journee::with([
+            'season',
+            'matches.journee',
+            'matches.predictionDeadlineException',
+        ])
+            ->withCount($counts)
+            ->where('season_id', $season->id)
+            ->orderBy('number')
+            ->get()
+            ->filter(function ($journee) use (
+                $preseasonDeadline,
+                $preseasonIsLocked,
+                $includePreseason
+            ) {
+                if ($journee->type === 'preseason') {
+                    if (! $includePreseason) {
+                        return false;
+                    }
+
+                    if (! $preseasonDeadline || $preseasonIsLocked) {
+                        return false;
+                    }
+
+                    return $journee->season
+                        ->preseasonQuestions()
+                        ->where('is_active', true)
+                        ->get()
+                        ->contains(
+                            fn (SeasonPreseasonQuestion $question) => ! $question->hasOfficialResult()
+                        );
+                }
+
+                if ($journee->predictions_enabled === false) {
+                    return false;
+                }
+
+                if (! $journee->first_match_at) {
+                    return false;
+                }
+
+                if (! $journee->hasExpectedMatchesCount()) {
+                    return false;
+                }
+
+                if ((int) $journee->matches_count === 0) {
+                    return false;
+                }
+
+                return $journee->matches
+                    ->contains(fn ($match) => ! $match->isPredictionLocked());
+            })
+            ->values();
+    }
+
     private function showPreseason(
         Season $season,
         Journee $journee,
@@ -232,6 +350,14 @@ class PronoController extends Controller
 
         $preseasonDeadline = $preseasonDeadlineService->deadlineForUser($season, auth()->user());
 
+        $hasEditableQuestions = $questions->contains(
+            fn (SeasonPreseasonQuestion $question) => ! $question->hasOfficialResult()
+        );
+
+        $hasClosedQuestions = $questions->contains(
+            fn (SeasonPreseasonQuestion $question) => $question->hasOfficialResult()
+        );
+
         return view('pronos.preseason', [
             'season' => $season,
             'journee' => $journee,
@@ -245,6 +371,8 @@ class PronoController extends Controller
                 ? $preseasonDeadlineService->isLockedForUser($season, auth()->user())
                 : true,
             'isNotOpen' => $preseasonDeadline === null,
+            'hasEditableQuestions' => $hasEditableQuestions,
+            'hasClosedQuestions' => $hasClosedQuestions,
         ]);
     }
 
@@ -259,13 +387,13 @@ class PronoController extends Controller
         if (! $preseasonDeadline) {
             return redirect()
                 ->route('pronos.show', [$season, $journee])
-                ->with('prediction_warning', 'Les pronostics avant-saison ne sont pas encore ouverts.');
+                ->with('warning', 'Les pronostics avant-saison ne sont pas encore ouverts.');
         }
 
         if ($preseasonDeadlineService->isLockedForUser($season, auth()->user())) {
             return redirect()
                 ->route('pronos.show', [$season, $journee])
-                ->with('prediction_warning', 'Saisie avant-saison clôturée : tes pronostics n’ont pas été enregistrés.');
+                ->with('warning', 'Saisie avant-saison clôturée : tes pronostics n’ont pas été enregistrés.');
         }
 
         $questions = $season->preseasonQuestions()
@@ -273,15 +401,64 @@ class PronoController extends Controller
             ->orderBy('position')
             ->get();
 
+        $editableQuestions = $questions
+            ->reject(fn (SeasonPreseasonQuestion $question) => $question->hasOfficialResult())
+            ->values();
+
+        if ($editableQuestions->isEmpty()) {
+            return redirect()
+                ->route('pronos.show', [$season, $journee])
+                ->with(
+                    'warning',
+                    'Aucune question avant-saison n’est encore ouverte à la saisie.'
+                );
+        }
+
         $data = $request->validate([
             'answers' => ['required', 'array'],
             'answers.*' => ['nullable', 'string', 'max:255'],
         ]);
 
-        $this->validateUniquePreseasonGroups($questions, $data['answers'] ?? []);
+        $submittedAnswers = $data['answers'] ?? [];
 
-        foreach ($questions as $question) {
-            $answer = $data['answers'][$question->id] ?? null;
+        $submittedClosedQuestions = $questions
+            ->filter(function (SeasonPreseasonQuestion $question) use ($submittedAnswers) {
+                if (! $question->hasOfficialResult()) {
+                    return false;
+                }
+
+                $answer = $submittedAnswers[$question->id] ?? null;
+
+                return $answer !== null && $answer !== '';
+            });
+
+        if ($submittedClosedQuestions->isNotEmpty()) {
+            return redirect()
+                ->route('pronos.show', [$season, $journee])
+                ->withInput()
+                ->with(
+                    'warning',
+                    'La saisie est clôturée pour : '
+                        .$submittedClosedQuestions->pluck('label')->implode(', ')
+                        .'. Le résultat officiel est déjà enregistré.'
+                );
+        }
+
+        $existingPredictions = SeasonPreseasonPrediction::where('season_id', $season->id)
+            ->where('user_id', auth()->id())
+            ->get()
+            ->keyBy('question_id');
+
+        $effectiveAnswers = $this->effectivePreseasonAnswers(
+            $questions,
+            $existingPredictions,
+            $submittedAnswers
+        );
+
+        $this->validateUniquePreseasonGroups($questions, $effectiveAnswers);
+
+        foreach ($editableQuestions as $question) {
+            $answer = $submittedAnswers[$question->id] ?? null;
 
             if ($answer === null || $answer === '') {
                 continue;
@@ -311,6 +488,40 @@ class PronoController extends Controller
         return redirect()
             ->route('pronos.show', [$season, $journee])
             ->with('success', 'Pronostics avant-saison enregistrés.');
+    }
+
+    private function effectivePreseasonAnswers(
+        $questions,
+        $existingPredictions,
+        array $submittedAnswers
+    ): array {
+        $effectiveAnswers = [];
+
+        foreach ($questions as $question) {
+            $prediction = $existingPredictions->get($question->id);
+
+            $existingAnswer = $question->answer_type === 'free_text'
+                ? $prediction?->text_answer
+                : $prediction?->club_id;
+
+            $submittedAnswer = $submittedAnswers[$question->id] ?? null;
+
+            if (
+                ! $question->hasOfficialResult()
+                && $submittedAnswer !== null
+                && $submittedAnswer !== ''
+            ) {
+                $effectiveAnswers[$question->id] = $submittedAnswer;
+
+                continue;
+            }
+
+            if ($existingAnswer !== null && $existingAnswer !== '') {
+                $effectiveAnswers[$question->id] = $existingAnswer;
+            }
+        }
+
+        return $effectiveAnswers;
     }
 
     private function predictionNoticeForJournee(Journee $journee, $matches): ?array
@@ -402,8 +613,11 @@ class PronoController extends Controller
         }
     }
 
-    private function validatePreseasonAnswer(Season $season, SeasonPreseasonQuestion $question, string $answer): void
-    {
+    private function validatePreseasonAnswer(
+        Season $season,
+        SeasonPreseasonQuestion $question,
+        string $answer
+    ): void {
         if ($question->answer_type === 'free_text') {
             return;
         }
