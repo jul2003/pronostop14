@@ -8,6 +8,10 @@ class SeasonPreseasonQuestion extends Model
 {
     public const AUTO_RESULT_RULE_TOP14_POSITION = 'top14_position';
 
+    public const AUTO_RESULT_RULE_TOP14_PLAYOFF_1_WINNER = 'top14_playoff_1_winner';
+
+    public const AUTO_RESULT_RULE_TOP14_PLAYOFF_2_WINNER = 'top14_playoff_2_winner';
+
     public const AUTO_RESULT_RULE_TOP14_FINAL_WINNER = 'top14_final_winner';
 
     public const AUTO_RESULT_RULE_PROD2_FINAL_WINNER = 'prod2_final_winner';
@@ -115,6 +119,8 @@ class SeasonPreseasonQuestion extends Model
     {
         return [
             self::AUTO_RESULT_RULE_TOP14_POSITION => 'Position TOP 14 à la journée cible',
+            self::AUTO_RESULT_RULE_TOP14_PLAYOFF_1_WINNER => 'Vainqueur barrage TOP 14 1',
+            self::AUTO_RESULT_RULE_TOP14_PLAYOFF_2_WINNER => 'Vainqueur barrage TOP 14 2',
             self::AUTO_RESULT_RULE_TOP14_FINAL_WINNER => 'Vainqueur finale TOP 14',
             self::AUTO_RESULT_RULE_PROD2_FINAL_WINNER => 'Vainqueur finale PRO D2',
             self::AUTO_RESULT_RULE_ACCESS_MATCH_WINNER => 'Vainqueur access match',
@@ -125,6 +131,8 @@ class SeasonPreseasonQuestion extends Model
     {
         return match ($rule) {
             self::AUTO_RESULT_RULE_TOP14_POSITION,
+            self::AUTO_RESULT_RULE_TOP14_PLAYOFF_1_WINNER,
+            self::AUTO_RESULT_RULE_TOP14_PLAYOFF_2_WINNER,
             self::AUTO_RESULT_RULE_TOP14_FINAL_WINNER => [
                 'top14_club',
                 'season_club',

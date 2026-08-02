@@ -80,6 +80,8 @@ class PreseasonAutoResultService
 
         $resolution = match ($question->auto_result_rule) {
             SeasonPreseasonQuestion::AUTO_RESULT_RULE_TOP14_POSITION => $this->detectTop14Position($season, $targetJourneeNumber, $autoResultPosition),
+            SeasonPreseasonQuestion::AUTO_RESULT_RULE_TOP14_PLAYOFF_1_WINNER => $this->detectSpecialMatchWinner($season, 'top14_playoff', 'barrage TOP 14 1', 1),
+            SeasonPreseasonQuestion::AUTO_RESULT_RULE_TOP14_PLAYOFF_2_WINNER => $this->detectSpecialMatchWinner($season, 'top14_playoff', 'barrage TOP 14 2', 2),
             SeasonPreseasonQuestion::AUTO_RESULT_RULE_TOP14_FINAL_WINNER => $this->detectSpecialMatchWinner($season, 'top14_final', 'finale TOP 14'),
             SeasonPreseasonQuestion::AUTO_RESULT_RULE_PROD2_FINAL_WINNER => $this->detectSpecialMatchWinner($season, 'prod2_final', 'finale PRO D2'),
             SeasonPreseasonQuestion::AUTO_RESULT_RULE_ACCESS_MATCH_WINNER => $this->detectSpecialMatchWinner($season, 'access_match', 'access match TOP 14 / PRO D2'),
@@ -227,7 +229,8 @@ class PreseasonAutoResultService
     private function detectSpecialMatchWinner(
         Season $season,
         string $journeeType,
-        string $journeeLabel
+        string $journeeLabel,
+        ?int $matchPosition = null
     ): ?array {
         $journee = $season->journees()
             ->where('type', $journeeType)
@@ -242,9 +245,13 @@ class PreseasonAutoResultService
             return null;
         }
 
-        $match = $journee->matches
+        $matches = $journee->matches
             ->sortBy('position')
-            ->first();
+            ->values();
+
+        $match = $matchPosition
+            ? ($matches->firstWhere('position', $matchPosition) ?: $matches->get($matchPosition - 1))
+            : $matches->first();
 
         if (! $match || blank($match->actual_result)) {
             return null;
@@ -273,12 +280,18 @@ class PreseasonAutoResultService
 
     private function regularJourneesThroughTarget(Season $season, int $targetJourneeNumber): Collection
     {
-        return $season->journees()
+        $journees = $season->journees()
             ->where('type', 'regular')
             ->whereBetween('number', [1, $targetJourneeNumber])
             ->with('matches')
             ->orderBy('number')
             ->get();
+
+        $journees->each(function (Journee $journee) use ($season) {
+            $journee->setRelation('season', $season);
+        });
+
+        return $journees;
     }
 
     private function regularJourneesAreComplete(Collection $journees, int $targetJourneeNumber): bool

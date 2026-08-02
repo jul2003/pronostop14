@@ -28,6 +28,14 @@
         : [$match];
 
     $preparationIsLocked = $season->is_locked || $journee->isLocked();
+
+    $automaticSetup = $automaticSetup ?? [
+        'title' => null,
+        'message' => null,
+        'pairs' => [],
+    ];
+
+    $automaticPairs = collect($automaticSetup['pairs'] ?? []);
 @endphp
 
 <div class="mb-4">
@@ -84,6 +92,107 @@
     </div>
 @endif
 
+@if(! empty($automaticSetup['title']) || ! empty($automaticSetup['message']) || $automaticPairs->isNotEmpty())
+    <div class="rugby-card p-4 mb-4 border border-primary-subtle">
+        <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-3">
+            <div>
+                <h3 class="h5 fw-bold mb-1">
+                    {{ $automaticSetup['title'] ?: 'Alimentation automatique' }}
+                </h3>
+
+                @if(! empty($automaticSetup['message']))
+                    <p class="text-muted mb-0">
+                        {{ $automaticSetup['message'] }}
+                    </p>
+                @endif
+            </div>
+
+            <span class="badge rounded-pill text-bg-primary px-3 py-2">
+                Automatique
+            </span>
+        </div>
+
+        @if($automaticPairs->isEmpty())
+            <div class="alert alert-info mb-0">
+                Les conditions ne sont pas encore réunies pour alimenter automatiquement cette page.
+            </div>
+        @else
+            <div class="row g-3 mb-3">
+                @foreach($automaticPairs as $pair)
+                    <div class="col-md-6">
+                        <div class="border rounded-4 p-3 h-100 bg-light">
+                            <div class="fw-bold mb-2">
+                                {{ $pair['label'] }}
+                            </div>
+
+                            <div class="small text-muted mb-3">
+                                {{ $pair['description'] }}
+                            </div>
+
+                            <div class="d-flex align-items-center justify-content-between gap-2">
+                                <div class="d-flex align-items-center gap-2">
+                                    <img src="{{ $pair['home']->logo_url }}"
+                                         alt="{{ $pair['home']->name }}"
+                                         class="club-logo-small">
+
+                                    <span class="fw-bold">
+                                        {{ $pair['home']->name }}
+                                    </span>
+                                </div>
+
+                                <span class="text-muted fw-bold">
+                                    -
+                                </span>
+
+                                <div class="d-flex align-items-center gap-2 text-end">
+                                    <span class="fw-bold">
+                                        {{ $pair['away']->name }}
+                                    </span>
+
+                                    <img src="{{ $pair['away']->logo_url }}"
+                                         alt="{{ $pair['away']->name }}"
+                                         class="club-logo-small">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                @endforeach
+            </div>
+
+            @if($matches->isEmpty() && ! $preparationIsLocked)
+                <form method="POST"
+                      action="{{ route('admin.seasons.journees.matches.storeBulk', $matchesRouteParameters) }}">
+                    @csrf
+
+                    @if($fromUpcomingMatches)
+                        <input type="hidden"
+                               name="from"
+                               value="upcoming-matches">
+                    @endif
+
+                    @foreach($automaticPairs as $pair)
+                        <input type="hidden"
+                               name="clubs[]"
+                               value="{{ $pair['home']->id }}">
+
+                        <input type="hidden"
+                               name="clubs[]"
+                               value="{{ $pair['away']->id }}">
+                    @endforeach
+
+                    <button class="btn btn-warning rounded-pill fw-bold px-4">
+                        Créer automatiquement les matchs
+                    </button>
+                </form>
+            @elseif($matches->isNotEmpty())
+                <div class="alert alert-warning mb-0">
+                    Des matchs existent déjà pour cette journée. L’alimentation automatique ne remplace pas les matchs existants.
+                </div>
+            @endif
+        @endif
+    </div>
+@endif
+
 <div class="row g-4">
     <div class="col-lg-5">
         <div class="rugby-card p-4">
@@ -98,8 +207,8 @@
             </div>
 
             @if($availableClubs->count() < 2)
-                <div class="alert alert-success mb-0">
-                    Tous les clubs disponibles ont déjà été utilisés pour cette journée.
+                <div class="alert alert-info mb-0">
+                    Aucun duo de clubs disponible pour créer un match sur cette journée.
                 </div>
             @else
                 <div id="availableClubs" class="club-picker">

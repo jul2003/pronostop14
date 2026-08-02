@@ -8,6 +8,7 @@ use App\Models\MatchGame;
 use App\Models\MatchPredictionDeadlineException;
 use App\Models\Season;
 use App\Models\SeasonPreseasonQuestion;
+use App\Services\KnockoutMatchSetupService;
 use App\Services\PreseasonAutoResultService;
 use App\Services\PreseasonScoringService;
 use App\Services\ScoringService;
@@ -22,8 +23,11 @@ class MatchController extends Controller
         return redirect()->route('admin.seasons.index');
     }
 
-    public function manage(Season $season, Journee $journee)
-    {
+    public function manage(
+        Season $season,
+        Journee $journee,
+        KnockoutMatchSetupService $knockoutMatchSetupService
+    ) {
         $this->ensureJourneeBelongsToSeason($season, $journee);
 
         $journee->load([
@@ -50,10 +54,8 @@ class MatchController extends Controller
             ->values()
             ->toArray();
 
-        $clubs = $season->clubs()
-            ->wherePivot('competition', 'top14')
-            ->orderBy('name')
-            ->get();
+        $clubs = $knockoutMatchSetupService->eligibleClubsForJournee($season, $journee);
+        $automaticSetup = $knockoutMatchSetupService->automaticSetupForJournee($season, $journee);
 
         return view('admin.matches.manage', [
             'season' => $season,
@@ -61,11 +63,16 @@ class MatchController extends Controller
             'matches' => $matches,
             'clubs' => $clubs,
             'usedClubIds' => $usedClubIds,
+            'automaticSetup' => $automaticSetup,
         ]);
     }
 
-    public function store(Request $request, Season $season, Journee $journee)
-    {
+    public function store(
+        Request $request,
+        Season $season,
+        Journee $journee,
+        KnockoutMatchSetupService $knockoutMatchSetupService
+    ) {
         $this->ensureJourneeBelongsToSeason($season, $journee);
 
         if ($season->is_locked) {
@@ -85,19 +92,18 @@ class MatchController extends Controller
             'away_club_id' => ['required', 'integer', 'exists:clubs,id', 'different:home_club_id'],
         ]);
 
-        $top14ClubIds = $season->clubs()
-            ->wherePivot('competition', 'top14')
-            ->pluck('clubs.id')
-            ->map(fn ($id) => (int) $id)
-            ->toArray();
+        $clubValidationError = $this->eligibleClubValidationError(
+            $season,
+            $journee,
+            [
+                (int) $data['home_club_id'],
+                (int) $data['away_club_id'],
+            ],
+            $knockoutMatchSetupService
+        );
 
-        if (
-            ! in_array((int) $data['home_club_id'], $top14ClubIds, true)
-            || ! in_array((int) $data['away_club_id'], $top14ClubIds, true)
-        ) {
-            return back()->withErrors([
-                'clubs' => 'Les clubs sélectionnés doivent appartenir au TOP 14 de cette saison.',
-            ]);
+        if ($clubValidationError) {
+            return back()->withErrors($clubValidationError);
         }
 
         $clubAlreadyUsed = MatchGame::where('journee_id', $journee->id)
@@ -353,8 +359,12 @@ class MatchController extends Controller
         ]);
     }
 
-    public function storeBulk(Request $request, Season $season, Journee $journee)
-    {
+    public function storeBulk(
+        Request $request,
+        Season $season,
+        Journee $journee,
+        KnockoutMatchSetupService $knockoutMatchSetupService
+    ) {
         $this->ensureJourneeBelongsToSeason($season, $journee);
 
         if ($season->is_locked) {
@@ -388,18 +398,15 @@ class MatchController extends Controller
             ]);
         }
 
-        $top14ClubIds = $season->clubs()
-            ->wherePivot('competition', 'top14')
-            ->pluck('clubs.id')
-            ->map(fn ($id) => (int) $id)
-            ->toArray();
+        $clubValidationError = $this->eligibleClubValidationError(
+            $season,
+            $journee,
+            $clubIds,
+            $knockoutMatchSetupService
+        );
 
-        foreach ($clubIds as $clubId) {
-            if (! in_array($clubId, $top14ClubIds, true)) {
-                return back()->withErrors([
-                    'clubs' => 'Tous les clubs sélectionnés doivent appartenir au TOP 14 de cette saison.',
-                ]);
-            }
+        if ($clubValidationError) {
+            return back()->withErrors($clubValidationError);
         }
 
         $alreadyUsedClubIds = MatchGame::where('journee_id', $journee->id)
@@ -487,6 +494,36 @@ class MatchController extends Controller
             'success' => true,
             'message' => 'Résultat avant-saison mémorisé et points recalculés : '.$suggestion['question_label'].' → '.$suggestion['club_name'].'.',
         ];
+    }
+
+    private function eligibleClubValidationError(
+        Season $season,
+        Journee $journee,
+        array $clubIds,
+        KnockoutMatchSetupService $knockoutMatchSetupService
+    ): ?array {
+        $eligibleClubIds = $knockoutMatchSetupService
+            ->eligibleClubsForJournee($season, $journee)
+            ->pluck('id')
+            ->map(fn ($id) => (int) $id)
+            ->values()
+            ->all();
+
+        if (empty($eligibleClubIds)) {
+            return [
+                'clubs' => 'Aucun club éligible n’est disponible pour cette journée. Vérifie les résultats nécessaires avant de créer les matchs.',
+            ];
+        }
+
+        foreach ($clubIds as $clubId) {
+            if (! in_array((int) $clubId, $eligibleClubIds, true)) {
+                return [
+                    'clubs' => 'Un club sélectionné n’est pas éligible pour cette journée.',
+                ];
+            }
+        }
+
+        return null;
     }
 
     private function matchesPageRouteParameters(Season $season, Journee $journee, Request $request): array
