@@ -78,12 +78,6 @@
     </div>
 @endif
 
-@if($errors->any())
-    <div class="alert alert-danger">
-        {{ $errors->first() }}
-    </div>
-@endif
-
 <div class="row g-4">
     <div class="col-lg-5">
         <div class="rugby-card p-4">

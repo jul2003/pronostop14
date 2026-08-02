@@ -10,7 +10,6 @@
     <link rel="icon" href="{{ asset('favicon.ico') }}" sizes="any">
     <link rel="icon" type="image/png" sizes="32x32" href="{{ asset('favicon-32x32.png') }}">
     <link rel="apple-touch-icon" href="{{ asset('favicon-180x180.png') }}">
-
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 
     @stack('styles')
@@ -104,17 +103,36 @@
 @endif
 
 <main class="container py-4">
-    @if(session('success'))
-        <div class="alert alert-success">
-            {{ session('success') }}
-        </div>
-    @endif
+    @php
+        $flashMessages = [
+            'success' => 'success',
+            'status' => 'success',
+            'info' => 'info',
+            'warning' => 'warning',
+            'error' => 'warning',
+        ];
+    @endphp
 
-    @if(session('error'))
-        <div class="alert alert-warning">
-            {{ session('error') }}
-        </div>
-    @endif
+    @foreach($flashMessages as $flashKey => $alertClass)
+        @if(session()->has($flashKey))
+            @php
+                $flashValue = session($flashKey);
+                $flashItems = is_array($flashValue) ? $flashValue : [$flashValue];
+            @endphp
+
+            <div class="alert alert-{{ $alertClass }}">
+                @if(count($flashItems) === 1)
+                    {{ $flashItems[0] }}
+                @else
+                    <ul class="mb-0">
+                        @foreach($flashItems as $flashItem)
+                            <li>{{ $flashItem }}</li>
+                        @endforeach
+                    </ul>
+                @endif
+            </div>
+        @endif
+    @endforeach
 
     @if($errors->any())
         <div class="alert alert-danger">

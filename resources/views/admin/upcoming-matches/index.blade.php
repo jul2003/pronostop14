@@ -21,7 +21,7 @@
     </h2>
 
     <p class="text-muted mb-0">
-        Prochaines journées à préparer pour la saison active. Tu peux créer les matchs et activer ou désactiver la saisie des pronostics.
+        Prochaines journées à préparer pour la saison active. Tu peux créer les matchs, modifier la date du premier match et activer ou désactiver la saisie des pronostics.
     </p>
 </div>
 
@@ -67,8 +67,6 @@
                             @php
                                 $expectedMatchesCount = $journee->expectedMatchesCount();
                                 $matchesCount = (int) ($journee->matches_count ?? 0);
-
-                                $firstMatchDateIsMissing = $journee->first_match_at === null;
 
                                 $journeeHasStarted = $journee->first_match_at !== null
                                     && $currentAppDateTime->greaterThanOrEqualTo($journee->first_match_at);
@@ -163,9 +161,14 @@
                                             </a>
                                         @endif
 
-                                        @if($firstMatchDateIsMissing && ! $season->is_locked)
-                                            <a href="{{ route('admin.seasons.journees.edit', [$season, $journee]) }}"
-                                               class="btn btn-sm btn-outline-secondary rounded-pill fw-bold">
+                                        @if($preparationIsLocked)
+                                            <span class="btn btn-sm btn-outline-secondary rounded-pill fw-bold disabled"
+                                                  aria-disabled="true">
+                                                Date
+                                            </span>
+                                        @else
+                                            <a href="{{ route('admin.seasons.journees.edit', [$season, $journee, 'from' => 'upcoming-matches']) }}"
+                                               class="btn btn-sm rounded-pill fw-bold {{ $journee->first_match_at ? 'btn-outline-secondary' : 'btn-outline-danger' }}">
                                                 Date
                                             </a>
                                         @endif
