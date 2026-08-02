@@ -291,7 +291,10 @@ class PronoController extends Controller
                     return $journee->season
                         ->preseasonQuestions()
                         ->where('is_active', true)
-                        ->exists();
+                        ->get()
+                        ->contains(
+                            fn (SeasonPreseasonQuestion $question) => ! $question->hasOfficialResult()
+                        );
                 }
 
                 if ($journee->predictions_enabled === false) {
@@ -347,6 +350,14 @@ class PronoController extends Controller
 
         $preseasonDeadline = $preseasonDeadlineService->deadlineForUser($season, auth()->user());
 
+        $hasEditableQuestions = $questions->contains(
+            fn (SeasonPreseasonQuestion $question) => ! $question->hasOfficialResult()
+        );
+
+        $hasClosedQuestions = $questions->contains(
+            fn (SeasonPreseasonQuestion $question) => $question->hasOfficialResult()
+        );
+
         return view('pronos.preseason', [
             'season' => $season,
             'journee' => $journee,
@@ -360,6 +371,8 @@ class PronoController extends Controller
                 ? $preseasonDeadlineService->isLockedForUser($season, auth()->user())
                 : true,
             'isNotOpen' => $preseasonDeadline === null,
+            'hasEditableQuestions' => $hasEditableQuestions,
+            'hasClosedQuestions' => $hasClosedQuestions,
         ]);
     }
 
@@ -374,13 +387,13 @@ class PronoController extends Controller
         if (! $preseasonDeadline) {
             return redirect()
                 ->route('pronos.show', [$season, $journee])
-                ->with('prediction_warning', 'Les pronostics avant-saison ne sont pas encore ouverts.');
+                ->with('warning', 'Les pronostics avant-saison ne sont pas encore ouverts.');
         }
 
         if ($preseasonDeadlineService->isLockedForUser($season, auth()->user())) {
             return redirect()
                 ->route('pronos.show', [$season, $journee])
-                ->with('prediction_warning', 'Saisie avant-saison clôturée : tes pronostics n’ont pas été enregistrés.');
+                ->with('warning', 'Saisie avant-saison clôturée : tes pronostics n’ont pas été enregistrés.');
         }
 
         $questions = $season->preseasonQuestions()
@@ -388,15 +401,64 @@ class PronoController extends Controller
             ->orderBy('position')
             ->get();
 
+        $editableQuestions = $questions
+            ->reject(fn (SeasonPreseasonQuestion $question) => $question->hasOfficialResult())
+            ->values();
+
+        if ($editableQuestions->isEmpty()) {
+            return redirect()
+                ->route('pronos.show', [$season, $journee])
+                ->with(
+                    'warning',
+                    'Aucune question avant-saison n’est encore ouverte à la saisie.'
+                );
+        }
+
         $data = $request->validate([
             'answers' => ['required', 'array'],
             'answers.*' => ['nullable', 'string', 'max:255'],
         ]);
 
-        $this->validateUniquePreseasonGroups($questions, $data['answers'] ?? []);
+        $submittedAnswers = $data['answers'] ?? [];
 
-        foreach ($questions as $question) {
-            $answer = $data['answers'][$question->id] ?? null;
+        $submittedClosedQuestions = $questions
+            ->filter(function (SeasonPreseasonQuestion $question) use ($submittedAnswers) {
+                if (! $question->hasOfficialResult()) {
+                    return false;
+                }
+
+                $answer = $submittedAnswers[$question->id] ?? null;
+
+                return $answer !== null && $answer !== '';
+            });
+
+        if ($submittedClosedQuestions->isNotEmpty()) {
+            return redirect()
+                ->route('pronos.show', [$season, $journee])
+                ->withInput()
+                ->with(
+                    'warning',
+                    'La saisie est clôturée pour : '
+                        .$submittedClosedQuestions->pluck('label')->implode(', ')
+                        .'. Le résultat officiel est déjà enregistré.'
+                );
+        }
+
+        $existingPredictions = SeasonPreseasonPrediction::where('season_id', $season->id)
+            ->where('user_id', auth()->id())
+            ->get()
+            ->keyBy('question_id');
+
+        $effectiveAnswers = $this->effectivePreseasonAnswers(
+            $questions,
+            $existingPredictions,
+            $submittedAnswers
+        );
+
+        $this->validateUniquePreseasonGroups($questions, $effectiveAnswers);
+
+        foreach ($editableQuestions as $question) {
+            $answer = $submittedAnswers[$question->id] ?? null;
 
             if ($answer === null || $answer === '') {
                 continue;
@@ -426,6 +488,40 @@ class PronoController extends Controller
         return redirect()
             ->route('pronos.show', [$season, $journee])
             ->with('success', 'Pronostics avant-saison enregistrés.');
+    }
+
+    private function effectivePreseasonAnswers(
+        $questions,
+        $existingPredictions,
+        array $submittedAnswers
+    ): array {
+        $effectiveAnswers = [];
+
+        foreach ($questions as $question) {
+            $prediction = $existingPredictions->get($question->id);
+
+            $existingAnswer = $question->answer_type === 'free_text'
+                ? $prediction?->text_answer
+                : $prediction?->club_id;
+
+            $submittedAnswer = $submittedAnswers[$question->id] ?? null;
+
+            if (
+                ! $question->hasOfficialResult()
+                && $submittedAnswer !== null
+                && $submittedAnswer !== ''
+            ) {
+                $effectiveAnswers[$question->id] = $submittedAnswer;
+
+                continue;
+            }
+
+            if ($existingAnswer !== null && $existingAnswer !== '') {
+                $effectiveAnswers[$question->id] = $existingAnswer;
+            }
+        }
+
+        return $effectiveAnswers;
     }
 
     private function predictionNoticeForJournee(Journee $journee, $matches): ?array
