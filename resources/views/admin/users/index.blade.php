@@ -25,18 +25,6 @@
     </a>
 </div>
 
-@if($errors->any())
-    <div class="alert alert-danger">
-        {{ $errors->first() }}
-    </div>
-@endif
-
-@if(session('success'))
-    <div class="alert alert-success">
-        {{ session('success') }}
-    </div>
-@endif
-
 <x-admin-card class="p-0 overflow-hidden">
     <div class="table-responsive">
         <table class="table table-hover align-middle mb-0">
@@ -81,11 +69,15 @@
                         <td class="text-muted">
                             <div>
                                 @if($user->email_pro)
-                                    <div>{{ $user->email_pro }}</div>
+                                    <div>
+                                        {{ $user->email_pro }}
+                                    </div>
                                 @endif
 
                                 @if($user->email_perso)
-                                    <div class="text-muted small">{{ $user->email_perso }}</div>
+                                    <div class="text-muted small">
+                                        {{ $user->email_perso }}
+                                    </div>
                                 @endif
                             </div>
                         </td>

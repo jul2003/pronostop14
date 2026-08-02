@@ -152,10 +152,15 @@
                                 $matchesCount = (int) $journee->matches_count;
                                 $finishedMatchesCount = (int) $journee->finished_matches_count;
 
-                                $displayExpectedCount = max($expectedMatchesCount, $matchesCount);
+                                $displayExpectedCount = max(
+                                    $expectedMatchesCount,
+                                    $matchesCount
+                                );
 
                                 $matchesAreComplete = $matchesCount >= $expectedMatchesCount;
-                                $resultsAreComplete = $finishedMatchesCount >= $displayExpectedCount;
+
+                                $resultsAreComplete = $finishedMatchesCount
+                                    >= $displayExpectedCount;
 
                                 $hasDelayedOpenMatch = $journee->matches
                                     ->filter(function ($match) use ($journee, $currentAppDateTime) {
@@ -167,7 +172,9 @@
                                             return false;
                                         }
 
-                                        $deadline = $match->predictionDeadlineException?->prediction_deadline
+                                        $deadline = $match
+                                            ->predictionDeadlineException
+                                            ?->prediction_deadline
                                             ?? $journee->first_match_at;
 
                                         if (! $deadline) {
@@ -249,7 +256,7 @@
                                             Saisir les matchs
                                         </a>
                                     @else
-                                        <a href="{{ route('admin.seasons.journees.results', [$season, $journee]) }}"
+                                        <a href="{{ route('admin.seasons.journees.results', [$season, $journee, 'from' => 'pending-results']) }}"
                                            class="btn btn-sm btn-warning rounded-pill fw-bold px-3">
                                             Saisir les résultats
                                         </a>
