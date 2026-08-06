@@ -237,7 +237,7 @@
 
                                 <td class="text-center">
                                     <div class="prono-choice-group bonus-choice-group">
-                                        @foreach(['o' => 'O', '-' => '-', 'd' => 'D'] as $value => $label)
+                                        @foreach(['o' => 'o', '-' => '-', 'd' => 'd'] as $value => $label)
                                             <input type="radio"
                                                    id="predicted_home_bonus_{{ $match->id }}_{{ $value }}"
                                                    name="pronos[{{ $match->id }}][predicted_home_bonus]"
@@ -257,7 +257,7 @@
 
                                 <td class="text-center">
                                     <div class="prono-choice-group bonus-choice-group">
-                                        @foreach(['o' => 'O', '-' => '-', 'd' => 'D'] as $value => $label)
+                                        @foreach(['o' => 'o', '-' => '-', 'd' => 'd'] as $value => $label)
                                             <input type="radio"
                                                    id="predicted_away_bonus_{{ $match->id }}_{{ $value }}"
                                                    name="pronos[{{ $match->id }}][predicted_away_bonus]"

@@ -347,7 +347,9 @@
 
                         <h2 class="modal-title h5 fw-bold mb-0"
                             id="preseasonAutoResultSuggestionsModalLabel">
-                            Résultat avant-saison détecté
+                            {{ $autoResultSuggestions->count() > 1
+                                ? 'Résultats avant-saison détectés'
+                                : 'Résultat avant-saison détecté' }}
                         </h2>
                     </div>
 
@@ -360,7 +362,11 @@
 
                 <div class="modal-body">
                     <p class="text-muted">
-                        L’application a détecté un résultat avant-saison à partir du paramétrage de la question.
+                        L’application a détecté
+                        {{ $autoResultSuggestions->count() > 1
+                            ? $autoResultSuggestions->count().' résultats avant-saison'
+                            : 'un résultat avant-saison' }}
+                        à partir du paramétrage des questions.
                         Rien n’est mémorisé tant que tu ne valides pas.
                     </p>
 
@@ -499,12 +505,46 @@
                     </div>
                 </div>
 
-                <div class="modal-footer">
+                <div class="modal-footer d-flex flex-column flex-sm-row justify-content-between gap-2">
                     <button type="button"
                             class="btn btn-outline-secondary rounded-pill fw-bold"
                             data-bs-dismiss="modal">
                         Non, laisser en attente
                     </button>
+
+                    @if($autoResultSuggestions->count() > 1)
+                        <form method="POST"
+                              action="{{ route('admin.seasons.journees.results.store', $currentResultsRouteParameters) }}"
+                              class="m-0">
+                            @csrf
+
+                            @if($fromPendingResults)
+                                <input type="hidden"
+                                       name="from"
+                                       value="pending-results">
+                            @endif
+
+                            <input type="hidden"
+                                   name="accept_all_preseason_auto_results"
+                                   value="1">
+
+                            @foreach($autoResultSuggestions as $index => $suggestion)
+                                <input type="hidden"
+                                       name="auto_results[{{ $index }}][question_id]"
+                                       value="{{ $suggestion['question_id'] }}">
+
+                                <input type="hidden"
+                                       name="auto_results[{{ $index }}][club_id]"
+                                       value="{{ $suggestion['club_id'] }}">
+                            @endforeach
+
+                            <button type="submit"
+                                    class="btn btn-warning rounded-pill fw-bold px-4">
+                                Tout mémoriser et recalculer
+                                ({{ $autoResultSuggestions->count() }})
+                            </button>
+                        </form>
+                    @endif
                 </div>
             </div>
         </div>

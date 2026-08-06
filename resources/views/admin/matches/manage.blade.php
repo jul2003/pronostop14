@@ -36,6 +36,21 @@
     ];
 
     $automaticPairs = collect($automaticSetup['pairs'] ?? []);
+
+    $automaticPairsAreComplete = $automaticPairs->isNotEmpty()
+        && $automaticPairs->every(function ($pair) {
+            if (array_key_exists('is_complete', $pair)) {
+                return (bool) $pair['is_complete'];
+            }
+
+            return ! empty($pair['home'])
+                && ! empty($pair['away']);
+        });
+
+    $automaticKnownTeamsCount = $automaticPairs->sum(function ($pair) {
+        return (empty($pair['home']) ? 0 : 1)
+            + (empty($pair['away']) ? 0 : 1);
+    });
 @endphp
 
 <div class="mb-4">
@@ -113,39 +128,116 @@
         @else
             <div class="row g-3 mb-3">
                 @foreach($automaticPairs as $pair)
-                    <div class="col-md-6">
+                    @php
+                        $homeClub = $pair['home'] ?? null;
+                        $awayClub = $pair['away'] ?? null;
+
+                        $pairIsComplete = array_key_exists('is_complete', $pair)
+                            ? (bool) $pair['is_complete']
+                            : ($homeClub !== null && $awayClub !== null);
+
+                        $homeLabel = $pair['home_label'] ?? 'Équipe 1';
+                        $awayLabel = $pair['away_label'] ?? 'Équipe 2';
+
+                        $homeSource = $pair['home_source'] ?? null;
+                        $awaySource = $pair['away_source'] ?? null;
+
+                        $homePlaceholder = $pair['home_placeholder']
+                            ?? 'Équipe à déterminer';
+
+                        $awayPlaceholder = $pair['away_placeholder']
+                            ?? 'Équipe à déterminer';
+                    @endphp
+
+                    <div class="col-12 {{ $automaticPairs->count() > 1 ? 'col-xl-6' : '' }}">
                         <div class="border rounded-4 p-3 h-100 bg-light">
-                            <div class="fw-bold mb-2">
-                                {{ $pair['label'] }}
-                            </div>
+                            <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-2">
+                                <div>
+                                    <div class="fw-bold">
+                                        {{ $pair['label'] }}
+                                    </div>
 
-                            <div class="small text-muted mb-3">
-                                {{ $pair['description'] }}
-                            </div>
-
-                            <div class="d-flex align-items-center justify-content-between gap-2">
-                                <div class="d-flex align-items-center gap-2">
-                                    <img src="{{ $pair['home']->logo_url }}"
-                                         alt="{{ $pair['home']->name }}"
-                                         class="club-logo-small">
-
-                                    <span class="fw-bold">
-                                        {{ $pair['home']->name }}
-                                    </span>
+                                    <div class="small text-muted">
+                                        {{ $pair['description'] }}
+                                    </div>
                                 </div>
 
-                                <span class="text-muted fw-bold">
-                                    -
+                                <span class="badge rounded-pill {{ $pairIsComplete ? 'text-bg-success' : 'text-bg-warning' }}">
+                                    {{ $pairIsComplete ? 'Complet' : 'En attente' }}
                                 </span>
+                            </div>
 
-                                <div class="d-flex align-items-center gap-2 text-end">
-                                    <span class="fw-bold">
-                                        {{ $pair['away']->name }}
-                                    </span>
+                            <div class="automatic-match-grid mt-3">
+                                <div class="automatic-team-slot {{ $homeClub ? '' : 'automatic-team-slot-pending' }}">
+                                    <div class="text-uppercase text-muted fw-bold small mb-2">
+                                        {{ $homeLabel }}
+                                    </div>
 
-                                    <img src="{{ $pair['away']->logo_url }}"
-                                         alt="{{ $pair['away']->name }}"
-                                         class="club-logo-small">
+                                    @if($homeClub)
+                                        <div class="d-flex align-items-center gap-2">
+                                            <img src="{{ $homeClub->logo_url }}"
+                                                 alt="{{ $homeClub->name }}"
+                                                 class="club-logo-small">
+
+                                            <span class="fw-bold">
+                                                {{ $homeClub->name }}
+                                            </span>
+                                        </div>
+
+                                        @if($homeSource)
+                                            <div class="small text-muted mt-2">
+                                                {{ $homeSource }}
+                                            </div>
+                                        @endif
+                                    @else
+                                        <div class="d-flex align-items-center gap-2">
+                                            <span class="automatic-team-placeholder-icon">
+                                                ?
+                                            </span>
+
+                                            <span class="fw-bold text-muted">
+                                                {{ $homePlaceholder }}
+                                            </span>
+                                        </div>
+                                    @endif
+                                </div>
+
+                                <div class="automatic-match-separator">
+                                    contre
+                                </div>
+
+                                <div class="automatic-team-slot {{ $awayClub ? '' : 'automatic-team-slot-pending' }}">
+                                    <div class="text-uppercase text-muted fw-bold small mb-2">
+                                        {{ $awayLabel }}
+                                    </div>
+
+                                    @if($awayClub)
+                                        <div class="d-flex align-items-center gap-2">
+                                            <img src="{{ $awayClub->logo_url }}"
+                                                 alt="{{ $awayClub->name }}"
+                                                 class="club-logo-small">
+
+                                            <span class="fw-bold">
+                                                {{ $awayClub->name }}
+                                            </span>
+                                        </div>
+
+                                        @if($awaySource)
+                                            <div class="small text-muted mt-2">
+                                                {{ $awaySource }}
+                                            </div>
+                                        @endif
+                                    @else
+                                        <div class="d-flex align-items-center gap-2">
+                                            <span class="automatic-team-placeholder-icon">
+                                                ?
+                                            </span>
+
+                                            <span class="fw-bold text-muted">
+                                                {{ $awayPlaceholder }}
+                                            </span>
+                                        </div>
+                                    @endif
                                 </div>
                             </div>
                         </div>
@@ -153,7 +245,23 @@
                 @endforeach
             </div>
 
-            @if($matches->isEmpty() && ! $preparationIsLocked)
+            @if($matches->isNotEmpty())
+                <div class="alert alert-warning mb-0">
+                    Des matchs existent déjà pour cette journée. L’alimentation automatique ne remplace pas les matchs existants.
+                </div>
+            @elseif(! $automaticPairsAreComplete)
+                <div class="alert alert-info mb-0">
+                    @if($automaticKnownTeamsCount === 1)
+                        L’équipe déjà déterminée reste affichée automatiquement.
+                    @elseif($automaticKnownTeamsCount > 1)
+                        Les équipes déjà déterminées restent affichées automatiquement.
+                    @else
+                        Les emplacements du match sont prêts à être alimentés automatiquement.
+                    @endif
+
+                    Le match pourra être créé dès que les deux équipes seront connues.
+                </div>
+            @elseif(! $preparationIsLocked)
                 <form method="POST"
                       action="{{ route('admin.seasons.journees.matches.storeBulk', $matchesRouteParameters) }}">
                     @csrf
@@ -178,10 +286,6 @@
                         Créer automatiquement les matchs
                     </button>
                 </form>
-            @elseif($matches->isNotEmpty())
-                <div class="alert alert-warning mb-0">
-                    Des matchs existent déjà pour cette journée. L’alimentation automatique ne remplace pas les matchs existants.
-                </div>
             @endif
         @endif
     </div>
@@ -340,6 +444,63 @@
 </div>
 
 @endsection
+
+@push('styles')
+<style>
+    .automatic-match-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+        align-items: stretch;
+        gap: 0.75rem;
+    }
+
+    .automatic-team-slot {
+        min-width: 0;
+        padding: 0.9rem;
+        background: #ffffff;
+        border: 1px solid rgba(0, 0, 0, 0.1);
+        border-radius: 0.9rem;
+    }
+
+    .automatic-team-slot-pending {
+        border-style: dashed;
+        background: rgba(255, 255, 255, 0.55);
+    }
+
+    .automatic-match-separator {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--bs-secondary-color);
+        font-size: 0.75rem;
+        font-weight: 700;
+        text-transform: uppercase;
+    }
+
+    .automatic-team-placeholder-icon {
+        display: inline-flex;
+        flex: 0 0 auto;
+        align-items: center;
+        justify-content: center;
+        width: 2rem;
+        height: 2rem;
+        border: 1px dashed var(--bs-secondary-color);
+        border-radius: 50%;
+        color: var(--bs-secondary-color);
+        font-weight: 700;
+    }
+
+    @media (max-width: 767.98px) {
+        .automatic-match-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .automatic-match-separator {
+            padding: 0.1rem 0;
+        }
+    }
+</style>
+@endpush
 
 @unless($preparationIsLocked)
     @push('scripts')
