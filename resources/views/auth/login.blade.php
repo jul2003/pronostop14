@@ -16,7 +16,8 @@
                 </p>
             </div>
 
-            <x-auth-session-status class="mb-4" :status="session('status')" />
+            <x-auth-session-status class="mb-4"
+                                   :status="session('status')" />
 
             @if($errors->any())
                 <div class="alert alert-danger login-alert">
@@ -24,26 +25,34 @@
                 </div>
             @endif
 
-            <form method="POST" action="{{ route('login') }}">
+            <form method="POST"
+                  action="{{ route('login') }}"
+                  autocomplete="off">
                 @csrf
 
                 <div class="mb-3">
-                    <label class="form-label text-white-50 fw-bold" for="login">
+                    <label class="form-label text-white-50 fw-bold"
+                           for="login">
                         Email ou pseudo
                     </label>
 
                     <input id="login"
                            type="text"
                            name="login"
-                           value="{{ old('login') }}"
                            required
                            autofocus
-                           autocomplete="username"
+                           autocomplete="off"
+                           autocorrect="off"
+                           autocapitalize="none"
+                           spellcheck="false"
+                           data-lpignore="true"
+                           data-1p-ignore="true"
                            class="form-control login-control @error('login') is-invalid @enderror">
                 </div>
 
                 <div class="mb-3">
-                    <label class="form-label text-white-50 fw-bold" for="password">
+                    <label class="form-label text-white-50 fw-bold"
+                           for="password">
                         Mot de passe
                     </label>
 
@@ -52,7 +61,12 @@
                                type="password"
                                name="password"
                                required
-                               autocomplete="current-password"
+                               autocomplete="off"
+                               autocorrect="off"
+                               autocapitalize="none"
+                               spellcheck="false"
+                               data-lpignore="true"
+                               data-1p-ignore="true"
                                class="form-control login-control @error('password') is-invalid @enderror">
 
                         <button class="btn login-toggle"
@@ -68,10 +82,11 @@
                         <input type="checkbox"
                                name="remember"
                                class="form-check-input m-0">
+
                         Se souvenir de moi
                     </label>
 
-                    @if (Route::has('password.request'))
+                    @if(Route::has('password.request'))
                         <a href="{{ route('password.request') }}"
                            class="text-warning small fw-bold text-decoration-none">
                             Mot de passe oublié ?

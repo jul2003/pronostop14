@@ -30,24 +30,6 @@
     </a>
 </div>
 
-@if($errors->any())
-    <div class="alert alert-danger">
-        {{ $errors->first() }}
-    </div>
-@endif
-
-@if(session('error'))
-    <div class="alert alert-danger">
-        {{ session('error') }}
-    </div>
-@endif
-
-@if(session('success'))
-    <div class="alert alert-success">
-        {{ session('success') }}
-    </div>
-@endif
-
 <div class="mb-4">
     <h3 class="h5 fw-bold mb-3">
         Saison active
@@ -174,7 +156,8 @@
                         </tr>
                     @else
                         <tr>
-                            <td colspan="7" class="text-center text-muted py-4">
+                            <td colspan="7"
+                                class="text-center text-muted py-4">
                                 Aucune saison active définie.
                             </td>
                         </tr>
@@ -311,7 +294,8 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="7" class="text-center text-muted py-4">
+                            <td colspan="7"
+                                class="text-center text-muted py-4">
                                 Aucune saison historique pour le moment.
                             </td>
                         </tr>

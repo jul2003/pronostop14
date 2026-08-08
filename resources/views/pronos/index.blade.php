@@ -677,6 +677,14 @@
     document.addEventListener('DOMContentLoaded', function () {
         const pronoEntryForm = document.getElementById('pronoEntryForm');
 
+        const triesInputs = Array.from(
+            document.querySelectorAll(
+                '#pronoEntryForm .prono-tries-input'
+            )
+        ).filter(function (input) {
+            return !input.disabled;
+        });
+
         const navigationLinks = document.querySelectorAll(
             '.js-prono-navigation-link'
         );
@@ -706,10 +714,7 @@
         );
 
         const navigationStorageKey = @json('pronostop14:prono-navigation:'.auth()->id().':'.$season->id.':'.$journee->id);
-
-        const pronoSaveSucceeded = @json(
-            session('success') === 'Pronostics enregistrés.'
-        );
+        const pronoSaveSucceeded = @json(session('success') === 'Pronostics enregistrés.');
 
         let pendingNavigation = null;
         let navigationToStoreOnSubmit = null;
@@ -811,8 +816,7 @@
 
                 pendingNavigation = {
                     url: link.href,
-                    name: link.dataset.navigationName
-                        || 'la journée choisie',
+                    name: link.dataset.navigationName || 'la journée choisie',
                 };
 
                 if (navigationDestination) {
@@ -888,6 +892,28 @@
                 pendingNavigation = null;
             }
         );
+
+        triesInputs.forEach(function (input, index) {
+            input.addEventListener('keydown', function (event) {
+                if (event.key !== 'Tab') {
+                    return;
+                }
+
+                const nextIndex = event.shiftKey
+                    ? index - 1
+                    : index + 1;
+
+                const nextInput = triesInputs[nextIndex];
+
+                if (!nextInput) {
+                    return;
+                }
+
+                event.preventDefault();
+                nextInput.focus();
+                nextInput.select();
+            });
+        });
 
         document
             .querySelectorAll('.bonus-choice-label')
