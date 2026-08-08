@@ -50,32 +50,6 @@
     </div>
 </div>
 
-@if($previousJournee || $nextJournee)
-    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4">
-        <div>
-            @if($previousJournee)
-                <a href="{{ route('pronos.show', [$season, $previousJournee]) }}"
-                   class="btn btn-outline-primary rounded-pill fw-bold px-4 js-prono-navigation-link"
-                   data-navigation-name="{{ $previousJournee->name }}"
-                   title="{{ $previousJournee->name }}">
-                    ← Journée précédente : {{ $previousJournee->name }}
-                </a>
-            @endif
-        </div>
-
-        <div class="ms-auto">
-            @if($nextJournee)
-                <a href="{{ route('pronos.show', [$season, $nextJournee]) }}"
-                   class="btn btn-outline-primary rounded-pill fw-bold px-4 js-prono-navigation-link"
-                   data-navigation-name="{{ $nextJournee->name }}"
-                   title="{{ $nextJournee->name }}">
-                    Journée suivante : {{ $nextJournee->name }} →
-                </a>
-            @endif
-        </div>
-    </div>
-@endif
-
 @if($predictionWarning)
     <div class="alert alert-warning">
         {{ $predictionWarning }}
@@ -87,6 +61,42 @@
 @elseif($predictionNotice)
     <div class="alert alert-{{ $predictionNotice['type'] }}">
         {{ $predictionNotice['message'] }}
+    </div>
+@endif
+
+@if($previousJournee || $nextJournee || ($hasOpenMatches && $matches->isNotEmpty()))
+    <div class="prono-day-actions mb-4">
+        <div class="prono-day-actions-previous">
+            @if($previousJournee)
+                <a href="{{ route('pronos.show', [$season, $previousJournee]) }}"
+                   class="btn btn-outline-primary rounded-pill fw-bold px-4 js-prono-navigation-link"
+                   data-navigation-name="{{ $previousJournee->name }}"
+                   title="{{ $previousJournee->name }}">
+                    ← Journée précédente : {{ $previousJournee->name }}
+                </a>
+            @endif
+        </div>
+
+        <div class="prono-day-actions-save">
+            @if($hasOpenMatches && $matches->isNotEmpty())
+                <button type="submit"
+                        form="pronoEntryForm"
+                        class="btn btn-warning rounded-pill fw-bold px-4">
+                    Enregistrer mes pronostics
+                </button>
+            @endif
+        </div>
+
+        <div class="prono-day-actions-next">
+            @if($nextJournee)
+                <a href="{{ route('pronos.show', [$season, $nextJournee]) }}"
+                   class="btn btn-outline-primary rounded-pill fw-bold px-4 js-prono-navigation-link"
+                   data-navigation-name="{{ $nextJournee->name }}"
+                   title="{{ $nextJournee->name }}">
+                    Journée suivante : {{ $nextJournee->name }} →
+                </a>
+            @endif
+        </div>
     </div>
 @endif
 
@@ -307,13 +317,6 @@
                 </table>
             </div>
         </div>
-
-        @if($hasOpenMatches)
-            <button type="submit"
-                    class="btn btn-warning rounded-pill fw-bold mt-4 px-4">
-                Enregistrer mes pronostics
-            </button>
-        @endif
     </form>
 
     @foreach($matches as $match)
@@ -511,6 +514,31 @@
 
 @push('styles')
 <style>
+    .prono-day-actions {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+        align-items: center;
+        gap: 0.75rem;
+    }
+
+    .prono-day-actions-previous {
+        justify-self: start;
+        min-width: 0;
+    }
+
+    .prono-day-actions-save {
+        justify-self: center;
+    }
+
+    .prono-day-actions-next {
+        justify-self: end;
+        min-width: 0;
+    }
+
+    .prono-day-actions .btn {
+        white-space: nowrap;
+    }
+
     .pronos-entry-table th,
     .pronos-entry-table td {
         padding-top: 0.45rem;
@@ -582,6 +610,23 @@
         background: rgba(13, 110, 253, 0.05);
         border: 1px solid rgba(13, 110, 253, 0.18);
         border-radius: 1rem;
+    }
+
+    @media (max-width: 991.98px) {
+        .prono-day-actions {
+            grid-template-columns: 1fr;
+        }
+
+        .prono-day-actions-previous,
+        .prono-day-actions-save,
+        .prono-day-actions-next {
+            justify-self: stretch;
+        }
+
+        .prono-day-actions .btn {
+            width: 100%;
+            white-space: normal;
+        }
     }
 
     @media (max-width: 767.98px) {
