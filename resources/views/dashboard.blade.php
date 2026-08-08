@@ -2,7 +2,7 @@
     <div class="min-h-screen bg-slate-950 text-white">
         <div class="mx-auto max-w-7xl px-6 py-10">
 
-            <div class="rounded-3xl bg-gradient-to-r from-slate-900 to-slate-800 p-8 shadow-xl">
+            <div class="rounded-3xl bg-linear-to-r from-slate-900 to-slate-800 p-8 shadow-xl">
                 <p class="text-sm font-bold uppercase tracking-[0.3em] text-yellow-400">
                     TOP 14 PRONOS
                 </p>
