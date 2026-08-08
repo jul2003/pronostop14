@@ -12,7 +12,7 @@
 
     $usedPlayerColors = $usedPlayerColors ?? [];
 
-    $currentColor = strtoupper((string) old('color', $user->color ?? ''));
+    $currentColor = strtoupper((string) ($user->color ?? ''));
 
     $firstAvailableColor = collect($playerColors)
         ->first(fn ($color) => ! array_key_exists(strtoupper($color), $usedPlayerColors));
@@ -39,11 +39,14 @@
     };
 
     $selectedTextColor = $contrastColor($selectedColor);
+
     $selectedTextShadow = $selectedTextColor === '#FFFFFF'
         ? '0 1px 2px rgba(0, 0, 0, 0.45)'
         : 'none';
 
-    $avatarInitials = strtoupper(substr($user->nickname ?: $user->name, 0, 2));
+    $avatarInitials = strtoupper(
+        substr($user->nickname ?: $user->name, 0, 2)
+    );
 @endphp
 
 <div class="row justify-content-center">
@@ -74,19 +77,9 @@
             </div>
 
             <div class="p-4 p-lg-5">
-                @if($errors->any())
-                    <div class="alert alert-danger">
-                        {{ $errors->first() }}
-                    </div>
-                @endif
-
-                @if(session('success'))
-                    <div class="alert alert-success">
-                        {{ session('success') }}
-                    </div>
-                @endif
-
-                <form method="POST" action="{{ route('player-profile.update') }}">
+                <form method="POST"
+                      action="{{ route('player-profile.update') }}"
+                      autocomplete="off">
                     @csrf
                     @method('PUT')
 
@@ -100,7 +93,14 @@
                                    name="nickname"
                                    maxlength="4"
                                    pattern="[A-Za-z]{2}[0-9]{2}"
-                                   value="{{ old('nickname', $user->nickname) }}"
+                                   value="{{ $user->nickname }}"
+                                   autocomplete="off"
+                                   autocorrect="off"
+                                   autocapitalize="characters"
+                                   spellcheck="false"
+                                   data-lpignore="true"
+                                   data-1p-ignore="true"
+                                   data-bwignore="true"
                                    class="form-control form-control-lg text-uppercase"
                                    required>
 
@@ -126,9 +126,17 @@
                                 @foreach($playerColors as $color)
                                     @php
                                         $normalizedColor = strtoupper($color);
-                                        $usedByNickname = $usedPlayerColors[$normalizedColor] ?? null;
+
+                                        $usedByNickname = $usedPlayerColors[
+                                            $normalizedColor
+                                        ] ?? null;
+
                                         $isUsed = filled($usedByNickname);
-                                        $textColor = $contrastColor($normalizedColor);
+
+                                        $textColor = $contrastColor(
+                                            $normalizedColor
+                                        );
+
                                         $textShadow = $textColor === '#FFFFFF'
                                             ? '0 1px 2px rgba(0, 0, 0, 0.45)'
                                             : 'none';
@@ -192,7 +200,14 @@
 
                             <input type="email"
                                    name="email_pro"
-                                   value="{{ old('email_pro', $user->email_pro) }}"
+                                   value="{{ $user->email_pro }}"
+                                   autocomplete="off"
+                                   autocorrect="off"
+                                   autocapitalize="none"
+                                   spellcheck="false"
+                                   data-lpignore="true"
+                                   data-1p-ignore="true"
+                                   data-bwignore="true"
                                    class="form-control form-control-lg">
                         </div>
 
@@ -203,7 +218,14 @@
 
                             <input type="email"
                                    name="email_perso"
-                                   value="{{ old('email_perso', $user->email_perso) }}"
+                                   value="{{ $user->email_perso }}"
+                                   autocomplete="off"
+                                   autocorrect="off"
+                                   autocapitalize="none"
+                                   spellcheck="false"
+                                   data-lpignore="true"
+                                   data-1p-ignore="true"
+                                   data-bwignore="true"
                                    class="form-control form-control-lg">
                         </div>
                     </div>
@@ -226,7 +248,8 @@
 
                     <div class="row g-4">
                         <div class="col-md-4">
-                            <label for="current_password" class="form-label fw-bold">
+                            <label for="current_password"
+                                   class="form-label fw-bold">
                                 Mot de passe actuel
                             </label>
 
@@ -235,7 +258,10 @@
                                        type="password"
                                        name="current_password"
                                        class="form-control form-control-lg"
-                                       autocomplete="current-password">
+                                       autocomplete="off"
+                                       data-lpignore="true"
+                                       data-1p-ignore="true"
+                                       data-bwignore="true">
 
                                 <button type="button"
                                         class="btn btn-outline-secondary password-toggle-button"
@@ -247,7 +273,8 @@
                         </div>
 
                         <div class="col-md-4">
-                            <label for="password" class="form-label fw-bold">
+                            <label for="password"
+                                   class="form-label fw-bold">
                                 Nouveau mot de passe
                             </label>
 
@@ -256,7 +283,10 @@
                                        type="password"
                                        name="password"
                                        class="form-control form-control-lg"
-                                       autocomplete="new-password">
+                                       autocomplete="off"
+                                       data-lpignore="true"
+                                       data-1p-ignore="true"
+                                       data-bwignore="true">
 
                                 <button type="button"
                                         class="btn btn-outline-secondary password-toggle-button"
@@ -268,7 +298,8 @@
                         </div>
 
                         <div class="col-md-4">
-                            <label for="password_confirmation" class="form-label fw-bold">
+                            <label for="password_confirmation"
+                                   class="form-label fw-bold">
                                 Confirmation
                             </label>
 
@@ -277,7 +308,10 @@
                                        type="password"
                                        name="password_confirmation"
                                        class="form-control form-control-lg"
-                                       autocomplete="new-password">
+                                       autocomplete="off"
+                                       data-lpignore="true"
+                                       data-1p-ignore="true"
+                                       data-bwignore="true">
 
                                 <button type="button"
                                         class="btn btn-outline-secondary password-toggle-button"
@@ -352,7 +386,11 @@
         border-radius: 999px;
         border: 2px solid rgba(6, 20, 47, 0.2);
         box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.35);
-        transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease, opacity 0.15s ease;
+        transition:
+            transform 0.15s ease,
+            box-shadow 0.15s ease,
+            border-color 0.15s ease,
+            opacity 0.15s ease;
     }
 
     .player-color-check {
@@ -437,51 +475,86 @@
             return '#06142F';
         }
 
-        const red = parseInt(cleanHex.substring(0, 2), 16);
-        const green = parseInt(cleanHex.substring(2, 4), 16);
-        const blue = parseInt(cleanHex.substring(4, 6), 16);
-        const brightness = ((red * 299) + (green * 587) + (blue * 114)) / 1000;
+        const red = parseInt(
+            cleanHex.substring(0, 2),
+            16
+        );
 
-        return brightness > 145 ? '#06142F' : '#FFFFFF';
+        const green = parseInt(
+            cleanHex.substring(2, 4),
+            16
+        );
+
+        const blue = parseInt(
+            cleanHex.substring(4, 6),
+            16
+        );
+
+        const brightness = (
+            (red * 299)
+            + (green * 587)
+            + (blue * 114)
+        ) / 1000;
+
+        return brightness > 145
+            ? '#06142F'
+            : '#FFFFFF';
     }
 
     document.addEventListener('DOMContentLoaded', function () {
         const avatar = document.getElementById('profileAvatar');
 
-        document.querySelectorAll('.player-color-input:not(:disabled)').forEach(function (input) {
-            input.addEventListener('change', function () {
-                if (!avatar) {
-                    return;
-                }
+        document
+            .querySelectorAll('.player-color-input:not(:disabled)')
+            .forEach(function (input) {
+                input.addEventListener('change', function () {
+                    if (!avatar) {
+                        return;
+                    }
 
-                const textColor = readableTextColor(input.value);
+                    const textColor = readableTextColor(
+                        input.value
+                    );
 
-                avatar.style.background = input.value;
-                avatar.style.color = textColor;
-                avatar.style.textShadow = textColor === '#FFFFFF'
-                    ? '0 1px 2px rgba(0, 0, 0, 0.45)'
-                    : 'none';
+                    avatar.style.background = input.value;
+                    avatar.style.color = textColor;
+
+                    avatar.style.textShadow = textColor === '#FFFFFF'
+                        ? '0 1px 2px rgba(0, 0, 0, 0.45)'
+                        : 'none';
+                });
             });
-        });
 
-        document.querySelectorAll('[data-password-toggle]').forEach(function (button) {
-            button.addEventListener('click', function () {
-                const input = document.getElementById(button.dataset.passwordToggle);
+        document
+            .querySelectorAll('[data-password-toggle]')
+            .forEach(function (button) {
+                button.addEventListener('click', function () {
+                    const input = document.getElementById(
+                        button.dataset.passwordToggle
+                    );
 
-                if (!input) {
-                    return;
-                }
+                    if (!input) {
+                        return;
+                    }
 
-                const shouldShow = input.type === 'password';
+                    const shouldShow = input.type === 'password';
 
-                input.type = shouldShow ? 'text' : 'password';
-                button.textContent = shouldShow ? 'Masquer' : 'Afficher';
-                button.setAttribute(
-                    'aria-label',
-                    shouldShow ? 'Masquer le mot de passe' : 'Afficher le mot de passe'
-                );
+                    input.type = shouldShow
+                        ? 'text'
+                        : 'password';
+
+                    button.textContent = shouldShow
+                        ? 'Masquer'
+                        : 'Afficher';
+
+                    button.setAttribute(
+                        'aria-label',
+                        shouldShow
+                            ? 'Masquer le mot de passe'
+                            : 'Afficher le mot de passe'
+                    );
+                });
             });
-        });
     });
 </script>
 @endpush
