@@ -55,7 +55,8 @@
         <div>
             @if($previousJournee)
                 <a href="{{ route('pronos.show', [$season, $previousJournee]) }}"
-                   class="btn btn-outline-primary rounded-pill fw-bold px-4"
+                   class="btn btn-outline-primary rounded-pill fw-bold px-4 js-prono-navigation-link"
+                   data-navigation-name="{{ $previousJournee->name }}"
                    title="{{ $previousJournee->name }}">
                     ← Journée précédente : {{ $previousJournee->name }}
                 </a>
@@ -65,7 +66,8 @@
         <div class="ms-auto">
             @if($nextJournee)
                 <a href="{{ route('pronos.show', [$season, $nextJournee]) }}"
-                   class="btn btn-outline-primary rounded-pill fw-bold px-4"
+                   class="btn btn-outline-primary rounded-pill fw-bold px-4 js-prono-navigation-link"
+                   data-navigation-name="{{ $nextJournee->name }}"
                    title="{{ $nextJournee->name }}">
                     Journée suivante : {{ $nextJournee->name }} →
                 </a>
@@ -96,6 +98,7 @@
     </div>
 @else
     <form method="POST"
+          id="pronoEntryForm"
           action="{{ route('pronos.store', [$season, $journee]) }}"
           autocomplete="off">
         @csrf
@@ -206,7 +209,8 @@
                                                    id="predicted_result_{{ $match->id }}_{{ $value }}"
                                                    name="pronos[{{ $match->id }}][predicted_result]"
                                                    value="{{ $value }}"
-                                                   class="prono-choice-input"
+                                                   class="prono-choice-input js-prono-dirty-track"
+                                                   data-saved-checked="{{ $prono?->predicted_result === $value ? '1' : '0' }}"
                                                    @checked($resultValue === $value)
                                                    @disabled($matchIsLocked)
                                                    @if(! $matchIsLocked) required @endif>
@@ -226,7 +230,8 @@
                                            pattern="[0-9]*"
                                            name="pronos[{{ $match->id }}][predicted_tries]"
                                            value="{{ $triesValue }}"
-                                           class="form-control form-control-sm prono-tries-input mx-auto"
+                                           class="form-control form-control-sm prono-tries-input mx-auto js-prono-dirty-track"
+                                           data-saved-value="{{ $prono?->predicted_tries ?? '' }}"
                                            autocomplete="off"
                                            autocorrect="off"
                                            autocapitalize="off"
@@ -242,7 +247,8 @@
                                                    id="predicted_home_bonus_{{ $match->id }}_{{ $value }}"
                                                    name="pronos[{{ $match->id }}][predicted_home_bonus]"
                                                    value="{{ $value }}"
-                                                   class="prono-choice-input bonus-choice-input"
+                                                   class="prono-choice-input bonus-choice-input js-prono-dirty-track"
+                                                   data-saved-checked="{{ $prono?->predicted_home_bonus === $value ? '1' : '0' }}"
                                                    @checked($homeBonusValue === $value)
                                                    @disabled($matchIsLocked)>
 
@@ -262,7 +268,8 @@
                                                    id="predicted_away_bonus_{{ $match->id }}_{{ $value }}"
                                                    name="pronos[{{ $match->id }}][predicted_away_bonus]"
                                                    value="{{ $value }}"
-                                                   class="prono-choice-input bonus-choice-input"
+                                                   class="prono-choice-input bonus-choice-input js-prono-dirty-track"
+                                                   data-saved-checked="{{ $prono?->predicted_away_bonus === $value ? '1' : '0' }}"
                                                    @checked($awayBonusValue === $value)
                                                    @disabled($matchIsLocked)>
 
@@ -417,6 +424,89 @@
     @endforeach
 @endif
 
+@if($previousJournee || $nextJournee)
+    <button type="button"
+            id="openUnsavedPronoNavigationModal"
+            class="d-none"
+            data-bs-toggle="modal"
+            data-bs-target="#unsavedPronoNavigationModal"
+            aria-hidden="true"
+            tabindex="-1">
+    </button>
+
+    <div class="modal fade prono-navigation-modal"
+         id="unsavedPronoNavigationModal"
+         tabindex="-1"
+         aria-labelledby="unsavedPronoNavigationModalLabel"
+         aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow">
+                <div class="modal-header border-0 pb-0">
+                    <div>
+                        <div class="text-uppercase text-warning fw-bold small mb-1">
+                            Modifications non enregistrées
+                        </div>
+
+                        <h2 class="modal-title h5 fw-bold mb-0"
+                            id="unsavedPronoNavigationModalLabel">
+                            Enregistrer avant de changer de journée ?
+                        </h2>
+                    </div>
+
+                    <button type="button"
+                            id="dismissUnsavedPronoNavigationModal"
+                            class="btn-close"
+                            data-bs-dismiss="modal"
+                            aria-label="Fermer">
+                    </button>
+                </div>
+
+                <div class="modal-body">
+                    <p class="text-muted mb-3">
+                        Tu as modifié un ou plusieurs pronostics sur
+                        <strong>{{ $journee->name }}</strong> sans les enregistrer.
+                    </p>
+
+                    <div class="prono-navigation-destination">
+                        <div class="text-uppercase text-muted fw-bold small mb-1">
+                            Destination
+                        </div>
+
+                        <div class="fw-bold"
+                             id="unsavedPronoNavigationDestination">
+                            Journée suivante
+                        </div>
+                    </div>
+
+                    <div class="alert alert-warning mt-3 mb-0">
+                        En continuant sans enregistrer, les dernières modifications de cette journée seront perdues.
+                    </div>
+                </div>
+
+                <div class="modal-footer border-0 pt-0 prono-navigation-modal-actions">
+                    <button type="button"
+                            class="btn btn-outline-secondary rounded-pill fw-bold px-4"
+                            data-bs-dismiss="modal">
+                        Rester ici
+                    </button>
+
+                    <button type="button"
+                            id="continuePronoNavigationWithoutSaving"
+                            class="btn btn-outline-danger rounded-pill fw-bold px-4">
+                        Continuer sans enregistrer
+                    </button>
+
+                    <button type="button"
+                            id="savePronoAndContinueNavigation"
+                            class="btn btn-warning rounded-pill fw-bold px-4">
+                        Enregistrer puis continuer
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+@endif
+
 @endsection
 
 @push('styles')
@@ -455,7 +545,8 @@
         cursor: pointer;
     }
 
-    .prono-delete-modal .modal-content {
+    .prono-delete-modal .modal-content,
+    .prono-navigation-modal .modal-content {
         border-radius: 1.25rem;
     }
 
@@ -484,6 +575,24 @@
         width: 42px;
         height: 42px;
         object-fit: contain;
+    }
+
+    .prono-navigation-destination {
+        padding: 1rem;
+        background: rgba(13, 110, 253, 0.05);
+        border: 1px solid rgba(13, 110, 253, 0.18);
+        border-radius: 1rem;
+    }
+
+    @media (max-width: 767.98px) {
+        .prono-navigation-modal-actions {
+            flex-direction: column-reverse;
+            align-items: stretch;
+        }
+
+        .prono-navigation-modal-actions .btn {
+            width: 100%;
+        }
     }
 
     @media (max-width: 575.98px) {
@@ -521,52 +630,278 @@
 @push('scripts')
 <script>
     document.addEventListener('DOMContentLoaded', function () {
-        document.querySelectorAll('.bonus-choice-label').forEach(function (label) {
-            label.addEventListener('pointerdown', function () {
-                const input = document.getElementById(label.getAttribute('for'));
+        const pronoEntryForm = document.getElementById('pronoEntryForm');
 
-                if (!input || input.disabled) {
+        const navigationLinks = document.querySelectorAll(
+            '.js-prono-navigation-link'
+        );
+
+        const navigationModalElement = document.getElementById(
+            'unsavedPronoNavigationModal'
+        );
+
+        const navigationModalOpenButton = document.getElementById(
+            'openUnsavedPronoNavigationModal'
+        );
+
+        const navigationModalDismissButton = document.getElementById(
+            'dismissUnsavedPronoNavigationModal'
+        );
+
+        const navigationDestination = document.getElementById(
+            'unsavedPronoNavigationDestination'
+        );
+
+        const continueWithoutSavingButton = document.getElementById(
+            'continuePronoNavigationWithoutSaving'
+        );
+
+        const saveAndContinueButton = document.getElementById(
+            'savePronoAndContinueNavigation'
+        );
+
+        const navigationStorageKey = @json('pronostop14:prono-navigation:'.auth()->id().':'.$season->id.':'.$journee->id);
+
+        const pronoSaveSucceeded = @json(
+            session('success') === 'Pronostics enregistrés.'
+        );
+
+        let pendingNavigation = null;
+        let navigationToStoreOnSubmit = null;
+
+        function removeStoredNavigation() {
+            try {
+                window.sessionStorage.removeItem(
+                    navigationStorageKey
+                );
+            } catch (error) {
+                // La navigation reste utilisable même si le stockage est indisponible.
+            }
+        }
+
+        function storeNavigationAfterSubmit(navigation) {
+            try {
+                window.sessionStorage.setItem(
+                    navigationStorageKey,
+                    JSON.stringify(navigation)
+                );
+            } catch (error) {
+                // Le formulaire sera tout de même enregistré sur la journée courante.
+            }
+        }
+
+        function readStoredNavigation() {
+            try {
+                const storedValue = window.sessionStorage.getItem(
+                    navigationStorageKey
+                );
+
+                return storedValue
+                    ? JSON.parse(storedValue)
+                    : null;
+            } catch (error) {
+                return null;
+            }
+        }
+
+        const storedNavigation = readStoredNavigation();
+
+        if (storedNavigation) {
+            removeStoredNavigation();
+
+            const storedNavigationIsRecent =
+                Number.isFinite(storedNavigation.submittedAt)
+                && Date.now() - storedNavigation.submittedAt < 300000;
+
+            if (
+                pronoSaveSucceeded
+                && storedNavigationIsRecent
+                && typeof storedNavigation.url === 'string'
+                && storedNavigation.url !== ''
+            ) {
+                window.location.assign(storedNavigation.url);
+
+                return;
+            }
+        }
+
+        function hasUnsavedPronoChanges() {
+            if (!pronoEntryForm) {
+                return false;
+            }
+
+            return Array.from(
+                pronoEntryForm.querySelectorAll(
+                    '.js-prono-dirty-track'
+                )
+            ).some(function (input) {
+                if (input.disabled) {
+                    return false;
+                }
+
+                if (
+                    input.type === 'radio'
+                    || input.type === 'checkbox'
+                ) {
+                    const savedChecked =
+                        input.dataset.savedChecked === '1';
+
+                    return input.checked !== savedChecked;
+                }
+
+                const savedValue =
+                    input.dataset.savedValue ?? '';
+
+                return input.value !== savedValue;
+            });
+        }
+
+        navigationLinks.forEach(function (link) {
+            link.addEventListener('click', function (event) {
+                if (!hasUnsavedPronoChanges()) {
                     return;
                 }
 
-                input.dataset.wasChecked = input.checked ? '1' : '0';
+                event.preventDefault();
+
+                pendingNavigation = {
+                    url: link.href,
+                    name: link.dataset.navigationName
+                        || 'la journée choisie',
+                };
+
+                if (navigationDestination) {
+                    navigationDestination.textContent =
+                        pendingNavigation.name;
+                }
+
+                navigationModalOpenButton?.click();
             });
         });
 
-        document.querySelectorAll('.bonus-choice-input').forEach(function (input) {
-            input.addEventListener('pointerdown', function () {
-                if (input.disabled) {
+        continueWithoutSavingButton?.addEventListener(
+            'click',
+            function () {
+                if (!pendingNavigation) {
                     return;
                 }
 
-                input.dataset.wasChecked = input.checked ? '1' : '0';
-            });
+                const targetUrl = pendingNavigation.url;
 
-            input.addEventListener('keydown', function (event) {
-                if (input.disabled) {
+                removeStoredNavigation();
+                pendingNavigation = null;
+
+                window.location.assign(targetUrl);
+            }
+        );
+
+        saveAndContinueButton?.addEventListener(
+            'click',
+            function () {
+                if (!pendingNavigation || !pronoEntryForm) {
                     return;
                 }
 
-                if (event.key === ' ' || event.key === 'Enter') {
-                    input.dataset.wasChecked = input.checked ? '1' : '0';
-                }
-            });
+                if (!pronoEntryForm.checkValidity()) {
+                    navigationModalDismissButton?.click();
+                    pronoEntryForm.reportValidity();
 
-            input.addEventListener('click', function (event) {
-                if (input.disabled) {
                     return;
                 }
 
-                if (input.dataset.wasChecked === '1') {
-                    event.preventDefault();
+                navigationToStoreOnSubmit = {
+                    url: pendingNavigation.url,
+                    name: pendingNavigation.name,
+                    submittedAt: Date.now(),
+                };
 
-                    window.setTimeout(function () {
-                        input.checked = false;
-                        input.dataset.wasChecked = '0';
-                    }, 0);
-                }
-            });
+                navigationModalDismissButton?.click();
+
+                pronoEntryForm.requestSubmit();
+
+                window.setTimeout(function () {
+                    navigationToStoreOnSubmit = null;
+                }, 0);
+            }
+        );
+
+        pronoEntryForm?.addEventListener('submit', function () {
+            if (!navigationToStoreOnSubmit) {
+                removeStoredNavigation();
+
+                return;
+            }
+
+            storeNavigationAfterSubmit(
+                navigationToStoreOnSubmit
+            );
         });
+
+        navigationModalElement?.addEventListener(
+            'hidden.bs.modal',
+            function () {
+                pendingNavigation = null;
+            }
+        );
+
+        document
+            .querySelectorAll('.bonus-choice-label')
+            .forEach(function (label) {
+                label.addEventListener('pointerdown', function () {
+                    const input = document.getElementById(
+                        label.getAttribute('for')
+                    );
+
+                    if (!input || input.disabled) {
+                        return;
+                    }
+
+                    input.dataset.wasChecked = input.checked
+                        ? '1'
+                        : '0';
+                });
+            });
+
+        document
+            .querySelectorAll('.bonus-choice-input')
+            .forEach(function (input) {
+                input.addEventListener('pointerdown', function () {
+                    if (input.disabled) {
+                        return;
+                    }
+
+                    input.dataset.wasChecked = input.checked
+                        ? '1'
+                        : '0';
+                });
+
+                input.addEventListener('keydown', function (event) {
+                    if (input.disabled) {
+                        return;
+                    }
+
+                    if (event.key === ' ' || event.key === 'Enter') {
+                        input.dataset.wasChecked = input.checked
+                            ? '1'
+                            : '0';
+                    }
+                });
+
+                input.addEventListener('click', function (event) {
+                    if (input.disabled) {
+                        return;
+                    }
+
+                    if (input.dataset.wasChecked === '1') {
+                        event.preventDefault();
+
+                        window.setTimeout(function () {
+                            input.checked = false;
+                            input.dataset.wasChecked = '0';
+                        }, 0);
+                    }
+                });
+            });
     });
 </script>
 @endpush

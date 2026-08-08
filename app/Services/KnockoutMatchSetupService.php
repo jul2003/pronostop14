@@ -45,31 +45,51 @@ class KnockoutMatchSetupService
         $position5 = $this->certifiedTop14ClubAtPosition($season, 5);
         $position6 = $this->certifiedTop14ClubAtPosition($season, 6);
 
-        if (! $position3 || ! $position4 || ! $position5 || ! $position6) {
-            return [
-                'title' => 'Barrages TOP 14',
-                'message' => 'Les positions 3, 4, 5 et 6 du TOP 14 ne sont pas encore toutes certaines.',
-                'pairs' => [],
-            ];
-        }
+        $pairs = [
+            [
+                'position' => 1,
+                'label' => 'Barrage 1',
+                'home' => $position4,
+                'away' => $position5,
+                'home_label' => 'Équipe 1',
+                'away_label' => 'Équipe 2',
+                'home_source' => '4e du TOP 14',
+                'away_source' => '5e du TOP 14',
+                'home_placeholder' => 'En attente du 4e du TOP 14',
+                'away_placeholder' => 'En attente du 5e du TOP 14',
+                'description' => '4e TOP 14 contre 5e TOP 14',
+                'is_complete' => $position4 !== null && $position5 !== null,
+            ],
+            [
+                'position' => 2,
+                'label' => 'Barrage 2',
+                'home' => $position3,
+                'away' => $position6,
+                'home_label' => 'Équipe 1',
+                'away_label' => 'Équipe 2',
+                'home_source' => '3e du TOP 14',
+                'away_source' => '6e du TOP 14',
+                'home_placeholder' => 'En attente du 3e du TOP 14',
+                'away_placeholder' => 'En attente du 6e du TOP 14',
+                'description' => '3e TOP 14 contre 6e TOP 14',
+                'is_complete' => $position3 !== null && $position6 !== null,
+            ],
+        ];
+
+        $completeCount = collect($pairs)
+            ->where('is_complete', true)
+            ->count();
+
+        $message = match ($completeCount) {
+            2 => 'Les deux barrages peuvent être créés automatiquement à partir du classement TOP 14.',
+            1 => 'Un barrage est déjà complet et peut être créé automatiquement. Le second reste en attente des positions manquantes.',
+            default => 'Les positions nécessaires aux barrages ne sont pas encore suffisamment certaines.',
+        };
 
         return [
             'title' => 'Barrages TOP 14',
-            'message' => 'Les barrages peuvent être créés automatiquement à partir du classement TOP 14.',
-            'pairs' => [
-                [
-                    'label' => 'Barrage 1',
-                    'home' => $position4,
-                    'away' => $position5,
-                    'description' => '4e TOP 14 contre 5e TOP 14',
-                ],
-                [
-                    'label' => 'Barrage 2',
-                    'home' => $position3,
-                    'away' => $position6,
-                    'description' => '3e TOP 14 contre 6e TOP 14',
-                ],
-            ],
+            'message' => $message,
+            'pairs' => $pairs,
         ];
     }
 
@@ -104,6 +124,7 @@ class KnockoutMatchSetupService
             'message' => $message,
             'pairs' => [
                 [
+                    'position' => 1,
                     'label' => 'Access match',
                     'home' => $prod2FinalLoser,
                     'away' => $top14Barragiste,
@@ -127,31 +148,51 @@ class KnockoutMatchSetupService
         $playoff1Winner = $this->winnerOfMatch($season, 'top14_playoff', 1);
         $playoff2Winner = $this->winnerOfMatch($season, 'top14_playoff', 2);
 
-        if (! $position1 || ! $position2 || ! $playoff1Winner || ! $playoff2Winner) {
-            return [
-                'title' => 'Demi-finales TOP 14',
-                'message' => 'Il faut connaître les positions 1 et 2 de saison régulière, puis les vainqueurs des deux barrages.',
-                'pairs' => [],
-            ];
-        }
+        $pairs = [
+            [
+                'position' => 1,
+                'label' => 'Demi-finale 1',
+                'home' => $position1,
+                'away' => $playoff1Winner,
+                'home_label' => 'Équipe 1',
+                'away_label' => 'Équipe 2',
+                'home_source' => '1er du TOP 14',
+                'away_source' => 'Vainqueur du barrage 1',
+                'home_placeholder' => 'En attente du 1er du TOP 14',
+                'away_placeholder' => 'En attente du vainqueur du barrage 1',
+                'description' => '1er TOP 14 contre vainqueur barrage 1',
+                'is_complete' => $position1 !== null && $playoff1Winner !== null,
+            ],
+            [
+                'position' => 2,
+                'label' => 'Demi-finale 2',
+                'home' => $position2,
+                'away' => $playoff2Winner,
+                'home_label' => 'Équipe 1',
+                'away_label' => 'Équipe 2',
+                'home_source' => '2e du TOP 14',
+                'away_source' => 'Vainqueur du barrage 2',
+                'home_placeholder' => 'En attente du 2e du TOP 14',
+                'away_placeholder' => 'En attente du vainqueur du barrage 2',
+                'description' => '2e TOP 14 contre vainqueur barrage 2',
+                'is_complete' => $position2 !== null && $playoff2Winner !== null,
+            ],
+        ];
+
+        $completeCount = collect($pairs)
+            ->where('is_complete', true)
+            ->count();
+
+        $message = match ($completeCount) {
+            2 => 'Les deux demi-finales peuvent être créées automatiquement.',
+            1 => 'Une demi-finale est déjà complète et peut être créée automatiquement. L’autre reste en attente du second barrage.',
+            default => 'Les demi-finales attendent encore les vainqueurs des barrages TOP 14.',
+        };
 
         return [
             'title' => 'Demi-finales TOP 14',
-            'message' => 'Les demi-finales peuvent être créées automatiquement.',
-            'pairs' => [
-                [
-                    'label' => 'Demi-finale 1',
-                    'home' => $position1,
-                    'away' => $playoff1Winner,
-                    'description' => '1er TOP 14 contre vainqueur barrage 1',
-                ],
-                [
-                    'label' => 'Demi-finale 2',
-                    'home' => $position2,
-                    'away' => $playoff2Winner,
-                    'description' => '2e TOP 14 contre vainqueur barrage 2',
-                ],
-            ],
+            'message' => $message,
+            'pairs' => $pairs,
         ];
     }
 
@@ -169,23 +210,34 @@ class KnockoutMatchSetupService
             2
         );
 
-        if (! $semifinal1Winner || ! $semifinal2Winner) {
-            return [
-                'title' => 'Finale TOP 14',
-                'message' => 'Il faut connaître les vainqueurs des deux demi-finales TOP 14.',
-                'pairs' => [],
-            ];
+        $isComplete = $semifinal1Winner !== null
+            && $semifinal2Winner !== null;
+
+        if ($isComplete) {
+            $message = 'La finale peut être créée automatiquement.';
+        } elseif ($semifinal1Winner || $semifinal2Winner) {
+            $message = 'Un finaliste est déjà connu. Il reste à connaître le vainqueur de l’autre demi-finale.';
+        } else {
+            $message = 'Il faut encore connaître les vainqueurs des deux demi-finales TOP 14.';
         }
 
         return [
             'title' => 'Finale TOP 14',
-            'message' => 'La finale peut être créée automatiquement.',
+            'message' => $message,
             'pairs' => [
                 [
+                    'position' => 1,
                     'label' => 'Finale TOP 14',
                     'home' => $semifinal1Winner,
                     'away' => $semifinal2Winner,
+                    'home_label' => 'Équipe 1',
+                    'away_label' => 'Équipe 2',
+                    'home_source' => 'Vainqueur de la demi-finale 1',
+                    'away_source' => 'Vainqueur de la demi-finale 2',
+                    'home_placeholder' => 'En attente du vainqueur de la demi-finale 1',
+                    'away_placeholder' => 'En attente du vainqueur de la demi-finale 2',
                     'description' => 'Vainqueur demi-finale 1 contre vainqueur demi-finale 2',
+                    'is_complete' => $isComplete,
                 ],
             ],
         ];
@@ -366,8 +418,30 @@ class KnockoutMatchSetupService
             ->sortBy('position')
             ->values();
 
-        return $matches->firstWhere('position', $matchPosition)
-            ?: $matches->get($matchPosition - 1);
+        $positionedMatch = $matches->first(
+            fn (MatchGame $match) => (int) $match->position === $matchPosition
+        );
+
+        if ($positionedMatch) {
+            return $positionedMatch;
+        }
+
+        /*
+         * Compatibilité avec d’anciennes données éventuellement créées
+         * avant l’utilisation du champ position. Dès qu’un match possède
+         * une position explicite, on ne retombe pas sur l’index de la
+         * collection : cela évite de confondre le match 1 et le match 2
+         * lorsqu’ils sont créés séparément ou dans le désordre.
+         */
+        $hasExplicitPositions = $matches->contains(
+            fn (MatchGame $match) => $match->position !== null
+        );
+
+        if ($hasExplicitPositions) {
+            return null;
+        }
+
+        return $matches->get($matchPosition - 1);
     }
 
     private function regularJourneesThroughTarget(

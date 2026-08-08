@@ -35,22 +35,64 @@
         'pairs' => [],
     ];
 
-    $automaticPairs = collect($automaticSetup['pairs'] ?? []);
+    $matchesByPosition = $matches->keyBy(
+        fn ($match) => (int) $match->position
+    );
 
-    $automaticPairsAreComplete = $automaticPairs->isNotEmpty()
-        && $automaticPairs->every(function ($pair) {
-            if (array_key_exists('is_complete', $pair)) {
-                return (bool) $pair['is_complete'];
-            }
+    $automaticPairs = collect($automaticSetup['pairs'] ?? [])
+        ->values()
+        ->map(function ($pair, $index) use ($matchesByPosition) {
+            $position = (int) ($pair['position'] ?? ($index + 1));
+            $homeClub = $pair['home'] ?? null;
+            $awayClub = $pair['away'] ?? null;
 
-            return ! empty($pair['home'])
-                && ! empty($pair['away']);
-        });
+            $pairIsComplete = array_key_exists('is_complete', $pair)
+                ? (bool) $pair['is_complete']
+                : ($homeClub !== null && $awayClub !== null);
+
+            $pairIsComplete = $pairIsComplete
+                && $homeClub !== null
+                && $awayClub !== null;
+
+            $existingMatch = $matchesByPosition->get($position);
+
+            $alreadyCreated = $existingMatch
+                && $pairIsComplete
+                && (int) $existingMatch->home_club_id === (int) $homeClub->id
+                && (int) $existingMatch->away_club_id === (int) $awayClub->id;
+
+            return array_merge($pair, [
+                'position' => $position,
+                'home' => $homeClub,
+                'away' => $awayClub,
+                'is_complete' => $pairIsComplete,
+                'existing_match' => $existingMatch,
+                'already_created' => $alreadyCreated,
+                'position_is_occupied' => $existingMatch && ! $alreadyCreated,
+            ]);
+        })
+        ->sortBy('position')
+        ->values();
+
+    $automaticReadyPairs = $automaticPairs
+        ->filter(
+            fn ($pair) => $pair['is_complete']
+                && ! $pair['existing_match']
+        )
+        ->values();
 
     $automaticKnownTeamsCount = $automaticPairs->sum(function ($pair) {
         return (empty($pair['home']) ? 0 : 1)
             + (empty($pair['away']) ? 0 : 1);
     });
+
+    $automaticOccupiedPairsCount = $automaticPairs
+        ->where('position_is_occupied', true)
+        ->count();
+
+    $automaticCreatedPairsCount = $automaticPairs
+        ->where('already_created', true)
+        ->count();
 @endphp
 
 <div class="mb-4">
@@ -131,10 +173,10 @@
                     @php
                         $homeClub = $pair['home'] ?? null;
                         $awayClub = $pair['away'] ?? null;
-
-                        $pairIsComplete = array_key_exists('is_complete', $pair)
-                            ? (bool) $pair['is_complete']
-                            : ($homeClub !== null && $awayClub !== null);
+                        $pairIsComplete = (bool) $pair['is_complete'];
+                        $existingMatch = $pair['existing_match'];
+                        $alreadyCreated = (bool) $pair['already_created'];
+                        $positionIsOccupied = (bool) $pair['position_is_occupied'];
 
                         $homeLabel = $pair['home_label'] ?? 'Équipe 1';
                         $awayLabel = $pair['away_label'] ?? 'Équipe 2';
@@ -147,6 +189,20 @@
 
                         $awayPlaceholder = $pair['away_placeholder']
                             ?? 'Équipe à déterminer';
+
+                        $statusClass = match (true) {
+                            $alreadyCreated => 'text-bg-secondary',
+                            $positionIsOccupied => 'text-bg-danger',
+                            $pairIsComplete => 'text-bg-success',
+                            default => 'text-bg-warning',
+                        };
+
+                        $statusLabel = match (true) {
+                            $alreadyCreated => 'Déjà créé',
+                            $positionIsOccupied => 'Position occupée',
+                            $pairIsComplete => 'Prêt à créer',
+                            default => 'En attente',
+                        };
                     @endphp
 
                     <div class="col-12 {{ $automaticPairs->count() > 1 ? 'col-xl-6' : '' }}">
@@ -162,8 +218,8 @@
                                     </div>
                                 </div>
 
-                                <span class="badge rounded-pill {{ $pairIsComplete ? 'text-bg-success' : 'text-bg-warning' }}">
-                                    {{ $pairIsComplete ? 'Complet' : 'En attente' }}
+                                <span class="badge rounded-pill {{ $statusClass }}">
+                                    {{ $statusLabel }}
                                 </span>
                             </div>
 
@@ -240,28 +296,20 @@
                                     @endif
                                 </div>
                             </div>
+
+                            @if($positionIsOccupied && $existingMatch)
+                                <div class="alert alert-danger mt-3 mb-0">
+                                    La position {{ $pair['position'] }} est déjà occupée par
+                                    <strong>{{ $existingMatch->homeClub->name }} - {{ $existingMatch->awayClub->name }}</strong>.
+                                    Le match automatique n’est pas créé afin de ne rien remplacer.
+                                </div>
+                            @endif
                         </div>
                     </div>
                 @endforeach
             </div>
 
-            @if($matches->isNotEmpty())
-                <div class="alert alert-warning mb-0">
-                    Des matchs existent déjà pour cette journée. L’alimentation automatique ne remplace pas les matchs existants.
-                </div>
-            @elseif(! $automaticPairsAreComplete)
-                <div class="alert alert-info mb-0">
-                    @if($automaticKnownTeamsCount === 1)
-                        L’équipe déjà déterminée reste affichée automatiquement.
-                    @elseif($automaticKnownTeamsCount > 1)
-                        Les équipes déjà déterminées restent affichées automatiquement.
-                    @else
-                        Les emplacements du match sont prêts à être alimentés automatiquement.
-                    @endif
-
-                    Le match pourra être créé dès que les deux équipes seront connues.
-                </div>
-            @elseif(! $preparationIsLocked)
+            @if($automaticReadyPairs->isNotEmpty() && ! $preparationIsLocked)
                 <form method="POST"
                       action="{{ route('admin.seasons.journees.matches.storeBulk', $matchesRouteParameters) }}">
                     @csrf
@@ -272,7 +320,7 @@
                                value="upcoming-matches">
                     @endif
 
-                    @foreach($automaticPairs as $pair)
+                    @foreach($automaticReadyPairs as $pair)
                         <input type="hidden"
                                name="clubs[]"
                                value="{{ $pair['home']->id }}">
@@ -280,12 +328,40 @@
                         <input type="hidden"
                                name="clubs[]"
                                value="{{ $pair['away']->id }}">
+
+                        <input type="hidden"
+                               name="positions[]"
+                               value="{{ $pair['position'] }}">
                     @endforeach
 
                     <button class="btn btn-warning rounded-pill fw-bold px-4">
-                        Créer automatiquement les matchs
+                        Créer automatiquement
+                        {{ $automaticReadyPairs->count() > 1
+                            ? 'les '.$automaticReadyPairs->count().' matchs disponibles'
+                            : 'le match disponible' }}
                     </button>
                 </form>
+            @elseif($automaticCreatedPairsCount === $automaticPairs->count())
+                <div class="alert alert-success mb-0">
+                    Tous les matchs proposés automatiquement sont déjà créés.
+                </div>
+            @elseif($automaticOccupiedPairsCount > 0)
+                <div class="alert alert-warning mb-0">
+                    Une ou plusieurs positions sont déjà occupées par des matchs différents.
+                    Aucun match existant ne sera remplacé automatiquement.
+                </div>
+            @elseif(! $preparationIsLocked)
+                <div class="alert alert-info mb-0">
+                    @if($automaticKnownTeamsCount === 1)
+                        L’équipe déjà déterminée reste affichée automatiquement.
+                    @elseif($automaticKnownTeamsCount > 1)
+                        Les équipes déjà déterminées restent affichées automatiquement.
+                    @else
+                        Les emplacements des matchs sont prêts à être alimentés automatiquement.
+                    @endif
+
+                    Chaque match sera proposé dès que ses deux équipes seront connues, sans attendre les autres matchs du tour.
+                </div>
             @endif
         @endif
     </div>

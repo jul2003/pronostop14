@@ -7,6 +7,13 @@
         session('preseason_auto_result_suggestions', [])
     );
 
+    $automaticMatchSetupSuggestions = collect(
+        session('automatic_match_setup_suggestions', [])
+    );
+
+    $hasAutomaticActions = $autoResultSuggestions->isNotEmpty()
+        || $automaticMatchSetupSuggestions->isNotEmpty();
+
     $previousJournee = $previousJournee ?? null;
     $nextJournee = $nextJournee ?? null;
 
@@ -112,19 +119,24 @@
     </div>
 @endif
 
-@if($autoResultSuggestions->isNotEmpty())
+@if($hasAutomaticActions)
     <div class="alert alert-info d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3">
         <div>
-            L’application a détecté un ou plusieurs résultats avant-saison qui semblent désormais mathématiquement certains.
-            Une validation est demandée avant mémorisation.
+            @if($autoResultSuggestions->isNotEmpty() && $automaticMatchSetupSuggestions->isNotEmpty())
+                L’application a détecté des résultats avant-saison à mémoriser et des matchs qui peuvent maintenant être créés automatiquement.
+            @elseif($autoResultSuggestions->isNotEmpty())
+                L’application a détecté un ou plusieurs résultats avant-saison qui semblent désormais certains.
+            @else
+                L’application a déterminé les équipes d’un ou plusieurs matchs à créer automatiquement.
+            @endif
         </div>
 
         <button type="button"
-                id="preseasonAutoResultOpenButton"
+                id="automaticActionsOpenButton"
                 class="btn btn-primary rounded-pill fw-bold px-4"
                 data-bs-toggle="modal"
-                data-bs-target="#preseasonAutoResultSuggestionsModal">
-            Ouvrir la validation
+                data-bs-target="#automaticActionsModal">
+            Ouvrir les actions automatiques
         </button>
     </div>
 @endif
@@ -331,13 +343,13 @@
     </form>
 @endif
 
-@if($autoResultSuggestions->isNotEmpty())
+@if($hasAutomaticActions)
     <div class="modal fade"
-         id="preseasonAutoResultSuggestionsModal"
+         id="automaticActionsModal"
          tabindex="-1"
-         aria-labelledby="preseasonAutoResultSuggestionsModalLabel"
+         aria-labelledby="automaticActionsModalLabel"
          aria-hidden="true">
-        <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
             <div class="modal-content">
                 <div class="modal-header">
                     <div>
@@ -346,10 +358,8 @@
                         </div>
 
                         <h2 class="modal-title h5 fw-bold mb-0"
-                            id="preseasonAutoResultSuggestionsModalLabel">
-                            {{ $autoResultSuggestions->count() > 1
-                                ? 'Résultats avant-saison détectés'
-                                : 'Résultat avant-saison détecté' }}
+                            id="automaticActionsModalLabel">
+                            Actions automatiques disponibles
                         </h2>
                     </div>
 
@@ -361,155 +371,317 @@
                 </div>
 
                 <div class="modal-body">
-                    <p class="text-muted">
-                        L’application a détecté
-                        {{ $autoResultSuggestions->count() > 1
-                            ? $autoResultSuggestions->count().' résultats avant-saison'
-                            : 'un résultat avant-saison' }}
-                        à partir du paramétrage des questions.
-                        Rien n’est mémorisé tant que tu ne valides pas.
-                    </p>
+                    @if($autoResultSuggestions->isNotEmpty() && $automaticMatchSetupSuggestions->isNotEmpty())
+                        <p class="text-muted">
+                            L’enregistrement des résultats a produit des résultats avant-saison à valider
+                            et des matchs de phase finale prêts à être créés.
+                        </p>
+                    @elseif($autoResultSuggestions->isNotEmpty())
+                        <p class="text-muted">
+                            L’application a détecté des résultats avant-saison à partir du paramétrage des questions.
+                            Rien n’est mémorisé tant que tu ne valides pas.
+                        </p>
+                    @else
+                        <p class="text-muted">
+                            L’application a déterminé les équipes des prochains matchs.
+                            Rien n’est créé tant que tu ne valides pas.
+                        </p>
+                    @endif
 
-                    <div class="d-flex flex-column gap-3">
-                        @foreach($autoResultSuggestions as $suggestion)
-                            @php
-                                $targetJourneeNumber = $suggestion['target_journee_number'] ?? null;
-                                $autoResultPosition = $suggestion['auto_result_position'] ?? null;
+                    @if($autoResultSuggestions->isNotEmpty())
+                        <section>
+                            <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-3">
+                                <div>
+                                    <h3 class="h6 fw-bold mb-1">
+                                        Résultats avant-saison
+                                    </h3>
 
-                                $isTop14PositionRule = ($suggestion['rule'] ?? null)
-                                    === \App\Models\SeasonPreseasonQuestion::AUTO_RESULT_RULE_TOP14_POSITION;
-                            @endphp
+                                    <p class="text-muted small mb-0">
+                                        Tu peux les mémoriser individuellement ou tous ensemble.
+                                    </p>
+                                </div>
 
-                            <div class="border rounded-4 p-3">
-                                <div class="d-flex flex-wrap justify-content-between align-items-start gap-3">
-                                    <div>
-                                        <div class="fw-bold">
-                                            {{ $suggestion['question_label'] }}
+                                <span class="badge rounded-pill text-bg-warning">
+                                    {{ $autoResultSuggestions->count() }}
+                                </span>
+                            </div>
+
+                            <div class="d-flex flex-column gap-3">
+                                @foreach($autoResultSuggestions as $suggestion)
+                                    @php
+                                        $targetJourneeNumber = $suggestion['target_journee_number'] ?? null;
+                                        $autoResultPosition = $suggestion['auto_result_position'] ?? null;
+
+                                        $isTop14PositionRule = ($suggestion['rule'] ?? null)
+                                            === \App\Models\SeasonPreseasonQuestion::AUTO_RESULT_RULE_TOP14_POSITION;
+                                    @endphp
+
+                                    <div class="border rounded-4 p-3">
+                                        <div class="d-flex flex-wrap justify-content-between align-items-start gap-3">
+                                            <div>
+                                                <div class="fw-bold">
+                                                    {{ $suggestion['question_label'] }}
+                                                </div>
+
+                                                <div class="text-muted small">
+                                                    {{ $suggestion['rule_label'] }}
+                                                </div>
+                                            </div>
+
+                                            <div class="d-flex align-items-center gap-2">
+                                                @if(! empty($suggestion['club_logo_url']))
+                                                    <img src="{{ $suggestion['club_logo_url'] }}"
+                                                         alt="{{ $suggestion['club_name'] }}"
+                                                         class="club-logo-small">
+                                                @endif
+
+                                                <span class="fw-bold">
+                                                    {{ $suggestion['club_name'] }}
+                                                </span>
+                                            </div>
                                         </div>
 
-                                        <div class="text-muted small">
-                                            {{ $suggestion['rule_label'] }}
-                                        </div>
-                                    </div>
+                                        <div class="row g-2 mt-3">
+                                            @if($isTop14PositionRule)
+                                                <div class="col-md-6">
+                                                    <div class="border rounded-3 p-3 bg-light h-100">
+                                                        <div class="text-muted small fw-bold text-uppercase">
+                                                            Position paramétrée
+                                                        </div>
 
-                                    <div class="d-flex align-items-center gap-2">
-                                        @if(! empty($suggestion['club_logo_url']))
-                                            <img src="{{ $suggestion['club_logo_url'] }}"
-                                                 alt="{{ $suggestion['club_name'] }}"
-                                                 class="club-logo-small">
+                                                        <div class="fw-bold">
+                                                            {{ $autoResultPosition ? $positionLabel($autoResultPosition) : 'Non définie' }}
+                                                            du TOP 14
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                <div class="col-md-6">
+                                                    <div class="border rounded-3 p-3 bg-light h-100">
+                                                        <div class="text-muted small fw-bold text-uppercase">
+                                                            Journée cible paramétrée
+                                                        </div>
+
+                                                        <div class="fw-bold">
+                                                            {{ $targetJourneeNumber ? 'J'.$targetJourneeNumber : 'Non définie' }}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            @elseif($targetJourneeNumber)
+                                                <div class="col-md-6">
+                                                    <div class="border rounded-3 p-3 bg-light h-100">
+                                                        <div class="text-muted small fw-bold text-uppercase">
+                                                            Journée cible paramétrée
+                                                        </div>
+
+                                                        <div class="fw-bold">
+                                                            J{{ $targetJourneeNumber }}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            @else
+                                                <div class="col-md-6">
+                                                    <div class="border rounded-3 p-3 bg-light h-100">
+                                                        <div class="text-muted small fw-bold text-uppercase">
+                                                            Source du calcul
+                                                        </div>
+
+                                                        <div class="fw-bold">
+                                                            Match concerné par la règle
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            @endif
+                                        </div>
+
+                                        <div class="alert alert-light border mt-3 mb-3">
+                                            {{ $suggestion['explanation'] }}
+                                        </div>
+
+                                        @if(! empty($suggestion['is_replacement']))
+                                            <div class="alert alert-warning">
+                                                Un résultat officiel existe déjà :
+                                                <strong>{{ $suggestion['existing_club_name'] }}</strong>.
+                                                La validation remplacera ce résultat par
+                                                <strong>{{ $suggestion['club_name'] }}</strong>.
+                                            </div>
                                         @endif
 
-                                        <span class="fw-bold">
-                                            {{ $suggestion['club_name'] }}
-                                        </span>
+                                        <form method="POST"
+                                              action="{{ route('admin.seasons.journees.results.store', $currentResultsRouteParameters) }}">
+                                            @csrf
+
+                                            @if($fromPendingResults)
+                                                <input type="hidden"
+                                                       name="from"
+                                                       value="pending-results">
+                                            @endif
+
+                                            <input type="hidden"
+                                                   name="accept_preseason_auto_result"
+                                                   value="1">
+
+                                            <input type="hidden"
+                                                   name="auto_result_question_id"
+                                                   value="{{ $suggestion['question_id'] }}">
+
+                                            <input type="hidden"
+                                                   name="auto_result_club_id"
+                                                   value="{{ $suggestion['club_id'] }}">
+
+                                            <button type="submit"
+                                                    class="btn btn-warning rounded-pill fw-bold px-4">
+                                                {{ ! empty($suggestion['is_replacement'])
+                                                    ? 'Oui, remplacer et recalculer'
+                                                    : 'Oui, mémoriser et recalculer' }}
+                                            </button>
+                                        </form>
                                     </div>
-                                </div>
-
-                                <div class="row g-2 mt-3">
-                                    @if($isTop14PositionRule)
-                                        <div class="col-md-6">
-                                            <div class="border rounded-3 p-3 bg-light h-100">
-                                                <div class="text-muted small fw-bold text-uppercase">
-                                                    Position paramétrée
-                                                </div>
-
-                                                <div class="fw-bold">
-                                                    {{ $autoResultPosition ? $positionLabel($autoResultPosition) : 'Non définie' }}
-                                                    du TOP 14
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        <div class="col-md-6">
-                                            <div class="border rounded-3 p-3 bg-light h-100">
-                                                <div class="text-muted small fw-bold text-uppercase">
-                                                    Journée cible paramétrée
-                                                </div>
-
-                                                <div class="fw-bold">
-                                                    {{ $targetJourneeNumber ? 'J'.$targetJourneeNumber : 'Non définie' }}
-                                                </div>
-                                            </div>
-                                        </div>
-                                    @elseif($targetJourneeNumber)
-                                        <div class="col-md-6">
-                                            <div class="border rounded-3 p-3 bg-light h-100">
-                                                <div class="text-muted small fw-bold text-uppercase">
-                                                    Journée cible paramétrée
-                                                </div>
-
-                                                <div class="fw-bold">
-                                                    J{{ $targetJourneeNumber }}
-                                                </div>
-                                            </div>
-                                        </div>
-                                    @else
-                                        <div class="col-md-6">
-                                            <div class="border rounded-3 p-3 bg-light h-100">
-                                                <div class="text-muted small fw-bold text-uppercase">
-                                                    Source du calcul
-                                                </div>
-
-                                                <div class="fw-bold">
-                                                    Match concerné par la règle
-                                                </div>
-                                            </div>
-                                        </div>
-                                    @endif
-                                </div>
-
-                                <div class="alert alert-light border mt-3 mb-3">
-                                    {{ $suggestion['explanation'] }}
-                                </div>
-
-                                @if(! empty($suggestion['is_replacement']))
-                                    <div class="alert alert-warning">
-                                        Un résultat officiel existe déjà :
-                                        <strong>{{ $suggestion['existing_club_name'] }}</strong>.
-                                        La validation remplacera ce résultat par
-                                        <strong>{{ $suggestion['club_name'] }}</strong>.
-                                    </div>
-                                @endif
-
-                                <form method="POST"
-                                      action="{{ route('admin.seasons.journees.results.store', $currentResultsRouteParameters) }}">
-                                    @csrf
-
-                                    @if($fromPendingResults)
-                                        <input type="hidden"
-                                               name="from"
-                                               value="pending-results">
-                                    @endif
-
-                                    <input type="hidden"
-                                           name="accept_preseason_auto_result"
-                                           value="1">
-
-                                    <input type="hidden"
-                                           name="auto_result_question_id"
-                                           value="{{ $suggestion['question_id'] }}">
-
-                                    <input type="hidden"
-                                           name="auto_result_club_id"
-                                           value="{{ $suggestion['club_id'] }}">
-
-                                    <button type="submit"
-                                            class="btn btn-warning rounded-pill fw-bold px-4">
-                                        {{ ! empty($suggestion['is_replacement'])
-                                            ? 'Oui, remplacer et recalculer'
-                                            : 'Oui, mémoriser et recalculer' }}
-                                    </button>
-                                </form>
+                                @endforeach
                             </div>
-                        @endforeach
-                    </div>
+                        </section>
+                    @endif
+
+                    @if($automaticMatchSetupSuggestions->isNotEmpty())
+                        <section class="{{ $autoResultSuggestions->isNotEmpty() ? 'border-top mt-4 pt-4' : '' }}">
+                            <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-3">
+                                <div>
+                                    <h3 class="h6 fw-bold mb-1">
+                                        Matchs à créer
+                                    </h3>
+
+                                    <p class="text-muted small mb-0">
+                                        Les équipes sont recalculées côté serveur au moment de la création.
+                                    </p>
+                                </div>
+
+                                <span class="badge rounded-pill text-bg-success">
+                                    {{ $automaticMatchSetupSuggestions->count() }}
+                                </span>
+                            </div>
+
+                            <div class="d-flex flex-column gap-3">
+                                @foreach($automaticMatchSetupSuggestions as $matchSetupSuggestion)
+                                    @php
+                                        $suggestedPairs = collect(
+                                            $matchSetupSuggestion['pairs'] ?? []
+                                        );
+
+                                        $suggestedMatchesCount = (int) (
+                                            $matchSetupSuggestion['matches_count']
+                                            ?? $suggestedPairs->count()
+                                        );
+                                    @endphp
+
+                                    <div class="border border-success-subtle rounded-4 p-3">
+                                        <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-3">
+                                            <div>
+                                                <div class="text-uppercase text-success fw-bold small">
+                                                    {{ $matchSetupSuggestion['target_journee_name'] }}
+                                                </div>
+
+                                                <div class="fw-bold">
+                                                    {{ $matchSetupSuggestion['title'] }}
+                                                </div>
+
+                                                @if(! empty($matchSetupSuggestion['message']))
+                                                    <div class="text-muted small mt-1">
+                                                        {{ $matchSetupSuggestion['message'] }}
+                                                    </div>
+                                                @endif
+                                            </div>
+
+                                            <span class="badge rounded-pill text-bg-success">
+                                                Prêt à créer
+                                            </span>
+                                        </div>
+
+                                        <div class="d-flex flex-column gap-2 mb-3">
+                                            @foreach($suggestedPairs as $pair)
+                                                <div class="automatic-match-pair">
+                                                    <div class="automatic-match-team">
+                                                        @if(! empty($pair['home']['logo_url']))
+                                                            <img src="{{ $pair['home']['logo_url'] }}"
+                                                                 alt="{{ $pair['home']['name'] }}"
+                                                                 class="club-logo-small">
+                                                        @endif
+
+                                                        <span class="fw-bold">
+                                                            {{ $pair['home']['name'] }}
+                                                        </span>
+                                                    </div>
+
+                                                    <div class="automatic-match-center">
+                                                        <div class="fw-bold">
+                                                            {{ $pair['label'] }}
+                                                        </div>
+
+                                                        @if(! empty($pair['description']))
+                                                            <div class="text-muted small">
+                                                                {{ $pair['description'] }}
+                                                            </div>
+                                                        @endif
+                                                    </div>
+
+                                                    <div class="automatic-match-team automatic-match-team-away">
+                                                        <span class="fw-bold">
+                                                            {{ $pair['away']['name'] }}
+                                                        </span>
+
+                                                        @if(! empty($pair['away']['logo_url']))
+                                                            <img src="{{ $pair['away']['logo_url'] }}"
+                                                                 alt="{{ $pair['away']['name'] }}"
+                                                                 class="club-logo-small">
+                                                        @endif
+                                                    </div>
+                                                </div>
+                                            @endforeach
+                                        </div>
+
+                                        @if(! empty($matchSetupSuggestion['is_locked']))
+                                            <div class="alert alert-warning mb-0">
+                                                Cette journée est verrouillée. Les matchs ne peuvent plus être créés.
+                                            </div>
+                                        @else
+                                            <form method="POST"
+                                                  action="{{ route('admin.seasons.journees.results.store', $currentResultsRouteParameters) }}">
+                                                @csrf
+
+                                                @if($fromPendingResults)
+                                                    <input type="hidden"
+                                                           name="from"
+                                                           value="pending-results">
+                                                @endif
+
+                                                <input type="hidden"
+                                                       name="create_automatic_matches"
+                                                       value="1">
+
+                                                <input type="hidden"
+                                                       name="automatic_match_journee_id"
+                                                       value="{{ $matchSetupSuggestion['target_journee_id'] }}">
+
+                                                <button type="submit"
+                                                        class="btn btn-success rounded-pill fw-bold px-4">
+                                                    Créer automatiquement
+                                                    {{ $suggestedMatchesCount > 1
+                                                        ? 'les '.$suggestedMatchesCount.' matchs'
+                                                        : 'le match' }}
+                                                </button>
+                                            </form>
+                                        @endif
+                                    </div>
+                                @endforeach
+                            </div>
+                        </section>
+                    @endif
                 </div>
 
                 <div class="modal-footer d-flex flex-column flex-sm-row justify-content-between gap-2">
                     <button type="button"
                             class="btn btn-outline-secondary rounded-pill fw-bold"
                             data-bs-dismiss="modal">
-                        Non, laisser en attente
+                        Fermer et laisser en attente
                     </button>
 
                     @if($autoResultSuggestions->count() > 1)
@@ -607,6 +779,46 @@
         min-width: 2.5rem;
         font-size: 1.15rem;
         line-height: 1;
+    }
+
+    .automatic-match-pair {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(150px, auto) minmax(0, 1fr);
+        align-items: center;
+        gap: 1rem;
+        padding: 0.85rem 1rem;
+        background: rgba(25, 135, 84, 0.04);
+        border: 1px solid rgba(25, 135, 84, 0.16);
+        border-radius: 0.85rem;
+    }
+
+    .automatic-match-team {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        min-width: 0;
+    }
+
+    .automatic-match-team-away {
+        justify-content: flex-end;
+        text-align: right;
+    }
+
+    .automatic-match-center {
+        text-align: center;
+    }
+
+    @media (max-width: 767.98px) {
+        .automatic-match-pair {
+            grid-template-columns: 1fr;
+            text-align: center;
+        }
+
+        .automatic-match-team,
+        .automatic-match-team-away {
+            justify-content: center;
+            text-align: center;
+        }
     }
 </style>
 @endpush
@@ -782,44 +994,44 @@
                 });
             });
 
-        const autoResultModalElement = document.getElementById(
-            'preseasonAutoResultSuggestionsModal'
+        const automaticActionsModalElement = document.getElementById(
+            'automaticActionsModal'
         );
 
-        const autoResultOpenButton = document.getElementById(
-            'preseasonAutoResultOpenButton'
+        const automaticActionsOpenButton = document.getElementById(
+            'automaticActionsOpenButton'
         );
 
-        function openAutoResultModal(attempt) {
-            if (!autoResultModalElement) {
+        function openAutomaticActionsModal(attempt) {
+            if (!automaticActionsModalElement) {
                 return;
             }
 
             if (window.bootstrap && window.bootstrap.Modal) {
                 window.bootstrap.Modal
-                    .getOrCreateInstance(autoResultModalElement)
+                    .getOrCreateInstance(automaticActionsModalElement)
                     .show();
 
                 return;
             }
 
-            if (autoResultOpenButton) {
-                autoResultOpenButton.click();
+            if (automaticActionsOpenButton) {
+                automaticActionsOpenButton.click();
             }
 
             if (
-                !autoResultModalElement.classList.contains('show')
+                !automaticActionsModalElement.classList.contains('show')
                 && attempt < 20
             ) {
                 window.setTimeout(function () {
-                    openAutoResultModal(attempt + 1);
+                    openAutomaticActionsModal(attempt + 1);
                 }, 150);
             }
         }
 
-        if (autoResultModalElement) {
+        if (automaticActionsModalElement) {
             window.setTimeout(function () {
-                openAutoResultModal(0);
+                openAutomaticActionsModal(0);
             }, 150);
         }
     });

@@ -43,11 +43,9 @@
 @endif
 
 @if($questions->isEmpty())
-
     <div class="alert alert-info">
         Aucune question avant-saison active pour cette saison.
     </div>
-
 @else
     <form method="POST"
           id="preseason-results-form"
@@ -74,14 +72,7 @@
                         <button type="button"
                                 class="btn btn-outline-danger rounded-pill fw-bold px-4"
                                 data-bs-toggle="modal"
-                                data-bs-target="#lockSeasonModal="lock_season"
-                                value="0"
-                                class="btn btn-warning rounded-pill fw-bold px-4">
-                            Enregistrer et recalculer
-                        </button>
-
-                        <button type="button"
-">
+                                data-bs-target="#lockSeasonModal">
                             Enregistrer, recalculer et verrouiller
                         </button>
                     </div>
@@ -102,7 +93,8 @@
                                 Résultat officiel
                             </th>
 
-                            <th class="text-center" style="width: 140px;">
+                            <th class="text-center"
+                                style="width: 140px;">
                                 Statut
                             </th>
                         </tr>
@@ -215,11 +207,14 @@
                                     $predictionsByUser = $question->predictions
                                         ->keyBy('user_id');
 
-                                    $officialAnswerInputIsFilled = filled($officialTextAnswerValue);
+                                    $officialAnswerInputIsFilled = filled(
+                                        $officialTextAnswerValue
+                                    );
                                 @endphp
 
                                 <tr class="free-text-correction-row">
-                                    <td colspan="3" class="p-0">
+                                    <td colspan="3"
+                                        class="p-0">
                                         <div class="free-text-correction-block">
                                             <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-3">
                                                 <div>
@@ -265,11 +260,13 @@
                                                                 Prono saisi
                                                             </th>
 
-                                                            <th class="text-center" style="width: 320px;">
+                                                            <th class="text-center"
+                                                                style="width: 320px;">
                                                                 Correction
                                                             </th>
 
-                                                            <th class="text-center" style="width: 110px;">
+                                                            <th class="text-center"
+                                                                style="width: 110px;">
                                                                 Points
                                                             </th>
                                                         </tr>
@@ -278,15 +275,22 @@
                                                     <tbody>
                                                         @foreach($players as $player)
                                                             @php
-                                                                $prediction = $predictionsByUser->get($player->id);
-                                                                $hasPrediction = $prediction && filled($prediction->text_answer);
+                                                                $prediction = $predictionsByUser->get(
+                                                                    $player->id
+                                                                );
 
-                                                                $oldCorrectionValue = old("free_text_corrections.{$question->id}.{$player->id}");
+                                                                $hasPrediction = $prediction
+                                                                    && filled($prediction->text_answer);
+
+                                                                $oldCorrectionValue = old(
+                                                                    "free_text_corrections.{$question->id}.{$player->id}"
+                                                                );
 
                                                                 $correctionValue = $oldCorrectionValue !== null
                                                                     ? $oldCorrectionValue
                                                                     : (
-                                                                        ! $prediction || $prediction->is_correct === null
+                                                                        ! $prediction
+                                                                        || $prediction->is_correct === null
                                                                             ? 'pending'
                                                                             : ($prediction->is_correct ? '1' : '0')
                                                                     );
@@ -397,7 +401,9 @@
 
                                             <div class="small text-muted mt-3">
                                                 Les points affichés correspondent au dernier calcul enregistré. Ils seront mis à jour après
-                                                <span class="fw-bold">Enregistrer et recalculer</span>.
+                                                <span class="fw-bold">
+                                                    Enregistrer et recalculer
+                                                </span>.
                                             </div>
                                         </div>
                                     </td>
@@ -426,7 +432,8 @@
                             <button type="button"
                                     class="btn-close"
                                     data-bs-dismiss="modal"
-                                    aria-label="Fermer"></button>
+                                    aria-label="Fermer">
+                            </button>
                         </div>
 
                         <div class="modal-body">
@@ -529,12 +536,19 @@
 @push('scripts')
 <script>
     document.addEventListener('DOMContentLoaded', function () {
-        const officialInputs = document.querySelectorAll('.js-free-text-official-answer');
-        const clearButtons = document.querySelectorAll('.js-free-text-clear-button');
+        const officialInputs = document.querySelectorAll(
+            '.js-free-text-official-answer'
+        );
+
+        const clearButtons = document.querySelectorAll(
+            '.js-free-text-clear-button'
+        );
 
         function refreshFreeTextQuestion(questionId) {
             const officialInput = document.querySelector(
-                '.js-free-text-official-answer[data-free-text-question-id="' + questionId + '"]'
+                '.js-free-text-official-answer[data-free-text-question-id="'
+                    + questionId
+                    + '"]'
             );
 
             if (!officialInput) {
@@ -545,13 +559,16 @@
             const officialIsFilled = officialValue.length > 0;
 
             const correctionInputs = document.querySelectorAll(
-                '.js-free-text-correction-input[data-free-text-correction-question-id="' + questionId + '"]'
+                '.js-free-text-correction-input[data-free-text-correction-question-id="'
+                    + questionId
+                    + '"]'
             );
 
             const groups = {};
 
             correctionInputs.forEach(function (input) {
-                const canEverEnable = input.dataset.freeTextCorrectionCanEnable === '1';
+                const canEverEnable =
+                    input.dataset.freeTextCorrectionCanEnable === '1';
 
                 input.disabled = !(canEverEnable && officialIsFilled);
 
@@ -575,45 +592,73 @@
             }
 
             const missingNotice = document.querySelector(
-                '[data-free-text-missing-notice="' + questionId + '"]'
+                '[data-free-text-missing-notice="'
+                    + questionId
+                    + '"]'
             );
 
             const readyNotice = document.querySelector(
-                '[data-free-text-ready-notice="' + questionId + '"]'
+                '[data-free-text-ready-notice="'
+                    + questionId
+                    + '"]'
             );
 
             const officialLabel = document.querySelector(
-                '[data-free-text-official-label="' + questionId + '"]'
+                '[data-free-text-official-label="'
+                    + questionId
+                    + '"]'
             );
 
             const statusBadge = document.querySelector(
-                '[data-free-text-status-badge="' + questionId + '"]'
+                '[data-free-text-status-badge="'
+                    + questionId
+                    + '"]'
             );
 
             const clearButton = document.querySelector(
-                '.js-free-text-clear-button[data-free-text-question-id="' + questionId + '"]'
+                '.js-free-text-clear-button[data-free-text-question-id="'
+                    + questionId
+                    + '"]'
             );
 
             if (missingNotice) {
-                missingNotice.classList.toggle('d-none', officialIsFilled);
+                missingNotice.classList.toggle(
+                    'd-none',
+                    officialIsFilled
+                );
             }
 
             if (readyNotice) {
-                readyNotice.classList.toggle('d-none', !officialIsFilled);
+                readyNotice.classList.toggle(
+                    'd-none',
+                    !officialIsFilled
+                );
             }
 
             if (officialLabel) {
                 if (officialIsFilled) {
-                    officialLabel.textContent = '· réponse officielle : ' + officialValue;
+                    officialLabel.textContent =
+                        '· réponse officielle : ' + officialValue;
                 } else {
-                    officialLabel.textContent = '· réponse officielle non renseignée';
+                    officialLabel.textContent =
+                        '· réponse officielle non renseignée';
                 }
             }
 
             if (statusBadge) {
-                statusBadge.classList.toggle('bg-success', officialIsFilled);
-                statusBadge.classList.toggle('bg-secondary', !officialIsFilled);
-                statusBadge.textContent = officialIsFilled ? 'Saisi' : 'En attente';
+                statusBadge.classList.toggle(
+                    'bg-success',
+                    officialIsFilled
+                );
+
+                statusBadge.classList.toggle(
+                    'bg-secondary',
+                    !officialIsFilled
+                );
+
+                statusBadge.textContent = officialIsFilled
+                    ? 'Saisi'
+                    : 'En attente';
             }
 
             if (clearButton) {
@@ -622,18 +667,26 @@
         }
 
         officialInputs.forEach(function (input) {
-            refreshFreeTextQuestion(input.dataset.freeTextQuestionId);
+            refreshFreeTextQuestion(
+                input.dataset.freeTextQuestionId
+            );
 
             input.addEventListener('input', function () {
-                refreshFreeTextQuestion(input.dataset.freeTextQuestionId);
+                refreshFreeTextQuestion(
+                    input.dataset.freeTextQuestionId
+                );
             });
         });
 
         clearButtons.forEach(function (button) {
             button.addEventListener('click', function () {
-                const questionId = button.dataset.freeTextQuestionId;
+                const questionId =
+                    button.dataset.freeTextQuestionId;
+
                 const officialInput = document.querySelector(
-                    '.js-free-text-official-answer[data-free-text-question-id="' + questionId + '"]'
+                    '.js-free-text-official-answer[data-free-text-question-id="'
+                        + questionId
+                        + '"]'
                 );
 
                 if (!officialInput) {
@@ -641,7 +694,9 @@
                 }
 
                 officialInput.value = '';
+
                 refreshFreeTextQuestion(questionId);
+
                 officialInput.focus();
             });
         });
