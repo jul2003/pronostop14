@@ -2,13 +2,50 @@
 
 @section('content')
 
+@php
+    $answerTypeOptions = [
+        'top14_club' => 'TOP 14',
+        'prod2_club' => 'PRO D2',
+        'season_club' => 'Saison',
+        'free_text' => 'Libre',
+    ];
+
+    $answerTypeFullLabels = [
+        'top14_club' => 'Club TOP 14',
+        'prod2_club' => 'Club PRO D2',
+        'season_club' => 'Club saison',
+        'free_text' => 'Texte libre',
+    ];
+
+    $autoResultRuleOptions = $autoResultRuleOptions ?? \App\Models\SeasonPreseasonQuestion::autoResultRuleOptions();
+
+    $autoResultRuleShortLabels = [
+        \App\Models\SeasonPreseasonQuestion::AUTO_RESULT_RULE_TOP14_POSITION => 'Position TOP 14',
+        \App\Models\SeasonPreseasonQuestion::AUTO_RESULT_RULE_TOP14_PLAYOFF_1_WINNER => 'Vainq. barrage 1',
+        \App\Models\SeasonPreseasonQuestion::AUTO_RESULT_RULE_TOP14_PLAYOFF_2_WINNER => 'Vainq. barrage 2',
+        \App\Models\SeasonPreseasonQuestion::AUTO_RESULT_RULE_TOP14_FINAL_WINNER => 'Vainq. finale T14',
+        \App\Models\SeasonPreseasonQuestion::AUTO_RESULT_RULE_PROD2_FINAL_WINNER => 'Vainq. finale D2',
+        \App\Models\SeasonPreseasonQuestion::AUTO_RESULT_RULE_ACCESS_MATCH_WINNER => 'Vainq. access',
+    ];
+
+    $autoResultRuleMetadata = collect(array_keys($autoResultRuleOptions))
+        ->mapWithKeys(fn ($rule) => [
+            $rule => [
+                'compatible_answer_types' => \App\Models\SeasonPreseasonQuestion::autoResultRuleCompatibleAnswerTypes($rule),
+                'requires_journee' => \App\Models\SeasonPreseasonQuestion::autoResultRuleRequiresJourneeNumber($rule),
+                'requires_position' => \App\Models\SeasonPreseasonQuestion::autoResultRuleRequiresPosition($rule),
+            ],
+        ]);
+
+    $defaultScoringProfileId = old('scoring_profile_id', $scoringProfiles->first()?->id);
+@endphp
+
 @include('admin.partials.back-link', [
     'href' => route('admin.seasons.index'),
     'label' => 'Retour aux saisons',
 ])
 
 <div id="page-top" class="mb-4">
-
     <div class="mt-3 text-uppercase text-primary fw-bold small">
         Administration
     </div>
@@ -23,7 +60,7 @@
                 @if($season->is_locked)
                     Cette saison est verrouillée. Les questions, groupes de correction et bonus avant-saison sont consultables uniquement.
                 @else
-                    Questions, groupes de correction et bonus avant-saison propres à cette saison.
+                    Questions, groupes de correction, bonus et détection automatique propres à cette saison.
                 @endif
             </p>
         </div>
@@ -45,29 +82,19 @@
             Saison verrouillée
         </div>
 
-        La configuration avant-saison de cette saison ne peut plus être modifiée. Pour corriger les questions, les groupes ou les bonus, il faut d’abord déverrouiller la saison depuis sa page d’édition.
+        La configuration avant-saison de cette saison ne peut plus être modifiée.
+        Pour corriger les questions, les groupes ou les bonus, il faut d’abord déverrouiller la saison depuis sa page d’édition.
     </div>
 @else
     <div class="alert alert-info">
-        Les modifications faites ici concernent uniquement cette saison. Si tu veux que cette configuration serve de référence pour les prochaines saisons, utilise le bouton Appliquer aux paramètres globaux.
+        Les modifications faites ici concernent uniquement cette saison.
+        Le barème technique reste conservé en arrière-plan ; les points et le calcul automatique restent visibles directement.
     </div>
 @endif
 
 @if($errors->any())
     <div class="alert alert-danger">
         {{ $errors->first() }}
-    </div>
-@endif
-
-@if(session('error'))
-    <div class="alert alert-danger">
-        {{ session('error') }}
-    </div>
-@endif
-
-@if(session('success'))
-    <div class="alert alert-success">
-        {{ session('success') }}
     </div>
 @endif
 
@@ -84,7 +111,7 @@
                         @if($season->is_locked)
                             Consulte les questions avant-saison propres à cette saison.
                         @else
-                            Modifie, ajoute, supprime ou réordonne les questions propres à cette saison. Les groupes de correction sont gérés dans le bloc séparé ci-dessous.
+                            Modifie, ajoute, supprime ou réordonne les questions. Les règles automatiques sont visibles directement dans le tableau.
                         @endif
                     </p>
                 </div>
@@ -102,25 +129,35 @@
                     @method('PUT')
 
                     <div class="table-responsive">
-                        <table class="table align-middle mb-0">
+                        <table class="table table-sm align-middle mb-0 preseason-questions-table">
                             <thead class="table-light">
                                 <tr>
-                                    <th style="width: 60px;"></th>
-                                    <th>Question</th>
-                                    <th style="width: 180px;">Type</th>
-                                    <th style="width: 260px;">Barème</th>
-                                    <th class="text-center" style="width: 110px;">Points</th>
-                                    <th class="text-center" style="width: 90px;">Active</th>
-                                    <th class="text-end" style="width: 120px;">Suppression</th>
+                                    <th style="width: 48px;"></th>
+                                    <th class="question-column">Question</th>
+                                    <th class="text-center">Type</th>
+                                    <th class="auto-column">Auto</th>
+                                    <th class="text-center">J</th>
+                                    <th class="text-center">Pos.</th>
+                                    <th class="text-center">Pts</th>
+                                    <th class="text-center">Actif</th>
+                                    <th class="text-end">Supp.</th>
                                 </tr>
                             </thead>
 
                             <tbody id="seasonPreseasonQuestionsList">
                                 @foreach($questions->sortBy('position') as $question)
-                                    <tr data-id="{{ $question->id }}" draggable="{{ $season->is_locked ? 'false' : 'true' }}">
-                                        <td>
+                                    @php
+                                        $questionType = old("questions.{$question->id}.answer_type", $question->answer_type);
+                                        $questionAutoRule = old("questions.{$question->id}.auto_result_rule", $question->auto_result_rule);
+                                        $questionAutoJournee = old("questions.{$question->id}.auto_result_journee_number", $question->auto_result_journee_number);
+                                        $questionAutoPosition = old("questions.{$question->id}.auto_result_position", $question->auto_result_position);
+                                    @endphp
+
+                                    <tr data-id="{{ $question->id }}"
+                                        draggable="{{ $season->is_locked ? 'false' : 'true' }}">
+                                        <td class="text-center">
                                             <button type="button"
-                                                    class="btn btn-sm btn-light border drag-handle rounded-pill"
+                                                    class="btn btn-sm btn-light border drag-handle rounded-pill px-2"
                                                     title="Déplacer"
                                                     @disabled($season->is_locked)>
                                                 ☰
@@ -130,18 +167,22 @@
                                                    name="questions[{{ $question->id }}][position]"
                                                    value="{{ old("questions.{$question->id}.position", $question->position) }}"
                                                    class="question-position-input">
+
+                                            <input type="hidden"
+                                                   name="questions[{{ $question->id }}][scoring_profile_id]"
+                                                   value="{{ old("questions.{$question->id}.scoring_profile_id", $question->scoring_profile_id) }}">
                                         </td>
 
-                                        <td>
+                                        <td class="question-column">
                                             <input type="text"
                                                    name="questions[{{ $question->id }}][label]"
                                                    value="{{ old("questions.{$question->id}.label", $question->label) }}"
-                                                   class="form-control"
+                                                   class="form-control form-control-sm question-label-input"
                                                    required
                                                    @disabled($season->is_locked)>
 
                                             @if($question->correctionGroups->isNotEmpty())
-                                                <div class="small text-muted mt-2 d-flex flex-wrap gap-1">
+                                                <div class="small text-muted mt-1 d-flex flex-wrap gap-1">
                                                     @foreach($question->correctionGroups as $correctionGroup)
                                                         <a href="#correction-group-{{ $correctionGroup->id }}"
                                                            class="badge rounded-pill text-bg-light border text-dark text-decoration-none correction-group-anchor-link"
@@ -155,43 +196,97 @@
 
                                         <td>
                                             <select name="questions[{{ $question->id }}][answer_type]"
-                                                    class="form-select"
+                                                    class="form-select form-select-sm js-question-answer-type"
+                                                    data-question-id="{{ $question->id }}"
                                                     required
                                                     @disabled($season->is_locked)>
-                                                @foreach([
-                                                    'top14_club' => 'Club TOP 14',
-                                                    'prod2_club' => 'Club PRO D2',
-                                                    'season_club' => 'Club saison',
-                                                    'free_text' => 'Texte libre',
-                                                ] as $value => $label)
-                                                    <option value="{{ $value }}" @selected(old("questions.{$question->id}.answer_type", $question->answer_type) === $value)>
+                                                @foreach($answerTypeOptions as $value => $label)
+                                                    <option value="{{ $value }}"
+                                                            title="{{ $answerTypeFullLabels[$value] ?? $label }}"
+                                                            @selected($questionType === $value)>
                                                         {{ $label }}
                                                     </option>
                                                 @endforeach
                                             </select>
                                         </td>
 
-                                        <td>
-                                            <select name="questions[{{ $question->id }}][scoring_profile_id]"
-                                                    class="form-select"
+                                        <td class="auto-column">
+                                            <select name="questions[{{ $question->id }}][auto_result_rule]"
+                                                    class="form-select form-select-sm js-auto-result-rule"
+                                                    data-question-id="{{ $question->id }}"
                                                     @disabled($season->is_locked)>
                                                 <option value="">
                                                     Aucun
                                                 </option>
 
-                                                @foreach($scoringProfiles as $profile)
-                                                    <option value="{{ $profile->id }}" @selected((string) old("questions.{$question->id}.scoring_profile_id", $question->scoring_profile_id) === (string) $profile->id)>
-                                                        {{ $profile->name }}
+                                                @foreach($autoResultRuleOptions as $value => $label)
+                                                    @php
+                                                        $metadata = $autoResultRuleMetadata[$value] ?? [
+                                                            'compatible_answer_types' => [],
+                                                            'requires_journee' => false,
+                                                            'requires_position' => false,
+                                                        ];
+
+                                                        $shortLabel = $autoResultRuleShortLabels[$value] ?? $label;
+                                                    @endphp
+
+                                                    <option value="{{ $value }}"
+                                                            title="{{ $label }}"
+                                                            data-compatible-answer-types="{{ implode(',', $metadata['compatible_answer_types']) }}"
+                                                            data-requires-journee="{{ $metadata['requires_journee'] ? '1' : '0' }}"
+                                                            data-requires-position="{{ $metadata['requires_position'] ? '1' : '0' }}"
+                                                            @selected($questionAutoRule === $value)>
+                                                        {{ $shortLabel }}
                                                     </option>
                                                 @endforeach
                                             </select>
+
+                                            <div class="small text-muted compact-help js-auto-result-help"
+                                                 data-question-id="{{ $question->id }}">
+                                                —
+                                            </div>
                                         </td>
 
-                                        <td>
+                                        <td class="text-center">
+                                            <select name="questions[{{ $question->id }}][auto_result_journee_number]"
+                                                    class="form-select form-select-sm text-center auto-journee-select js-auto-result-journee"
+                                                    data-question-id="{{ $question->id }}"
+                                                    @disabled($season->is_locked)>
+                                                <option value="">
+                                                    —
+                                                </option>
+
+                                                @for($number = 1; $number <= 26; $number++)
+                                                    <option value="{{ $number }}" @selected((string) $questionAutoJournee === (string) $number)>
+                                                        J{{ $number }}
+                                                    </option>
+                                                @endfor
+                                            </select>
+                                        </td>
+
+                                        <td class="text-center">
+                                            <select name="questions[{{ $question->id }}][auto_result_position]"
+                                                    class="form-select form-select-sm text-center auto-position-select js-auto-result-position"
+                                                    data-question-id="{{ $question->id }}"
+                                                    title="1 = 1er, 13 = barragiste, 14 = dernier"
+                                                    @disabled($season->is_locked)>
+                                                <option value="">
+                                                    —
+                                                </option>
+
+                                                @for($position = 1; $position <= 14; $position++)
+                                                    <option value="{{ $position }}" @selected((string) $questionAutoPosition === (string) $position)>
+                                                        {{ $position }}
+                                                    </option>
+                                                @endfor
+                                            </select>
+                                        </td>
+
+                                        <td class="text-center">
                                             <input type="number"
                                                    name="questions[{{ $question->id }}][points]"
                                                    value="{{ old("questions.{$question->id}.points", $question->points) }}"
-                                                   class="form-control text-center"
+                                                   class="form-control form-control-sm text-center points-input"
                                                    required
                                                    @disabled($season->is_locked)>
                                         </td>
@@ -208,13 +303,13 @@
                                         <td class="text-end">
                                             @unless($season->is_locked)
                                                 <button type="button"
-                                                        class="btn btn-sm btn-outline-danger rounded-pill"
+                                                        class="btn btn-sm btn-outline-danger rounded-pill px-2"
                                                         data-label="{{ $question->label }}"
                                                         onclick="submitDeleteForm('delete-question-{{ $question->id }}', this.dataset.label)">
-                                                    Supprimer
+                                                    ×
                                                 </button>
                                             @else
-                                                —
+                                                <span class="text-muted">—</span>
                                             @endunless
                                         </td>
                                     </tr>
@@ -252,108 +347,148 @@
                     Ajouter une question
                 </h3>
 
-                <form method="POST" action="{{ route('admin.seasons.preseason.questions.store', $season) }}">
+                <form method="POST"
+                      action="{{ route('admin.seasons.preseason.questions.store', $season) }}"
+                      id="newPreseasonQuestionForm">
                     @csrf
 
-                    <div class="row g-3 align-items-end">
-                        <div class="col-md-4">
-                            <label class="form-label fw-bold">
-                                Question
-                            </label>
+                    <input type="hidden"
+                           name="scoring_profile_id"
+                           value="{{ $defaultScoringProfileId }}">
 
-                            <input type="text"
-                                   name="label"
-                                   value="{{ old('label') }}"
-                                   class="form-control"
-                                   required>
-                        </div>
+                    <div class="table-responsive">
+                        <table class="table table-sm align-middle mb-0 preseason-questions-table">
+                            <thead class="table-light">
+                                <tr>
+                                    <th class="question-column">Question</th>
+                                    <th class="text-center">Type</th>
+                                    <th class="auto-column">Auto</th>
+                                    <th class="text-center">J</th>
+                                    <th class="text-center">Pos.</th>
+                                    <th class="text-center">Pts</th>
+                                    <th class="text-center">Ordre</th>
+                                    <th class="text-center">Actif</th>
+                                    <th class="text-end">Ajouter</th>
+                                </tr>
+                            </thead>
 
-                        <div class="col-md-2">
-                            <label class="form-label fw-bold">
-                                Type
-                            </label>
+                            <tbody>
+                                <tr>
+                                    <td class="question-column">
+                                        <input type="text"
+                                               name="label"
+                                               value="{{ old('label') }}"
+                                               class="form-control form-control-sm"
+                                               required>
+                                    </td>
 
-                            <select name="answer_type"
-                                    class="form-select"
-                                    required>
-                                <option value="top14_club" @selected(old('answer_type') === 'top14_club')>
-                                    Club TOP 14
-                                </option>
-                                <option value="prod2_club" @selected(old('answer_type') === 'prod2_club')>
-                                    Club PRO D2
-                                </option>
-                                <option value="season_club" @selected(old('answer_type') === 'season_club')>
-                                    Club saison
-                                </option>
-                                <option value="free_text" @selected(old('answer_type') === 'free_text')>
-                                    Texte libre
-                                </option>
-                            </select>
-                        </div>
+                                    <td>
+                                        <select name="answer_type"
+                                                class="form-select form-select-sm js-new-question-answer-type"
+                                                required>
+                                            @foreach($answerTypeOptions as $value => $label)
+                                                <option value="{{ $value }}"
+                                                        title="{{ $answerTypeFullLabels[$value] ?? $label }}"
+                                                        @selected(old('answer_type', 'top14_club') === $value)>
+                                                    {{ $label }}
+                                                </option>
+                                            @endforeach
+                                        </select>
+                                    </td>
 
-                        <div class="col-md-2">
-                            <label class="form-label fw-bold">
-                                Barème
-                            </label>
+                                    <td class="auto-column">
+                                        <select name="auto_result_rule"
+                                                class="form-select form-select-sm js-new-auto-result-rule">
+                                            <option value="">
+                                                Aucun
+                                            </option>
 
-                            <select name="scoring_profile_id"
-                                    class="form-select">
-                                <option value="">
-                                    Aucun
-                                </option>
+                                            @foreach($autoResultRuleOptions as $value => $label)
+                                                @php
+                                                    $metadata = $autoResultRuleMetadata[$value] ?? [
+                                                        'compatible_answer_types' => [],
+                                                        'requires_journee' => false,
+                                                        'requires_position' => false,
+                                                    ];
 
-                                @foreach($scoringProfiles as $profile)
-                                    <option value="{{ $profile->id }}" @selected((string) old('scoring_profile_id') === (string) $profile->id)>
-                                        {{ $profile->name }}
-                                    </option>
-                                @endforeach
-                            </select>
-                        </div>
+                                                    $shortLabel = $autoResultRuleShortLabels[$value] ?? $label;
+                                                @endphp
 
-                        <div class="col-md-1">
-                            <label class="form-label fw-bold">
-                                Points
-                            </label>
+                                                <option value="{{ $value }}"
+                                                        title="{{ $label }}"
+                                                        data-compatible-answer-types="{{ implode(',', $metadata['compatible_answer_types']) }}"
+                                                        data-requires-journee="{{ $metadata['requires_journee'] ? '1' : '0' }}"
+                                                        data-requires-position="{{ $metadata['requires_position'] ? '1' : '0' }}"
+                                                        @selected(old('auto_result_rule') === $value)>
+                                                    {{ $shortLabel }}
+                                                </option>
+                                            @endforeach
+                                        </select>
+                                    </td>
 
-                            <input type="number"
-                                   name="points"
-                                   value="{{ old('points', 0) }}"
-                                   class="form-control text-center"
-                                   required>
-                        </div>
+                                    <td class="text-center">
+                                        <select name="auto_result_journee_number"
+                                                class="form-select form-select-sm text-center auto-journee-select js-new-auto-result-journee">
+                                            <option value="">
+                                                —
+                                            </option>
 
-                        <div class="col-md-1">
-                            <label class="form-label fw-bold">
-                                Ordre
-                            </label>
+                                            @for($number = 1; $number <= 26; $number++)
+                                                <option value="{{ $number }}" @selected((string) old('auto_result_journee_number') === (string) $number)>
+                                                    J{{ $number }}
+                                                </option>
+                                            @endfor
+                                        </select>
+                                    </td>
 
-                            <input type="number"
-                                   name="position"
-                                   value="{{ old('position', ($questions->max('position') ?? 0) + 10) }}"
-                                   class="form-control text-center"
-                                   required>
-                        </div>
+                                    <td class="text-center">
+                                        <select name="auto_result_position"
+                                                class="form-select form-select-sm text-center auto-position-select js-new-auto-result-position">
+                                            <option value="">
+                                                —
+                                            </option>
 
-                        <div class="col-md-1">
-                            <div class="form-check">
-                                <input type="checkbox"
-                                       name="is_active"
-                                       value="1"
-                                       class="form-check-input"
-                                       id="new_question_active"
-                                       @checked(old('is_active', true))>
+                                            @for($position = 1; $position <= 14; $position++)
+                                                <option value="{{ $position }}" @selected((string) old('auto_result_position') === (string) $position)>
+                                                    {{ $position }}
+                                                </option>
+                                            @endfor
+                                        </select>
+                                    </td>
 
-                                <label class="form-check-label fw-bold" for="new_question_active">
-                                    Active
-                                </label>
-                            </div>
-                        </div>
+                                    <td class="text-center">
+                                        <input type="number"
+                                               name="points"
+                                               value="{{ old('points', 0) }}"
+                                               class="form-control form-control-sm text-center points-input"
+                                               required>
+                                    </td>
 
-                        <div class="col-md-1">
-                            <button class="btn btn-warning rounded-pill fw-bold w-100">
-                                +
-                            </button>
-                        </div>
+                                    <td class="text-center">
+                                        <input type="number"
+                                               name="position"
+                                               value="{{ old('position', ($questions->max('position') ?? 0) + 10) }}"
+                                               class="form-control form-control-sm text-center position-input"
+                                               required>
+                                    </td>
+
+                                    <td class="text-center">
+                                        <input type="checkbox"
+                                               name="is_active"
+                                               value="1"
+                                               class="form-check-input"
+                                               id="new_question_active"
+                                               @checked(old('is_active', true))>
+                                    </td>
+
+                                    <td class="text-end">
+                                        <button class="btn btn-sm btn-warning rounded-pill fw-bold px-3">
+                                            +
+                                        </button>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
                     </div>
                 </form>
             </div>
@@ -458,7 +593,7 @@
                                                @disabled($season->is_locked)>
                                     </div>
 
-                                    <div class="col-md-4">
+                                    <div class="col-md-3">
                                         <label class="form-label fw-bold">
                                             Code
                                         </label>
@@ -470,7 +605,7 @@
                                                @disabled($season->is_locked)>
                                     </div>
 
-                                    <div class="col-md-3 d-flex align-items-end">
+                                    <div class="col-md-2 d-flex align-items-end">
                                         <div class="form-check">
                                             <input type="checkbox"
                                                    name="correction_groups[{{ $correctionGroup->id }}][is_active]"
@@ -534,10 +669,6 @@
                                                                     <span class="fw-bold d-block">
                                                                         {{ $question->position }}. {{ $question->label }}
                                                                     </span>
-
-                                                                    <span class="text-muted small">
-                                                                        {{ $question->scoringProfile->name ?? 'Aucun barème' }}
-                                                                    </span>
                                                                 </span>
                                                             </label>
                                                         </div>
@@ -580,7 +711,8 @@
                     Ajouter un groupe de correction
                 </h3>
 
-                <form method="POST" action="{{ route('admin.seasons.preseason.correction-groups.store', $season) }}">
+                <form method="POST"
+                      action="{{ route('admin.seasons.preseason.correction-groups.store', $season) }}">
                     @csrf
 
                     <div class="row g-3">
@@ -593,7 +725,6 @@
                                    name="label"
                                    value="{{ old('label') }}"
                                    class="form-control"
-                                   placeholder="Demi-finalistes TOP 14"
                                    required>
                         </div>
 
@@ -605,8 +736,7 @@
                             <input type="text"
                                    name="code"
                                    value="{{ old('code') }}"
-                                   class="form-control"
-                                   placeholder="top14_semifinalists">
+                                   class="form-control">
                         </div>
 
                         <div class="col-md-2">
@@ -621,7 +751,7 @@
                                    required>
                         </div>
 
-                        <div class="col-md-2 d-flex align-items-end">
+                        <div class="col-md-3 d-flex align-items-end">
                             <div class="form-check">
                                 <input type="checkbox"
                                        name="is_active"
@@ -630,20 +760,21 @@
                                        id="new_correction_group_active"
                                        @checked(old('is_active', true))>
 
-                                <label class="form-check-label fw-bold" for="new_correction_group_active">
+                                <label class="form-check-label fw-bold"
+                                       for="new_correction_group_active">
                                     Actif
                                 </label>
                             </div>
                         </div>
 
                         <div class="col-12">
-                            <label class="form-label fw-bold">
-                                Questions du groupe
-                            </label>
+                            <div class="fw-bold mb-2">
+                                Questions liées
+                            </div>
 
                             @if($questions->isEmpty())
                                 <div class="alert alert-warning mb-0">
-                                    Ajoute d’abord des questions avant de créer un groupe.
+                                    Ajoute au moins une question avant de créer un groupe.
                                 </div>
                             @else
                                 <div class="row g-2">
@@ -658,10 +789,6 @@
                                                 <span>
                                                     <span class="fw-bold d-block">
                                                         {{ $question->position }}. {{ $question->label }}
-                                                    </span>
-
-                                                    <span class="text-muted small">
-                                                        {{ $question->scoringProfile->name ?? 'Aucun barème' }}
                                                     </span>
                                                 </span>
                                             </label>
@@ -888,10 +1015,7 @@
                                                                     </span>
 
                                                                     <span class="text-muted small">
-                                                                        {{ $question->scoringProfile->name ?? 'Aucun barème' }}
-
                                                                         @if($question->correctionGroups->isNotEmpty())
-                                                                            ·
                                                                             @foreach($question->correctionGroups as $group)
                                                                                 <a href="#correction-group-{{ $group->id }}"
                                                                                    class="text-decoration-none correction-group-anchor-link"
@@ -992,7 +1116,8 @@
                                        id="new_bonus_active"
                                        @checked(old('is_active', true))>
 
-                                <label class="form-check-label fw-bold" for="new_bonus_active">
+                                <label class="form-check-label fw-bold"
+                                       for="new_bonus_active">
                                     Actif
                                 </label>
                             </div>
@@ -1007,20 +1132,21 @@
                                        id="new_bonus_stop"
                                        @checked(old('stop_after_match'))>
 
-                                <label class="form-check-label fw-bold" for="new_bonus_stop">
+                                <label class="form-check-label fw-bold"
+                                       for="new_bonus_stop">
                                     Stop après réussite
                                 </label>
                             </div>
                         </div>
 
                         <div class="col-12">
-                            <label class="form-label fw-bold">
+                            <div class="fw-bold mb-2">
                                 Questions liées
-                            </label>
+                            </div>
 
                             @if($questions->isEmpty())
                                 <div class="alert alert-warning mb-0">
-                                    Ajoute d’abord des questions avant de lier un bonus.
+                                    Ajoute au moins une question avant de créer un bonus.
                                 </div>
                             @else
                                 <div class="row g-2">
@@ -1038,10 +1164,7 @@
                                                     </span>
 
                                                     <span class="text-muted small">
-                                                        {{ $question->scoringProfile->name ?? 'Aucun barème' }}
-
                                                         @if($question->correctionGroups->isNotEmpty())
-                                                            ·
                                                             @foreach($question->correctionGroups as $group)
                                                                 <a href="#correction-group-{{ $group->id }}"
                                                                    class="text-decoration-none correction-group-anchor-link"
@@ -1098,7 +1221,7 @@
                     </p>
 
                     <p class="mb-0 text-muted">
-                        Les prochaines saisons pourront repartir de ces nouveaux paramètres globaux.
+                        Les prochaines saisons pourront repartir de ces nouveaux paramètres globaux, y compris les règles de calcul automatique.
                     </p>
                 </div>
 
@@ -1149,7 +1272,72 @@
         </div>
     </div>
 </div>
+
 @endsection
+
+@push('styles')
+<style>
+    .preseason-questions-table {
+        min-width: 1120px;
+        font-size: 0.82rem;
+    }
+
+    .preseason-questions-table th {
+        white-space: nowrap;
+        font-size: 0.72rem;
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+        color: #6c757d;
+    }
+
+    .preseason-questions-table td {
+        vertical-align: top;
+    }
+
+    .preseason-questions-table .form-control,
+    .preseason-questions-table .form-select,
+    .preseason-questions-table .input-group-text {
+        font-size: 0.78rem;
+        padding-top: 0.22rem;
+        padding-bottom: 0.22rem;
+    }
+
+    .question-column {
+        min-width: 340px;
+        width: 340px;
+    }
+
+    .question-label-input {
+        min-width: 320px;
+    }
+
+    .auto-column {
+        min-width: 250px;
+        width: 250px;
+    }
+
+    .auto-journee-select {
+        width: 82px;
+        margin: 0 auto;
+    }
+
+    .auto-position-select,
+    .points-input,
+    .position-input {
+        width: 72px;
+        margin: 0 auto;
+    }
+
+    .compact-help {
+        font-size: 0.68rem;
+        line-height: 1.15;
+    }
+
+    .drag-handle {
+        cursor: grab;
+    }
+</style>
+@endpush
 
 @push('scripts')
 <script>
@@ -1173,12 +1361,7 @@
         const modalElement = document.getElementById('deleteConfirmModal');
 
         if (window.bootstrap && modalElement) {
-            bootstrap.Modal.getOrCreateInstance(modalElement).show();
-            return;
-        }
-
-        if (confirm('Supprimer définitivement : ' + (label || 'cet élément') + ' ?')) {
-            form.submit();
+            window.bootstrap.Modal.getOrCreateInstance(modalElement).show();
         }
     }
 
@@ -1225,6 +1408,7 @@
 
             if (!item || !event.target.closest('.drag-handle')) {
                 event.preventDefault();
+
                 return;
             }
 
@@ -1239,6 +1423,7 @@
             }
 
             draggedItem = null;
+
             refreshPositions(container, itemSelector, positionSelector);
         });
 
@@ -1337,6 +1522,117 @@
         refreshButtonVisibility();
     }
 
+    function optionCompatibleWithAnswerType(option, answerType) {
+        if (!option.value) {
+            return true;
+        }
+
+        const compatibleTypes = (option.dataset.compatibleAnswerTypes || '')
+            .split(',')
+            .filter(Boolean);
+
+        return compatibleTypes.includes(answerType);
+    }
+
+    function selectedRuleOption(ruleSelect) {
+        return ruleSelect.options[ruleSelect.selectedIndex] || null;
+    }
+
+    function refreshAutoResultFields(typeSelect, ruleSelect, journeeSelect, positionSelect, helpElement) {
+        if (!typeSelect || !ruleSelect || !journeeSelect || !positionSelect) {
+            return;
+        }
+
+        const answerType = typeSelect.value;
+
+        Array.from(ruleSelect.options).forEach(function (option) {
+            option.hidden = !optionCompatibleWithAnswerType(option, answerType);
+        });
+
+        const currentOption = selectedRuleOption(ruleSelect);
+
+        if (currentOption && currentOption.value && !optionCompatibleWithAnswerType(currentOption, answerType)) {
+            ruleSelect.value = '';
+        }
+
+        const option = selectedRuleOption(ruleSelect);
+        const hasRule = !!ruleSelect.value;
+        const requiresJournee = option && option.dataset.requiresJournee === '1';
+        const requiresPosition = option && option.dataset.requiresPosition === '1';
+        const typeIsDisabled = typeSelect.disabled;
+
+        ruleSelect.disabled = typeIsDisabled;
+        journeeSelect.disabled = typeIsDisabled || !hasRule || !requiresJournee;
+        positionSelect.disabled = typeIsDisabled || !hasRule || !requiresPosition;
+
+        if (!requiresJournee) {
+            journeeSelect.value = '';
+        }
+
+        if (!requiresPosition) {
+            positionSelect.value = '';
+        }
+
+        if (helpElement) {
+            if (!hasRule) {
+                helpElement.textContent = 'Aucun calcul auto';
+            } else if (requiresPosition) {
+                helpElement.textContent = 'J + position';
+            } else if (requiresJournee) {
+                helpElement.textContent = 'J obligatoire';
+            } else {
+                helpElement.textContent = 'Selon match';
+            }
+        }
+    }
+
+    function setupAutoResultFields() {
+        document.querySelectorAll('.js-question-answer-type').forEach(function (typeSelect) {
+            const questionId = typeSelect.dataset.questionId;
+            const ruleSelect = document.querySelector('.js-auto-result-rule[data-question-id="' + questionId + '"]');
+            const journeeSelect = document.querySelector('.js-auto-result-journee[data-question-id="' + questionId + '"]');
+            const positionSelect = document.querySelector('.js-auto-result-position[data-question-id="' + questionId + '"]');
+            const help = document.querySelector('.js-auto-result-help[data-question-id="' + questionId + '"]');
+
+            function refresh() {
+                refreshAutoResultFields(typeSelect, ruleSelect, journeeSelect, positionSelect, help);
+            }
+
+            typeSelect.addEventListener('change', refresh);
+
+            if (ruleSelect) {
+                ruleSelect.addEventListener('change', refresh);
+            }
+
+            refresh();
+        });
+
+        const newTypeSelect = document.querySelector('.js-new-question-answer-type');
+        const newRuleSelect = document.querySelector('.js-new-auto-result-rule');
+        const newJourneeSelect = document.querySelector('.js-new-auto-result-journee');
+        const newPositionSelect = document.querySelector('.js-new-auto-result-position');
+
+        function refreshNewQuestionAutoFields() {
+            refreshAutoResultFields(
+                newTypeSelect,
+                newRuleSelect,
+                newJourneeSelect,
+                newPositionSelect,
+                null
+            );
+        }
+
+        if (newTypeSelect) {
+            newTypeSelect.addEventListener('change', refreshNewQuestionAutoFields);
+        }
+
+        if (newRuleSelect) {
+            newRuleSelect.addEventListener('change', refreshNewQuestionAutoFields);
+        }
+
+        refreshNewQuestionAutoFields();
+    }
+
     document.addEventListener('DOMContentLoaded', function () {
         const deleteButton = document.getElementById('deleteConfirmButton');
 
@@ -1394,6 +1690,7 @@
             });
         }
 
+        setupAutoResultFields();
         setupCorrectionGroupAnchorLinks();
         setupBackToTopButton();
     });

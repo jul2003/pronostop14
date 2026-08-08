@@ -27,18 +27,9 @@ class JourneeController extends Controller
                     $query->where('is_finished', true);
                 },
             ])
-            ->orderByRaw("
-                CASE
-                    WHEN type = 'preseason' THEN 0
-                    WHEN type = 'regular' THEN number
-                    WHEN type = 'top14_playoff' THEN 100
-                    WHEN type = 'access_match' THEN 101
-                    WHEN type = 'top14_semifinal' THEN 102
-                    WHEN type = 'prod2_final' THEN 103
-                    WHEN type = 'top14_final' THEN 104
-                    ELSE 999
-                END
-            ")
+            ->reorder()
+            ->orderBy('number')
+            ->orderBy('id')
             ->get();
 
         $journees->each(function (Journee $journee) use ($season) {
@@ -61,19 +52,33 @@ class JourneeController extends Controller
 
         if ($season->is_locked) {
             return $this->redirectAfterEdit($request, $season)
-                ->with('error', 'Cette saison est verrouillée : les journées ne peuvent plus être modifiées.');
+                ->with(
+                    'error',
+                    'Cette saison est verrouillée : les journées ne peuvent plus être modifiées.'
+                );
         }
 
         if ($this->preparationIsLocked($journee)) {
             return $this->redirectAfterEdit($request, $season)
-                ->with('error', 'Cette journée a commencé : seuls les résultats restent accessibles.');
+                ->with(
+                    'error',
+                    'Cette journée a commencé : seuls les résultats restent accessibles.'
+                );
         }
 
-        $suggestedFirstMatchSourceJournee = $this->previousJourneeForFirstMatchSuggestion($season, $journee);
+        $suggestedFirstMatchSourceJournee = $this->previousJourneeForFirstMatchSuggestion(
+            $season,
+            $journee
+        );
+
         $suggestedFirstMatchAt = null;
 
-        if (! $journee->first_match_at && $suggestedFirstMatchSourceJournee?->first_match_at) {
-            $suggestedFirstMatchAt = $suggestedFirstMatchSourceJournee->first_match_at
+        if (
+            ! $journee->first_match_at
+            && $suggestedFirstMatchSourceJournee?->first_match_at
+        ) {
+            $suggestedFirstMatchAt = $suggestedFirstMatchSourceJournee
+                ->first_match_at
                 ->copy()
                 ->addDays(7);
         }
@@ -98,12 +103,18 @@ class JourneeController extends Controller
 
         if ($season->is_locked) {
             return $this->redirectAfterEdit($request, $season)
-                ->with('error', 'Cette saison est verrouillée : les journées ne peuvent plus être modifiées.');
+                ->with(
+                    'error',
+                    'Cette saison est verrouillée : les journées ne peuvent plus être modifiées.'
+                );
         }
 
         if ($this->preparationIsLocked($journee)) {
             return $this->redirectAfterEdit($request, $season)
-                ->with('error', 'Cette journée a commencé : seuls les résultats restent accessibles.');
+                ->with(
+                    'error',
+                    'Cette journée a commencé : seuls les résultats restent accessibles.'
+                );
         }
 
         $data = $request->validate([
@@ -128,15 +139,19 @@ class JourneeController extends Controller
 
         $journee->update([
             'first_match_at' => $firstMatchAt,
-            'predictions_enabled' => $request->boolean('predictions_enabled'),
+            'predictions_enabled' => $request->boolean(
+                'predictions_enabled'
+            ),
         ]);
 
         return $this->redirectAfterEdit($request, $season)
             ->with('success', 'Journée mise à jour.');
     }
 
-    private function previousJourneeForFirstMatchSuggestion(Season $season, Journee $journee): ?Journee
-    {
+    private function previousJourneeForFirstMatchSuggestion(
+        Season $season,
+        Journee $journee
+    ): ?Journee {
         if ($journee->type === 'preseason') {
             return null;
         }
@@ -148,14 +163,20 @@ class JourneeController extends Controller
         if ($journee->type === 'regular') {
             return $season->journees()
                 ->where('type', 'regular')
-                ->where('number', (int) $journee->number - 1)
+                ->where(
+                    'number',
+                    (int) $journee->number - 1
+                )
                 ->first();
         }
 
         return $season->journees()
             ->where('id', '!=', $journee->id)
             ->where('type', '!=', 'preseason')
-            ->where('number', (int) $journee->number - 1)
+            ->where(
+                'number',
+                (int) $journee->number - 1
+            )
             ->first();
     }
 
@@ -164,13 +185,20 @@ class JourneeController extends Controller
         return $journee->isPreparationLocked();
     }
 
-    private function redirectAfterEdit(Request $request, Season $season)
-    {
+    private function redirectAfterEdit(
+        Request $request,
+        Season $season
+    ) {
         if ($this->isFromUpcomingMatches($request)) {
-            return redirect()->route('admin.upcoming-matches.index');
+            return redirect()->route(
+                'admin.upcoming-matches.index'
+            );
         }
 
-        return redirect()->route('admin.seasons.journees', $season);
+        return redirect()->route(
+            'admin.seasons.journees',
+            $season
+        );
     }
 
     private function isFromUpcomingMatches(Request $request): bool

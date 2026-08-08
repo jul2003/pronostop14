@@ -58,15 +58,15 @@ class SeasonJourneeGenerator
             ],
             [
                 'number' => $regularJourneesCount + 2,
-                'type' => 'top14_playoff',
-                'name' => 'Barrages TOP 14',
-                'slug' => 'barrages-top-14',
-            ],
-            [
-                'number' => $regularJourneesCount + 3,
                 'type' => 'access_match',
                 'name' => 'Access match TOP 14 / PRO D2',
                 'slug' => 'access-match',
+            ],
+            [
+                'number' => $regularJourneesCount + 3,
+                'type' => 'top14_playoff',
+                'name' => 'Barrages TOP 14',
+                'slug' => 'barrages-top-14',
             ],
             [
                 'number' => $regularJourneesCount + 4,

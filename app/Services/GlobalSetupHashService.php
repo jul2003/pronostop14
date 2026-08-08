@@ -66,6 +66,9 @@ class GlobalSetupHashService
             ->map(fn ($template) => [
                 'label' => $template->label,
                 'answer_type' => $template->answer_type,
+                'auto_result_rule' => $template->auto_result_rule,
+                'auto_result_journee_number' => $template->auto_result_journee_number,
+                'auto_result_position' => $template->auto_result_position,
                 'profile_code' => $template->profile?->code,
                 'position' => $template->position,
                 'is_active' => $template->is_active,

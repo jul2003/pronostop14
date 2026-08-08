@@ -14,6 +14,7 @@ use App\Models\SeasonPreseasonQuestion;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 
 class SeasonPreseasonController extends Controller
 {
@@ -39,6 +40,7 @@ class SeasonPreseasonController extends Controller
             'correctionGroups' => $season->preseasonCorrectionGroups,
             'bonusRules' => $season->preseasonBonusRules,
             'scoringProfiles' => $scoringProfiles,
+            'autoResultRuleOptions' => SeasonPreseasonQuestion::autoResultRuleOptions(),
         ]);
     }
 
@@ -52,6 +54,9 @@ class SeasonPreseasonController extends Controller
             'questions' => ['nullable', 'array'],
             'questions.*.label' => ['required', 'string', 'max:255'],
             'questions.*.answer_type' => ['required', 'string', 'max:50'],
+            'questions.*.auto_result_rule' => ['nullable', Rule::in($this->autoResultRuleValues())],
+            'questions.*.auto_result_journee_number' => ['nullable', 'integer', 'min:1', 'max:26'],
+            'questions.*.auto_result_position' => ['nullable', 'integer', 'min:1', 'max:14'],
             'questions.*.scoring_profile_id' => ['nullable', 'integer', 'exists:scoring_profiles,id'],
             'questions.*.points' => ['required', 'integer'],
             'questions.*.position' => ['required', 'integer', 'min:0'],
@@ -68,9 +73,19 @@ class SeasonPreseasonController extends Controller
                     continue;
                 }
 
+                $autoResultConfig = $this->normalizedAutoResultConfig(
+                    $questionData['answer_type'],
+                    $questionData['auto_result_rule'] ?? null,
+                    $questionData['auto_result_journee_number'] ?? null,
+                    $questionData['auto_result_position'] ?? null
+                );
+
                 $question->update([
                     'label' => $questionData['label'],
                     'answer_type' => $questionData['answer_type'],
+                    'auto_result_rule' => $autoResultConfig['auto_result_rule'],
+                    'auto_result_journee_number' => $autoResultConfig['auto_result_journee_number'],
+                    'auto_result_position' => $autoResultConfig['auto_result_position'],
                     'scoring_profile_id' => $questionData['scoring_profile_id'] ?? null,
                     'points' => $questionData['points'],
                     'position' => $questionData['position'],
@@ -81,7 +96,7 @@ class SeasonPreseasonController extends Controller
 
         return redirect()
             ->route('admin.seasons.preseason.edit', $season)
-            ->with('success', 'Questions avant-saison enregistrees.');
+            ->with('success', 'Questions avant-saison enregistrées.');
     }
 
     public function storeQuestion(Request $request, Season $season)
@@ -93,17 +108,30 @@ class SeasonPreseasonController extends Controller
         $data = $request->validate([
             'label' => ['required', 'string', 'max:255'],
             'answer_type' => ['required', 'string', 'max:50'],
+            'auto_result_rule' => ['nullable', Rule::in($this->autoResultRuleValues())],
+            'auto_result_journee_number' => ['nullable', 'integer', 'min:1', 'max:26'],
+            'auto_result_position' => ['nullable', 'integer', 'min:1', 'max:14'],
             'scoring_profile_id' => ['nullable', 'integer', 'exists:scoring_profiles,id'],
             'points' => ['required', 'integer'],
             'position' => ['required', 'integer', 'min:0'],
             'is_active' => ['nullable', 'boolean'],
         ]);
 
+        $autoResultConfig = $this->normalizedAutoResultConfig(
+            $data['answer_type'],
+            $data['auto_result_rule'] ?? null,
+            $data['auto_result_journee_number'] ?? null,
+            $data['auto_result_position'] ?? null
+        );
+
         $season->preseasonQuestions()->create([
             'source_template_id' => null,
             'scoring_profile_id' => $data['scoring_profile_id'] ?? null,
             'label' => $data['label'],
             'answer_type' => $data['answer_type'],
+            'auto_result_rule' => $autoResultConfig['auto_result_rule'],
+            'auto_result_journee_number' => $autoResultConfig['auto_result_journee_number'],
+            'auto_result_position' => $autoResultConfig['auto_result_position'],
             'points' => $data['points'],
             'position' => $data['position'],
             'is_active' => $request->boolean('is_active'),
@@ -111,7 +139,7 @@ class SeasonPreseasonController extends Controller
 
         return redirect()
             ->route('admin.seasons.preseason.edit', $season)
-            ->with('success', 'Question avant-saison ajoutee.');
+            ->with('success', 'Question avant-saison ajoutée.');
     }
 
     public function destroyQuestion(Season $season, SeasonPreseasonQuestion $question)
@@ -138,7 +166,7 @@ class SeasonPreseasonController extends Controller
 
         return redirect()
             ->route('admin.seasons.preseason.edit', $season)
-            ->with('success', 'Question avant-saison supprimee.');
+            ->with('success', 'Question avant-saison supprimée.');
     }
 
     public function updateCorrectionGroups(Request $request, Season $season)
@@ -195,7 +223,7 @@ class SeasonPreseasonController extends Controller
 
         return redirect()
             ->route('admin.seasons.preseason.edit', $season)
-            ->with('success', 'Groupes de correction enregistres.');
+            ->with('success', 'Groupes de correction enregistrés.');
     }
 
     public function storeCorrectionGroup(Request $request, Season $season)
@@ -237,7 +265,7 @@ class SeasonPreseasonController extends Controller
 
         return redirect()
             ->route('admin.seasons.preseason.edit', $season)
-            ->with('success', 'Groupe de correction ajoute.');
+            ->with('success', 'Groupe de correction ajouté.');
     }
 
     public function destroyCorrectionGroup(Season $season, SeasonPreseasonCorrectionGroup $correctionGroup)
@@ -257,7 +285,7 @@ class SeasonPreseasonController extends Controller
 
         return redirect()
             ->route('admin.seasons.preseason.edit', $season)
-            ->with('success', 'Groupe de correction supprime.');
+            ->with('success', 'Groupe de correction supprimé.');
     }
 
     public function updateBonusRules(Request $request, Season $season)
@@ -311,7 +339,7 @@ class SeasonPreseasonController extends Controller
 
         return redirect()
             ->route('admin.seasons.preseason.edit', $season)
-            ->with('success', 'Bonus avant-saison enregistres.');
+            ->with('success', 'Bonus avant-saison enregistrés.');
     }
 
     public function storeBonusRule(Request $request, Season $season)
@@ -355,7 +383,7 @@ class SeasonPreseasonController extends Controller
 
         return redirect()
             ->route('admin.seasons.preseason.edit', $season)
-            ->with('success', 'Bonus avant-saison ajoute.');
+            ->with('success', 'Bonus avant-saison ajouté.');
     }
 
     public function destroyBonusRule(Season $season, SeasonPreseasonBonusRule $bonusRule)
@@ -375,7 +403,7 @@ class SeasonPreseasonController extends Controller
 
         return redirect()
             ->route('admin.seasons.preseason.edit', $season)
-            ->with('success', 'Bonus avant-saison supprime.');
+            ->with('success', 'Bonus avant-saison supprimé.');
     }
 
     public function syncToGlobal(Season $season)
@@ -421,13 +449,24 @@ class SeasonPreseasonController extends Controller
                     $template = new PreseasonPredictionTemplate();
                 }
 
+                $autoResultConfig = $this->normalizedAutoResultConfig(
+                    $question->answer_type,
+                    $question->auto_result_rule,
+                    $question->auto_result_journee_number,
+                    $question->auto_result_position
+                );
+
                 $template->fill([
                     'label' => $question->label,
                     'answer_type' => $question->answer_type,
+                    'auto_result_rule' => $autoResultConfig['auto_result_rule'],
+                    'auto_result_journee_number' => $autoResultConfig['auto_result_journee_number'],
+                    'auto_result_position' => $autoResultConfig['auto_result_position'],
                     'scoring_profile_id' => $question->scoring_profile_id,
                     'position' => $question->position,
                     'is_active' => $question->is_active,
                 ]);
+
                 $template->save();
 
                 if (! $question->source_template_id) {
@@ -480,6 +519,7 @@ class SeasonPreseasonController extends Controller
                     'position' => $correctionGroup->position,
                     'is_active' => $correctionGroup->is_active,
                 ]);
+
                 $correctionGroupTemplate->save();
 
                 if (! $correctionGroup->source_template_id) {
@@ -525,6 +565,7 @@ class SeasonPreseasonController extends Controller
                     'is_active' => $bonusRule->is_active,
                     'stop_after_match' => $bonusRule->stop_after_match,
                 ]);
+
                 $bonusTemplate->save();
 
                 if (! $bonusRule->source_template_id) {
@@ -555,14 +596,77 @@ class SeasonPreseasonController extends Controller
 
         return redirect()
             ->route('admin.seasons.preseason.edit', $season)
-            ->with('success', 'La configuration avant-saison de cette saison a ete appliquee aux parametres globaux.');
+            ->with('success', 'La configuration avant-saison de cette saison a été appliquée aux paramètres globaux.');
     }
 
     private function lockedRedirect(Season $season)
     {
         return redirect()
             ->route('admin.seasons.preseason.edit', $season)
-            ->with('error', 'Cette saison est verrouillee : la configuration avant-saison ne peut plus etre modifiee.');
+            ->with('error', 'Cette saison est verrouillée : la configuration avant-saison ne peut plus être modifiée.');
+    }
+
+    private function autoResultRuleValues(): array
+    {
+        return array_keys(SeasonPreseasonQuestion::autoResultRuleOptions());
+    }
+
+    private function normalizedAutoResultConfig(
+        string $answerType,
+        ?string $rule,
+        mixed $journeeNumber,
+        mixed $autoResultPosition
+    ): array {
+        if (blank($rule) || ! array_key_exists($rule, SeasonPreseasonQuestion::autoResultRuleOptions())) {
+            return $this->emptyAutoResultConfig();
+        }
+
+        if (! SeasonPreseasonQuestion::autoResultRuleSupportsAnswerType($rule, $answerType)) {
+            return $this->emptyAutoResultConfig();
+        }
+
+        $normalizedJourneeNumber = null;
+
+        if (SeasonPreseasonQuestion::autoResultRuleRequiresJourneeNumber($rule)) {
+            if ($journeeNumber === null || $journeeNumber === '') {
+                return $this->emptyAutoResultConfig();
+            }
+
+            $normalizedJourneeNumber = (int) $journeeNumber;
+
+            if ($normalizedJourneeNumber < 1 || $normalizedJourneeNumber > 26) {
+                return $this->emptyAutoResultConfig();
+            }
+        }
+
+        $normalizedAutoResultPosition = null;
+
+        if (SeasonPreseasonQuestion::autoResultRuleRequiresPosition($rule)) {
+            if ($autoResultPosition === null || $autoResultPosition === '') {
+                return $this->emptyAutoResultConfig();
+            }
+
+            $normalizedAutoResultPosition = (int) $autoResultPosition;
+
+            if ($normalizedAutoResultPosition < 1 || $normalizedAutoResultPosition > 14) {
+                return $this->emptyAutoResultConfig();
+            }
+        }
+
+        return [
+            'auto_result_rule' => $rule,
+            'auto_result_journee_number' => $normalizedJourneeNumber,
+            'auto_result_position' => $normalizedAutoResultPosition,
+        ];
+    }
+
+    private function emptyAutoResultConfig(): array
+    {
+        return [
+            'auto_result_rule' => null,
+            'auto_result_journee_number' => null,
+            'auto_result_position' => null,
+        ];
     }
 
     private function uniqueSeasonCorrectionGroupCode(Season $season, ?string $requestedCode, string $label, ?int $ignoreId = null): string

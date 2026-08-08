@@ -6,6 +6,7 @@ use App\Http\Controllers\Admin\JourneeController;
 use App\Http\Controllers\Admin\MaintenanceController;
 use App\Http\Controllers\Admin\MatchController;
 use App\Http\Controllers\Admin\PendingResultController;
+use App\Http\Controllers\Admin\PreseasonAutoResultController;
 use App\Http\Controllers\Admin\ScoreRecalculationController;
 use App\Http\Controllers\Admin\SeasonController;
 use App\Http\Controllers\Admin\SeasonPreseasonController;
@@ -44,7 +45,6 @@ Route::get('/', function () {
 
 Route::get('/initialisation', [InitialSetupController::class, 'create'])
     ->name('initial-setup.create');
-
 Route::post('/initialisation', [InitialSetupController::class, 'store'])
     ->name('initial-setup.store');
 
@@ -67,7 +67,6 @@ Route::middleware('auth')->group(function () {
 
     Route::get('/pronos/{season}/{journee}', [PronoController::class, 'show'])
         ->name('pronos.show');
-
     Route::post('/pronos/{season}/{journee}', [PronoController::class, 'storeAll'])
         ->name('pronos.store');
 
@@ -90,7 +89,6 @@ Route::middleware('auth')->group(function () {
 
     Route::get('/baremes', [SeasonRuleController::class, 'index'])
         ->name('season-rules.index');
-
     Route::get('/baremes/{season}', [SeasonRuleController::class, 'season'])
         ->name('season-rules.season');
 
@@ -115,7 +113,6 @@ Route::middleware('auth')->group(function () {
 
     Route::get('/saisons/{season}/journees/{journee}/resultats', [RankingController::class, 'journeeResults'])
         ->name('journees.results');
-
     Route::get('/saisons/{season}/resultats', [RankingController::class, 'seasonResults'])
         ->name('seasons.results');
 
@@ -138,7 +135,6 @@ Route::middleware(['auth', 'admin'])->group(function () {
 
     Route::get('/admin/parametres-application', [AppSettingController::class, 'index'])
         ->name('admin.app-settings.index');
-
     Route::put('/admin/parametres-application', [AppSettingController::class, 'update'])
         ->name('admin.app-settings.update');
 
@@ -159,37 +155,31 @@ Route::middleware(['auth', 'admin'])->group(function () {
 
     Route::get('/admin/parametres/avant-saison', [SettingController::class, 'preseason'])
         ->name('admin.settings.preseason');
-
     Route::post('/admin/parametres/avant-saison', [SettingController::class, 'storePreseasonTemplate'])
         ->name('admin.settings.preseason-templates.store');
 
     Route::delete('/admin/parametres/avant-saison/{template}', [SettingController::class, 'destroyPreseasonTemplate'])
         ->name('admin.settings.preseason-templates.destroy');
-
     Route::post('/admin/parametres/avant-saison/reorder', [SettingController::class, 'reorderPreseasonTemplates'])
         ->name('admin.settings.preseason-templates.reorder');
 
     Route::post('/admin/parametres/groupes-correction-avant-saison', [SettingController::class, 'storePreseasonCorrectionGroupTemplate'])
         ->name('admin.settings.preseason-correction-groups.store');
-
     Route::put('/admin/parametres/groupes-correction-avant-saison/{correctionGroup}', [SettingController::class, 'updatePreseasonCorrectionGroupTemplate'])
         ->name('admin.settings.preseason-correction-groups.update');
 
     Route::delete('/admin/parametres/groupes-correction-avant-saison/{correctionGroup}', [SettingController::class, 'destroyPreseasonCorrectionGroupTemplate'])
         ->name('admin.settings.preseason-correction-groups.destroy');
-
     Route::post('/admin/parametres/groupes-correction-avant-saison/reorder', [SettingController::class, 'reorderPreseasonCorrectionGroupTemplates'])
         ->name('admin.settings.preseason-correction-groups.reorder');
 
     Route::post('/admin/parametres/bonus-avant-saison', [SettingController::class, 'storePreseasonBonusRuleTemplate'])
         ->name('admin.settings.preseason-bonus-rules.store');
-
     Route::put('/admin/parametres/bonus-avant-saison/{bonusRule}', [SettingController::class, 'updatePreseasonBonusRuleTemplate'])
         ->name('admin.settings.preseason-bonus-rules.update');
 
     Route::delete('/admin/parametres/bonus-avant-saison/{bonusRule}', [SettingController::class, 'destroyPreseasonBonusRuleTemplate'])
         ->name('admin.settings.preseason-bonus-rules.destroy');
-
     Route::post('/admin/parametres/bonus-avant-saison/reorder', [SettingController::class, 'reorderPreseasonBonusRuleTemplates'])
         ->name('admin.settings.preseason-bonus-rules.reorder');
 
@@ -198,7 +188,6 @@ Route::middleware(['auth', 'admin'])->group(function () {
 
     Route::post('/admin/parametres/baremes', [SettingController::class, 'storeScoringProfile'])
         ->name('admin.settings.scoring-profiles.store');
-
     Route::get('/admin/parametres/baremes/{profile}/edit', [SettingController::class, 'editScoringProfile'])
         ->name('admin.settings.scoring-profiles.edit');
 
@@ -207,7 +196,6 @@ Route::middleware(['auth', 'admin'])->group(function () {
 
     Route::get('/admin/clubs', [ClubController::class, 'index'])
         ->name('admin.clubs.index');
-
     Route::get('/admin/clubs/create', [ClubController::class, 'create'])
         ->name('admin.clubs.create');
 
@@ -219,7 +207,6 @@ Route::middleware(['auth', 'admin'])->group(function () {
 
     Route::put('/admin/clubs/{club}', [ClubController::class, 'update'])
         ->name('admin.clubs.update');
-
     Route::delete('/admin/clubs/{club}', [ClubController::class, 'destroy'])
         ->name('admin.clubs.destroy');
 
@@ -333,6 +320,9 @@ Route::middleware(['auth', 'admin'])->group(function () {
 
     Route::put('/admin/saisons/{season}/avant-saison/resultats', [SeasonPreseasonResultController::class, 'update'])
         ->name('admin.seasons.preseason-results.update');
+
+    Route::post('/admin/saisons/{season}/avant-saison/resultats-automatiques/{question}', [PreseasonAutoResultController::class, 'store'])
+        ->name('admin.seasons.preseason-auto-results.store');
 
     Route::get('/admin/saisons/{season}/{journee}/matches', [MatchController::class, 'manage'])
         ->name('admin.seasons.journees.matches');
