@@ -4,7 +4,14 @@
 
 @php
     $activeSeason = $seasons->firstWhere('is_active', true);
-    $historicalSeasons = $seasons->filter(fn ($season) => ! $season->is_active)->values();
+
+    $historicalSeasons = $seasons
+        ->filter(fn ($season) => ! $season->is_active)
+        ->values();
+
+    $seasonsWithJournees = $seasons
+        ->filter(fn ($season) => (int) $season->journees_count > 0)
+        ->values();
 @endphp
 
 @include('admin.partials.back-link')
@@ -128,9 +135,15 @@
                                             Avant-saison
                                         </span>
 
-                                        <span class="btn btn-sm btn-outline-success rounded-pill disabled opacity-50">
-                                            Générer journées
-                                        </span>
+                                        @if((int) $activeSeason->journees_count > 0)
+                                            <span class="btn btn-sm btn-outline-danger rounded-pill disabled opacity-50">
+                                                Supprimer journées
+                                            </span>
+                                        @else
+                                            <span class="btn btn-sm btn-outline-success rounded-pill disabled opacity-50">
+                                                Générer journées
+                                            </span>
+                                        @endif
                                     @else
                                         <a href="{{ route('admin.seasons.active.scoring.edit') }}"
                                            class="btn btn-sm btn-outline-success rounded-pill">
@@ -142,14 +155,23 @@
                                             Avant-saison
                                         </a>
 
-                                        <form method="POST"
-                                              action="{{ route('admin.seasons.generateJournees', $activeSeason) }}">
-                                            @csrf
+                                        @if((int) $activeSeason->journees_count === 0)
+                                            <form method="POST"
+                                                  action="{{ route('admin.seasons.generateJournees', $activeSeason) }}">
+                                                @csrf
 
-                                            <button class="btn btn-sm btn-outline-success rounded-pill">
-                                                Générer journées
+                                                <button class="btn btn-sm btn-outline-success rounded-pill">
+                                                    Générer journées
+                                                </button>
+                                            </form>
+                                        @else
+                                            <button type="button"
+                                                    class="btn btn-sm btn-outline-danger rounded-pill"
+                                                    data-bs-toggle="modal"
+                                                    data-bs-target="#deleteJourneesModal{{ $activeSeason->id }}">
+                                                Supprimer journées
                                             </button>
-                                        </form>
+                                        @endif
                                     @endif
                                 </div>
                             </td>
@@ -266,9 +288,15 @@
                                             Avant-saison
                                         </span>
 
-                                        <span class="btn btn-sm btn-outline-success rounded-pill disabled opacity-50">
-                                            Générer journées
-                                        </span>
+                                        @if((int) $season->journees_count > 0)
+                                            <span class="btn btn-sm btn-outline-danger rounded-pill disabled opacity-50">
+                                                Supprimer journées
+                                            </span>
+                                        @else
+                                            <span class="btn btn-sm btn-outline-success rounded-pill disabled opacity-50">
+                                                Générer journées
+                                            </span>
+                                        @endif
                                     @else
                                         <a href="{{ route('admin.seasons.scoring.edit', $season) }}"
                                            class="btn btn-sm btn-outline-success rounded-pill">
@@ -280,14 +308,23 @@
                                             Avant-saison
                                         </a>
 
-                                        <form method="POST"
-                                              action="{{ route('admin.seasons.generateJournees', $season) }}">
-                                            @csrf
+                                        @if((int) $season->journees_count === 0)
+                                            <form method="POST"
+                                                  action="{{ route('admin.seasons.generateJournees', $season) }}">
+                                                @csrf
 
-                                            <button class="btn btn-sm btn-outline-success rounded-pill">
-                                                Générer journées
+                                                <button class="btn btn-sm btn-outline-success rounded-pill">
+                                                    Générer journées
+                                                </button>
+                                            </form>
+                                        @else
+                                            <button type="button"
+                                                    class="btn btn-sm btn-outline-danger rounded-pill"
+                                                    data-bs-toggle="modal"
+                                                    data-bs-target="#deleteJourneesModal{{ $season->id }}">
+                                                Supprimer journées
                                             </button>
-                                        </form>
+                                        @endif
                                     @endif
                                 </div>
                             </td>
@@ -306,4 +343,175 @@
     </div>
 </div>
 
+@foreach($seasonsWithJournees as $seasonWithJournees)
+    <div class="modal fade"
+         id="deleteJourneesModal{{ $seasonWithJournees->id }}"
+         tabindex="-1"
+         aria-labelledby="deleteJourneesModalLabel{{ $seasonWithJournees->id }}"
+         aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <form method="POST"
+                  action="{{ route('admin.seasons.generateJournees', $seasonWithJournees) }}"
+                  class="modal-content border-0 shadow rounded-4"
+                  autocomplete="off"
+                  data-delete-journees-form>
+                @csrf
+
+                <input type="hidden"
+                       name="journees_action"
+                       value="delete">
+
+                <div class="modal-header border-0 pb-0">
+                    <div>
+                        <div class="text-uppercase text-danger fw-bold small mb-1">
+                            Réinitialisation du calendrier
+                        </div>
+
+                        <h2 class="modal-title h5 fw-bold mb-0"
+                            id="deleteJourneesModalLabel{{ $seasonWithJournees->id }}">
+                            Supprimer les journées de {{ $seasonWithJournees->name }} ?
+                        </h2>
+                    </div>
+
+                    <button type="button"
+                            class="btn-close"
+                            data-bs-dismiss="modal"
+                            aria-label="Fermer">
+                    </button>
+                </div>
+
+                <div class="modal-body">
+                    <div class="alert alert-danger">
+                        <div class="fw-bold mb-1">
+                            Action irréversible
+                        </div>
+
+                        Cette opération supprimera
+                        <strong>{{ $seasonWithJournees->journees_count }} journée(s)</strong>
+                        et
+                        <strong>{{ $seasonWithJournees->matches_count }} match(s)</strong>
+                        de cette saison.
+                    </div>
+
+                    <div class="border rounded-4 p-3 mb-3 bg-light">
+                        <div class="fw-bold mb-2">
+                            Seront supprimés
+                        </div>
+
+                        <ul class="small text-muted mb-3 ps-3">
+                            <li>les journées régulières et les phases finales ;</li>
+                            <li>les dates, états de saisie et matchs associés ;</li>
+                            <li>les éventuelles exceptions de date des matchs.</li>
+                        </ul>
+
+                        <div class="fw-bold mb-2">
+                            Seront conservés
+                        </div>
+
+                        <ul class="small text-muted mb-0 ps-3">
+                            <li>la saison et son statut ;</li>
+                            <li>les clubs et les joueurs sélectionnés ;</li>
+                            <li>les barèmes et la configuration avant-saison.</li>
+                        </ul>
+                    </div>
+
+                    <div class="alert alert-warning">
+                        La suppression est automatiquement refusée si des pronostics,
+                        scores ou résultats ont déjà été enregistrés pour cette saison.
+                    </div>
+
+                    <label class="form-label fw-bold"
+                           for="deleteJourneesConfirmation{{ $seasonWithJournees->id }}">
+                        Pour confirmer, saisis exactement :
+                        <span class="text-danger">
+                            {{ $seasonWithJournees->name }}
+                        </span>
+                    </label>
+
+                    <input type="text"
+                           id="deleteJourneesConfirmation{{ $seasonWithJournees->id }}"
+                           name="confirmation_name"
+                           class="form-control"
+                           autocomplete="off"
+                           autocorrect="off"
+                           autocapitalize="off"
+                           spellcheck="false"
+                           data-delete-journees-confirmation
+                           data-expected-name="{{ $seasonWithJournees->name }}"
+                           required>
+                </div>
+
+                <div class="modal-footer border-0 pt-0">
+                    <button type="button"
+                            class="btn btn-outline-secondary rounded-pill fw-bold px-4"
+                            data-bs-dismiss="modal">
+                        Annuler
+                    </button>
+
+                    <button type="submit"
+                            class="btn btn-danger rounded-pill fw-bold px-4"
+                            data-delete-journees-submit
+                            disabled>
+                        Supprimer les journées
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+@endforeach
+
 @endsection
+
+@push('scripts')
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        document
+            .querySelectorAll('[data-delete-journees-form]')
+            .forEach(function (form) {
+                const input = form.querySelector(
+                    '[data-delete-journees-confirmation]'
+                );
+
+                const submitButton = form.querySelector(
+                    '[data-delete-journees-submit]'
+                );
+
+                const modal = form.closest('.modal');
+
+                if (!input || !submitButton) {
+                    return;
+                }
+
+                const expectedName = input.dataset.expectedName || '';
+
+                function refreshSubmitButton() {
+                    submitButton.disabled =
+                        input.value.trim() !== expectedName;
+                }
+
+                input.addEventListener(
+                    'input',
+                    refreshSubmitButton
+                );
+
+                modal?.addEventListener(
+                    'shown.bs.modal',
+                    function () {
+                        refreshSubmitButton();
+                        input.focus();
+                    }
+                );
+
+                modal?.addEventListener(
+                    'hidden.bs.modal',
+                    function () {
+                        input.value = '';
+                        refreshSubmitButton();
+                    }
+                );
+
+                refreshSubmitButton();
+            });
+    });
+</script>
+@endpush

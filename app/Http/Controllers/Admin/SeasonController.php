@@ -20,7 +20,10 @@ class SeasonController extends Controller
 {
     public function index()
     {
-        $seasons = Season::withCount('journees')
+        $seasons = Season::withCount([
+            'journees',
+            'matches',
+        ])
             ->orderBy('name')
             ->get();
 
@@ -268,12 +271,22 @@ class SeasonController extends Controller
             ->with('success', 'Saison supprimée.');
     }
 
-    public function generateJournees(Season $season, SeasonJourneeGenerator $generator)
-    {
+    public function generateJournees(
+        Request $request,
+        Season $season,
+        SeasonJourneeGenerator $generator
+    ) {
         if ($season->is_locked) {
-            return back()->withErrors([
-                'season' => 'Cette saison est verrouillée : les journées ne peuvent plus être générées.',
-            ]);
+            return redirect()
+                ->route('admin.seasons.index')
+                ->with(
+                    'error',
+                    'Cette saison est verrouillée : les journées ne peuvent pas être générées ou supprimées.'
+                );
+        }
+
+        if ($request->input('journees_action') === 'delete') {
+            return $this->deleteJournees($request, $season);
         }
 
         $top14Count = $season->clubs()
@@ -383,6 +396,102 @@ class SeasonController extends Controller
         return response()->json([
             'success' => true,
         ]);
+    }
+
+    private function deleteJournees(
+        Request $request,
+        Season $season
+    ) {
+        $request->merge([
+            'confirmation_name' => trim(
+                (string) $request->input('confirmation_name')
+            ),
+        ]);
+
+        $request->validate(
+            [
+                'confirmation_name' => [
+                    'required',
+                    'string',
+                    Rule::in([$season->name]),
+                ],
+            ],
+            [
+                'confirmation_name.required' => 'Saisis le nom de la saison pour confirmer la suppression des journées.',
+                'confirmation_name.in' => 'Le nom saisi ne correspond pas à la saison.',
+            ]
+        );
+
+        if (! $season->journees()->exists()) {
+            return redirect()
+                ->route('admin.seasons.index')
+                ->with('error', 'Aucune journée n’est enregistrée pour cette saison.');
+        }
+
+        $hasMatchPronos = $season->matches()
+            ->whereHas('pronos')
+            ->exists();
+
+        $hasMatchResults = $season->matches()
+            ->where(function ($query) {
+                $query
+                    ->whereNotNull('actual_result')
+                    ->orWhere('is_finished', true);
+            })
+            ->exists();
+
+        $hasJourneeScores = $season->journees()
+            ->whereHas('userScores')
+            ->exists();
+
+        $hasPreseasonPredictions = $season
+            ->preseasonPredictions()
+            ->exists();
+
+        $hasPreseasonResults = $season
+            ->preseasonQuestions()
+            ->where(function ($query) {
+                $query
+                    ->whereNotNull('result_club_id')
+                    ->orWhereNotNull('result_text_answer')
+                    ->orWhereNotNull('result_recorded_at');
+            })
+            ->exists();
+
+        if (
+            $hasMatchPronos
+            || $hasMatchResults
+            || $hasJourneeScores
+            || $hasPreseasonPredictions
+            || $hasPreseasonResults
+        ) {
+            return redirect()
+                ->route('admin.seasons.index')
+                ->with(
+                    'error',
+                    'Suppression refusée : des pronostics, scores ou résultats sont déjà enregistrés pour cette saison.'
+                );
+        }
+
+        $journeesCount = $season->journees()->count();
+        $matchesCount = $season->matches()->count();
+
+        DB::transaction(function () use ($season) {
+            $season->journees()->delete();
+
+            DB::table('season_user')
+                ->where('season_id', $season->id)
+                ->update([
+                    'preseason_prediction_deadline' => null,
+                ]);
+        });
+
+        return redirect()
+            ->route('admin.seasons.index')
+            ->with(
+                'success',
+                "{$journeesCount} journée(s) et {$matchesCount} match(s) supprimé(s) pour {$season->name}. Tu peux modifier les clubs puis générer de nouveau les journées."
+            );
     }
 
     private function resolveSeason(?Season $season = null): Season
