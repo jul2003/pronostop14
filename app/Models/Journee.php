@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Services\AppDateService;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 
 class Journee extends Model
@@ -46,7 +47,9 @@ class Journee extends Model
             return false;
         }
 
-        return $this->first_match_at->lte(app(AppDateService::class)->now());
+        return $this->first_match_at->lte(
+            app(AppDateService::class)->now()
+        );
     }
 
     public function isPredictionOpen(): bool
@@ -59,7 +62,9 @@ class Journee extends Model
             return false;
         }
 
-        return app(AppDateService::class)->now()->lt($this->first_match_at);
+        return app(AppDateService::class)
+            ->now()
+            ->lt($this->first_match_at);
     }
 
     public function isPredictionLocked(): bool
@@ -81,19 +86,25 @@ class Journee extends Model
     {
         $field = $field ?: $this->getRouteKeyName();
 
-        $journee = $this->where($field, $value)->first();
+        $journee = $this->routeBindingQueryForCurrentSeason()
+            ->where($field, $value)
+            ->first();
 
         if ($journee || $field !== 'slug') {
             return $journee;
         }
 
-        $currentSlug = $this->currentSlugForLegacySlug((string) $value);
+        $currentSlug = $this->currentSlugForLegacySlug(
+            (string) $value
+        );
 
         if (! $currentSlug) {
             return null;
         }
 
-        return $this->where('slug', $currentSlug)->first();
+        return $this->routeBindingQueryForCurrentSeason()
+            ->where('slug', $currentSlug)
+            ->first();
     }
 
     public function getTypeLabelAttribute(): string
@@ -113,7 +124,9 @@ class Journee extends Model
     public function expectedMatchesCount(): ?int
     {
         return match ($this->type) {
-            'regular' => (int) ($this->season->top14_clubs_count / 2),
+            'regular' => (int) (
+                $this->season->top14_clubs_count / 2
+            ),
             'prod2_final' => 1,
             'access_match' => 1,
             'top14_playoff' => 2,
@@ -150,7 +163,11 @@ class Journee extends Model
 
     public function allowsResult(string $result): bool
     {
-        return in_array($result, $this->allowedResultOptions(), true);
+        return in_array(
+            $result,
+            $this->allowedResultOptions(),
+            true
+        );
     }
 
     public function resultOptionLabels(): array
@@ -179,7 +196,11 @@ class Journee extends Model
         ];
 
         return collect($this->allowedResultOptions())
-            ->mapWithKeys(fn (string $result) => [$result => $labels[$result] ?? $result])
+            ->mapWithKeys(
+                fn (string $result) => [
+                    $result => $labels[$result] ?? $result,
+                ]
+            )
             ->all();
     }
 
@@ -200,6 +221,40 @@ class Journee extends Model
     public function resultOptionShortLabel(string $result): string
     {
         return $this->resultOptionShortLabels()[$result] ?? $result;
+    }
+
+    private function routeBindingQueryForCurrentSeason(): Builder
+    {
+        $query = $this->newQuery();
+        $season = request()->route('season');
+
+        /*
+         * Les routes raccourcies comme /admin/saisons/journees
+         * ne contiennent aucun paramètre {season}. Elles ne résolvent
+         * toutefois aucune journée directement, donc la recherche
+         * globale reste disponible dans ce cas.
+         */
+        if (! $season) {
+            return $query;
+        }
+
+        /*
+         * Laravel résout normalement Season avant Journee puisque
+         * {season} apparaît avant {journee}. Cette partie couvre
+         * également le cas où le paramètre contient encore le slug.
+         */
+        if (! $season instanceof Season) {
+            $season = (new Season())->resolveRouteBinding($season);
+        }
+
+        if ($season instanceof Season) {
+            $query->where(
+                'season_id',
+                $season->getKey()
+            );
+        }
+
+        return $query;
     }
 
     private function currentSlugForLegacySlug(string $slug): ?string
