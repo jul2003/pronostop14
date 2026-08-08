@@ -25,24 +25,6 @@
     </p>
 </div>
 
-@if($errors->any())
-    <div class="alert alert-danger">
-        {{ $errors->first() }}
-    </div>
-@endif
-
-@if(session('error'))
-    <div class="alert alert-danger">
-        {{ session('error') }}
-    </div>
-@endif
-
-@if(session('success'))
-    <div class="alert alert-success">
-        {{ session('success') }}
-    </div>
-@endif
-
 @if($season->is_locked)
     <div class="alert alert-warning">
         <div class="fw-bold">
@@ -148,12 +130,14 @@
                     <button type="button"
                             class="btn-close"
                             data-bs-dismiss="modal"
-                            aria-label="Fermer"></button>
+                            aria-label="Fermer">
+                    </button>
                 </div>
 
                 <div class="modal-body">
                     <p class="mb-3">
-                        Tu vas déverrouiller la saison <strong>{{ $season->name }}</strong>.
+                        Tu vas déverrouiller la saison
+                        <strong>{{ $season->name }}</strong>.
                     </p>
 
                     <div class="alert alert-warning mb-0">
@@ -180,7 +164,8 @@
     </div>
 @else
     <div class="rugby-card p-4">
-        <form method="POST" action="{{ route('admin.seasons.update', $season) }}">
+        <form method="POST"
+              action="{{ route('admin.seasons.update', $season) }}">
             @csrf
             @method('PUT')
 
@@ -232,7 +217,8 @@
                        id="is_active"
                        @checked(old('is_active', $season->is_active))>
 
-                <label class="form-check-label fw-bold" for="is_active">
+                <label class="form-check-label fw-bold"
+                       for="is_active">
                     Saison active
                 </label>
             </div>
@@ -262,16 +248,80 @@
             </ul>
 
             <form method="POST"
+                  id="delete-season-form"
                   action="{{ route('admin.seasons.destroy', $season) }}">
                 @csrf
                 @method('DELETE')
 
-                <button type="submit"
-                        class="btn btn-danger rounded-pill"
-                        onclick="return confirm('Confirmer la suppression définitive de cette saison ?');">
+                <button type="button"
+                        class="btn btn-danger rounded-pill fw-bold px-4"
+                        data-bs-toggle="modal"
+                        data-bs-target="#deleteSeasonModal">
                     Supprimer définitivement la saison
                 </button>
             </form>
+        </div>
+    </div>
+
+    <div class="modal fade"
+         id="deleteSeasonModal"
+         tabindex="-1"
+         aria-labelledby="deleteSeasonModalLabel"
+         aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow rounded-4">
+                <div class="modal-header border-0 pb-0">
+                    <div>
+                        <div class="text-uppercase text-danger fw-bold small mb-1">
+                            Suppression définitive
+                        </div>
+
+                        <h2 class="modal-title h5 fw-bold mb-0"
+                            id="deleteSeasonModalLabel">
+                            Supprimer la saison {{ $season->name }} ?
+                        </h2>
+                    </div>
+
+                    <button type="button"
+                            class="btn-close"
+                            data-bs-dismiss="modal"
+                            aria-label="Fermer">
+                    </button>
+                </div>
+
+                <div class="modal-body">
+                    <p class="text-muted mb-3">
+                        Cette action supprimera définitivement la saison
+                        <strong>{{ $season->name }}</strong>.
+                    </p>
+
+                    <div class="alert alert-danger mb-0">
+                        <div class="fw-bold mb-2">
+                            Les données suivantes seront également supprimées :
+                        </div>
+
+                        <ul class="mb-0 ps-3">
+                            <li>les journées et les matchs ;</li>
+                            <li>les participants de la saison ;</li>
+                            <li>les pronostics liés à ces matchs.</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="modal-footer border-0 pt-0">
+                    <button type="button"
+                            class="btn btn-outline-secondary rounded-pill fw-bold px-4"
+                            data-bs-dismiss="modal">
+                        Annuler
+                    </button>
+
+                    <button type="submit"
+                            form="delete-season-form"
+                            class="btn btn-danger rounded-pill fw-bold px-4">
+                        Confirmer la suppression
+                    </button>
+                </div>
+            </div>
         </div>
     </div>
 @endif
