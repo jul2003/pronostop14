@@ -103,7 +103,9 @@
             --bonus-bad-bg: {{ $resultColors['bonus_wrong'] ?? $resultColors['wrong'] }};
             --result-bonus-bg: {{ $resultColors['bonus_offset'] }};
             --preseason-bonus-bg: {{ $resultColors['preseason_bonus'] }};">
-    <div id="page-top" class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-3">
+
+    <div id="page-top"
+         class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-3">
         <div>
             <div class="text-uppercase text-primary fw-bold small">
                 Résultats
@@ -183,11 +185,13 @@
             <div class="col-xl-4">
                 <div class="filters-panel">
                     <div class="mb-2">
-                        <label for="seasonSelect" class="form-label fw-bold small mb-1">
+                        <label for="seasonSelect"
+                               class="form-label fw-bold small mb-1">
                             Saison
                         </label>
 
-                        <select id="seasonSelect" class="form-select form-select-sm">
+                        <select id="seasonSelect"
+                                class="form-select form-select-sm">
                             @foreach($seasons as $seasonOption)
                                 <option value="{{ route('results.season', $seasonOption) }}"
                                         @selected($seasonOption->id === $selectedSeason->id)>
@@ -198,11 +202,13 @@
                     </div>
 
                     <div>
-                        <label for="journeeSelect" class="form-label fw-bold small mb-1">
+                        <label for="journeeSelect"
+                               class="form-label fw-bold small mb-1">
                             Journée
                         </label>
 
-                        <select id="journeeSelect" class="form-select form-select-sm">
+                        <select id="journeeSelect"
+                                class="form-select form-select-sm">
                             <option value="{{ route('results.season', $selectedSeason) }}"
                                     @selected(! $selectedJournee)>
                                 Avant-saison / haut
@@ -212,6 +218,7 @@
                                 <option value="{{ route('results.journee', [$selectedSeason, $journee]) }}"
                                         @selected($selectedJournee?->id === $journee->id)>
                                     {{ $journeeSelectionLabel($journee) }}
+
                                     @if(! $journee->isLocked())
                                         — masqué
                                     @endif
@@ -225,11 +232,14 @@
     </div>
 
     <div class="rugby-card p-0 overflow-hidden">
-        <div class="table-responsive results-table-wrapper" id="resultsTableWrapper">
+        <div class="table-responsive results-table-wrapper"
+             id="resultsTableWrapper">
             <table class="table align-middle mb-0 excel-results-table">
                 <thead>
                     <tr class="main-header-row">
-                        <th colspan="6" class="left-main-head"></th>
+                        <th colspan="6"
+                            class="left-main-head">
+                        </th>
 
                         @foreach($players as $player)
                             <th colspan="9"
@@ -241,15 +251,24 @@
                     </tr>
 
                     <tr class="sub-header-row">
-                        <th class="left-col left-journee sticky-left-journee">Journée</th>
-                        <th class="left-col left-date sticky-left-date">Date</th>
+                        <th class="left-col left-journee sticky-left-journee">
+                            Journée
+                        </th>
+
+                        <th class="left-col left-date sticky-left-date">
+                            Date
+                        </th>
 
                         <th class="left-col left-mini-col sticky-left-rez">
-                            <span class="vertical-word">{!! $verticalWord('REZ') !!}</span>
+                            <span class="vertical-word">
+                                {!! $verticalWord('REZ') !!}
+                            </span>
                         </th>
 
                         <th class="left-col left-mini-col sticky-left-try">
-                            <span class="vertical-word">{!! $verticalWord('TRY') !!}</span>
+                            <span class="vertical-word">
+                                {!! $verticalWord('TRY') !!}
+                            </span>
                         </th>
 
                         <th class="left-col left-bonus-col sticky-left-bonus-dom">
@@ -263,12 +282,16 @@
                         @foreach($players as $player)
                             <th class="player-sub-head player-mini-sub-head player-group-start-sub-head"
                                 style="--player-color: {{ $playerColor($player) }};">
-                                <span class="vertical-word">{!! $verticalWord('REZ') !!}</span>
+                                <span class="vertical-word">
+                                    {!! $verticalWord('REZ') !!}
+                                </span>
                             </th>
 
                             <th class="player-sub-head player-mini-sub-head"
                                 style="--player-color: {{ $playerColor($player) }};">
-                                <span class="vertical-word">{!! $verticalWord('TRY') !!}</span>
+                                <span class="vertical-word">
+                                    {!! $verticalWord('TRY') !!}
+                                </span>
                             </th>
 
                             <th class="player-sub-head player-bonus-sub-head"
@@ -283,12 +306,16 @@
 
                             <th class="player-sub-head player-mini-sub-head player-result-sub-head"
                                 style="--player-color: {{ $playerColor($player) }};">
-                                <span class="vertical-word">{!! $verticalWord('REZ') !!}</span>
+                                <span class="vertical-word">
+                                    {!! $verticalWord('REZ') !!}
+                                </span>
                             </th>
 
                             <th class="player-sub-head player-mini-sub-head player-result-sub-head"
                                 style="--player-color: {{ $playerColor($player) }};">
-                                <span class="vertical-word">{!! $verticalWord('TRY') !!}</span>
+                                <span class="vertical-word">
+                                    {!! $verticalWord('TRY') !!}
+                                </span>
                             </th>
 
                             <th class="player-sub-head player-bonus-sub-head player-result-sub-head"
@@ -315,39 +342,49 @@
                     </tr>
 
                     <tr class="section-title-row">
-                        <td colspan="6" class="sticky-left-full section-title-cell">
+                        <td colspan="6"
+                            class="sticky-left-full section-title-cell">
                             PRONOS D'AVANT SAISON
                         </td>
 
                         @foreach($players as $player)
-                            <td colspan="9" class="player-summary-block-cell"></td>
+                            <td colspan="9"
+                                class="player-summary-block-cell">
+                            </td>
                         @endforeach
                     </tr>
 
                     @if(! $preseasonIsVisible)
                         <tr>
-                            <td colspan="6" class="sticky-left-full fw-bold">
+                            <td colspan="6"
+                                class="sticky-left-full fw-bold">
                                 Avant-saison non visible
                             </td>
 
                             @foreach($players as $player)
-                                <td colspan="9" class="player-summary-block-cell"></td>
+                                <td colspan="9"
+                                    class="player-summary-block-cell">
+                                </td>
                             @endforeach
                         </tr>
                     @elseif($preseasonQuestions->isEmpty())
                         <tr>
-                            <td colspan="6" class="sticky-left-full fw-bold">
+                            <td colspan="6"
+                                class="sticky-left-full fw-bold">
                                 Aucun prono avant-saison
                             </td>
 
                             @foreach($players as $player)
-                                <td colspan="9" class="player-summary-block-cell"></td>
+                                <td colspan="9"
+                                    class="player-summary-block-cell">
+                                </td>
                             @endforeach
                         </tr>
                     @else
                         @foreach($preseasonQuestions as $question)
                             <tr class="preseason-row">
-                                <td colspan="6" class="sticky-left-full preseason-left-combined-cell">
+                                <td colspan="6"
+                                    class="sticky-left-full preseason-left-combined-cell">
                                     <span class="preseason-left-grid">
                                         <span class="preseason-label-cell">
                                             {{ $question->label }}
@@ -361,10 +398,18 @@
 
                                 @foreach($players as $player)
                                     @php
-                                        $prediction = $question->predictions->firstWhere('user_id', $player->id);
+                                        $prediction = $question->predictions->firstWhere(
+                                            'user_id',
+                                            $player->id
+                                        );
+
                                         $points = (int) ($prediction?->points ?? 0);
                                         $hasResult = $question->hasOfficialResult();
-                                        $hasBonusHighlight = $preseasonBonusQuestionHighlights[$question->id][$player->id] ?? false;
+
+                                        $hasBonusHighlight =
+                                            $preseasonBonusQuestionHighlights[
+                                                $question->id
+                                            ][$player->id] ?? false;
                                     @endphp
 
                                     <td colspan="8"
@@ -384,7 +429,8 @@
                         @endforeach
 
                         <tr class="total-row">
-                            <td colspan="6" class="sticky-left-full total-label-cell">
+                            <td colspan="6"
+                                class="sticky-left-full total-label-cell">
                                 TOTAL
                             </td>
 
@@ -403,8 +449,10 @@
                     </tr>
 
                     @foreach($journees as $journee)
-                        <tr id="journee-{{ $journee->slug }}" class="journee-title-row">
-                            <td colspan="6" class="sticky-left-full journee-left-combined-cell">
+                        <tr id="journee-{{ $journee->slug }}"
+                            class="journee-title-row">
+                            <td colspan="6"
+                                class="sticky-left-full journee-left-combined-cell">
                                 <span class="journee-left-grid">
                                     <span class="journee-name-cell">
                                         {{ $journeeSelectionLabel($journee) }}
@@ -420,18 +468,39 @@
 
                             @foreach($players as $player)
                                 @php
-                                    $perfectBonus = $journeePerfectBonuses[$journee->id][$player->id] ?? 0;
-                                    $hasPerfectBonus = $journee->isLocked() && $perfectBonus > 0;
+                                    $perfectBonus =
+                                        $journeePerfectBonuses[
+                                            $journee->id
+                                        ][$player->id] ?? 0;
+
+                                    $hasPerfectBonus =
+                                        $journee->isLocked()
+                                        && $perfectBonus > 0;
                                 @endphp
 
-                                <td class="journee-bonus-empty-cell player-mini-cell player-group-start-cell"></td>
-                                <td class="journee-bonus-empty-cell player-mini-cell"></td>
-                                <td class="journee-bonus-empty-cell player-bonus-cell"></td>
-                                <td class="journee-bonus-empty-cell player-bonus-cell player-prono-end-cell"></td>
-                                <td class="journee-bonus-empty-cell result-mini-cell"></td>
-                                <td class="journee-bonus-empty-cell result-mini-cell"></td>
-                                <td class="journee-bonus-empty-cell result-bonus-cell"></td>
-                                <td class="journee-bonus-empty-cell result-bonus-cell player-result-end-cell"></td>
+                                <td class="journee-bonus-empty-cell player-mini-cell player-group-start-cell">
+                                </td>
+
+                                <td class="journee-bonus-empty-cell player-mini-cell">
+                                </td>
+
+                                <td class="journee-bonus-empty-cell player-bonus-cell">
+                                </td>
+
+                                <td class="journee-bonus-empty-cell player-bonus-cell player-prono-end-cell">
+                                </td>
+
+                                <td class="journee-bonus-empty-cell result-mini-cell">
+                                </td>
+
+                                <td class="journee-bonus-empty-cell result-mini-cell">
+                                </td>
+
+                                <td class="journee-bonus-empty-cell result-bonus-cell">
+                                </td>
+
+                                <td class="journee-bonus-empty-cell result-bonus-cell player-result-end-cell">
+                                </td>
 
                                 <td class="player-points-cell journee-perfect-bonus-points-cell {{ $hasPerfectBonus ? 'journee-perfect-bonus-hit' : '' }}"
                                     style="--player-color: {{ $playerColor($player) }};">
@@ -444,12 +513,15 @@
 
                         @if($journee->matches->isEmpty())
                             <tr>
-                                <td colspan="6" class="sticky-left-full text-muted">
+                                <td colspan="6"
+                                    class="sticky-left-full text-muted">
                                     Aucun match
                                 </td>
 
                                 @foreach($players as $player)
-                                    <td colspan="9" class="player-summary-block-cell"></td>
+                                    <td colspan="9"
+                                        class="player-summary-block-cell">
+                                    </td>
                                 @endforeach
                             </tr>
                         @else
@@ -481,8 +553,15 @@
 
                                     @foreach($players as $player)
                                         @php
-                                            $prono = $match->pronos->firstWhere('user_id', $player->id);
-                                            $breakdown = $matchBreakdowns[$match->id][$player->id] ?? null;
+                                            $prono = $match->pronos->firstWhere(
+                                                'user_id',
+                                                $player->id
+                                            );
+
+                                            $breakdown =
+                                                $matchBreakdowns[
+                                                    $match->id
+                                                ][$player->id] ?? null;
                                         @endphp
 
                                         @if($journee->isLocked())
@@ -506,10 +585,17 @@
                                                 {{ $bonusValue($prono?->predicted_away_bonus) }}
                                             </td>
 
-                                            <td class="result-indicator-cell result-mini-cell {{ $statusClass($breakdown['result_status'] ?? 'neutral') }}"></td>
-                                            <td class="result-indicator-cell result-mini-cell {{ $statusClass($breakdown['tries_status'] ?? 'neutral') }}"></td>
-                                            <td class="result-indicator-cell result-bonus-cell {{ $bonusStatusClass($breakdown['home_bonus_status'] ?? 'neutral') }}"></td>
-                                            <td class="result-indicator-cell result-bonus-cell player-result-end-cell {{ $bonusStatusClass($breakdown['away_bonus_status'] ?? 'neutral') }}"></td>
+                                            <td class="result-indicator-cell result-mini-cell {{ $statusClass($breakdown['result_status'] ?? 'neutral') }}">
+                                            </td>
+
+                                            <td class="result-indicator-cell result-mini-cell {{ $statusClass($breakdown['tries_status'] ?? 'neutral') }}">
+                                            </td>
+
+                                            <td class="result-indicator-cell result-bonus-cell {{ $bonusStatusClass($breakdown['home_bonus_status'] ?? 'neutral') }}">
+                                            </td>
+
+                                            <td class="result-indicator-cell result-bonus-cell player-result-end-cell {{ $bonusStatusClass($breakdown['away_bonus_status'] ?? 'neutral') }}">
+                                            </td>
 
                                             <td class="player-points-cell"
                                                 style="--player-color: {{ $playerColor($player) }};">
@@ -518,7 +604,9 @@
                                                 @endif
                                             </td>
                                         @else
-                                            <td colspan="9" class="player-summary-block-cell"></td>
+                                            <td colspan="9"
+                                                class="player-summary-block-cell">
+                                            </td>
                                         @endif
                                     @endforeach
                                 </tr>
@@ -526,14 +614,23 @@
                         @endif
 
                         <tr class="total-row">
-                            <td colspan="6" class="sticky-left-full total-label-cell">
+                            <td colspan="6"
+                                class="sticky-left-full total-label-cell">
                                 TOTAL
                             </td>
 
                             @foreach($players as $player)
                                 @php
-                                    $matchPoints = $journeeMatchPoints[$journee->id][$player->id] ?? 0;
-                                    $perfectBonus = $journeePerfectBonuses[$journee->id][$player->id] ?? 0;
+                                    $matchPoints =
+                                        $journeeMatchPoints[
+                                            $journee->id
+                                        ][$player->id] ?? 0;
+
+                                    $perfectBonus =
+                                        $journeePerfectBonuses[
+                                            $journee->id
+                                        ][$player->id] ?? 0;
+
                                     $total = $matchPoints + $perfectBonus;
                                 @endphp
 
@@ -860,7 +957,9 @@
 
     .preseason-left-grid {
         display: grid;
-        grid-template-columns: var(--left-info-width) var(--left-result-width);
+        grid-template-columns:
+            var(--left-info-width)
+            var(--left-result-width);
         align-items: center;
         min-height: 100%;
     }
@@ -946,6 +1045,9 @@
 
     .total-player-block-cell {
         background: #ffffff !important;
+        text-align: center !important;
+        padding-left: 0.45rem !important;
+        padding-right: 0.45rem !important;
     }
 
     .journee-title-row td {
@@ -960,7 +1062,10 @@
 
     .journee-left-grid {
         display: grid;
-        grid-template-columns: var(--left-journee-width) var(--left-date-width) var(--left-result-width);
+        grid-template-columns:
+            var(--left-journee-width)
+            var(--left-date-width)
+            var(--left-result-width);
         align-items: center;
         min-height: 100%;
     }
@@ -1116,14 +1221,23 @@
     }
 
     function scrollToSelectedJournee() {
-        const selectedJourneeId = @json($selectedJournee ? 'journee-'.$selectedJournee->slug : null);
+        const selectedJourneeId = @json(
+            $selectedJournee
+                ? 'journee-'.$selectedJournee->slug
+                : null
+        );
 
         if (!selectedJourneeId) {
             return;
         }
 
-        const wrapper = document.getElementById('resultsTableWrapper');
-        const target = document.getElementById(selectedJourneeId);
+        const wrapper = document.getElementById(
+            'resultsTableWrapper'
+        );
+
+        const target = document.getElementById(
+            selectedJourneeId
+        );
 
         if (!wrapper || !target) {
             return;
