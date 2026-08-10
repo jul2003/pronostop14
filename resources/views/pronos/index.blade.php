@@ -30,7 +30,7 @@
         </p>
     </div>
 
-    <div class="d-flex flex-wrap gap-2">
+    <div class="d-flex flex-wrap gap-2 prono-page-header-actions">
         <a href="{{ route('pronos.index') }}"
            class="btn btn-outline-secondary rounded-pill fw-bold px-4">
             ← Retour aux journées
@@ -113,8 +113,8 @@
           autocomplete="off">
         @csrf
 
-        <div class="rugby-card p-0 overflow-hidden">
-            <div class="table-responsive">
+        <div class="rugby-card p-0 overflow-hidden pronos-entry-card">
+            <div class="table-responsive pronos-entry-table-wrapper">
                 <table class="table table-hover align-middle mb-0 prono-table pronos-entry-table">
                     <thead class="table-light">
                         <tr>
@@ -212,8 +212,11 @@
                                     @endif
                                 </td>
 
-                                <td class="text-center">
-                                    <div class="prono-choice-group">
+                                <td class="text-center prono-mobile-field prono-result-cell"
+                                    data-mobile-label="Résultat">
+                                    <div class="prono-choice-group"
+                                         role="group"
+                                         aria-label="Résultat du match {{ $match->homeClub->name }} contre {{ $match->awayClub->name }}">
                                         @foreach($journee->resultOptionShortLabels() as $value => $label)
                                             <input type="radio"
                                                    id="predicted_result_{{ $match->id }}_{{ $value }}"
@@ -234,7 +237,8 @@
                                     </div>
                                 </td>
 
-                                <td class="text-center">
+                                <td class="text-center prono-mobile-field prono-tries-cell"
+                                    data-mobile-label="Essais">
                                     <input type="text"
                                            inputmode="numeric"
                                            pattern="[0-9]*"
@@ -246,12 +250,16 @@
                                            autocorrect="off"
                                            autocapitalize="off"
                                            spellcheck="false"
+                                           aria-label="Nombre d’essais pour {{ $match->homeClub->name }} contre {{ $match->awayClub->name }}"
                                            @disabled($matchIsLocked)
                                            @if(! $matchIsLocked) required @endif>
                                 </td>
 
-                                <td class="text-center">
-                                    <div class="prono-choice-group bonus-choice-group">
+                                <td class="text-center prono-mobile-field prono-home-bonus-cell"
+                                    data-mobile-label="Bonus dom.">
+                                    <div class="prono-choice-group bonus-choice-group"
+                                         role="group"
+                                         aria-label="Bonus domicile pour {{ $match->homeClub->name }} contre {{ $match->awayClub->name }}">
                                         @foreach(['o' => 'o', '-' => '-', 'd' => 'd'] as $value => $label)
                                             <input type="radio"
                                                    id="predicted_home_bonus_{{ $match->id }}_{{ $value }}"
@@ -271,8 +279,11 @@
                                     </div>
                                 </td>
 
-                                <td class="text-center">
-                                    <div class="prono-choice-group bonus-choice-group">
+                                <td class="text-center prono-mobile-field prono-away-bonus-cell"
+                                    data-mobile-label="Bonus ext.">
+                                    <div class="prono-choice-group bonus-choice-group"
+                                         role="group"
+                                         aria-label="Bonus extérieur pour {{ $match->homeClub->name }} contre {{ $match->awayClub->name }}">
                                         @foreach(['o' => 'o', '-' => '-', 'd' => 'd'] as $value => $label)
                                             <input type="radio"
                                                    id="predicted_away_bonus_{{ $match->id }}_{{ $value }}"
@@ -292,7 +303,7 @@
                                     </div>
                                 </td>
 
-                                <td class="text-center prono-action-cell">
+                                <td class="text-center prono-action-cell {{ $prono ? '' : 'prono-action-empty' }}">
                                     @if($prono && ! $matchIsLocked)
                                         <button type="button"
                                                 class="btn btn-outline-danger btn-sm rounded-pill fw-bold px-3"
@@ -630,6 +641,160 @@
     }
 
     @media (max-width: 767.98px) {
+        .prono-page-header-actions {
+            width: 100%;
+        }
+
+        .prono-page-header-actions .btn {
+            flex: 1 1 100%;
+            width: 100%;
+        }
+
+        .pronos-entry-card {
+            overflow: visible !important;
+            background: transparent;
+            border: 0;
+            box-shadow: none;
+        }
+
+        .pronos-entry-table-wrapper {
+            overflow: visible;
+        }
+
+        .pronos-entry-table,
+        .pronos-entry-table tbody {
+            display: block;
+            width: 100%;
+        }
+
+        .pronos-entry-table thead {
+            display: none;
+        }
+
+        .pronos-entry-table tbody {
+            display: grid;
+            gap: 1rem;
+        }
+
+        .pronos-entry-table tbody tr {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 0.85rem 0.75rem;
+            width: 100%;
+            padding: 1rem;
+            background: #ffffff;
+            border: 1px solid rgba(6, 20, 47, 0.12);
+            border-radius: 1.1rem;
+            box-shadow: 0 0.45rem 1.1rem rgba(6, 20, 47, 0.08);
+        }
+
+        .pronos-entry-table tbody tr.table-light {
+            background: #f8f9fa;
+        }
+
+        .pronos-entry-table tbody td {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 0.4rem;
+            width: auto;
+            min-width: 0 !important;
+            padding: 0 !important;
+            border: 0 !important;
+            background: transparent !important;
+            white-space: normal;
+        }
+
+        .pronos-entry-table .match-cell {
+            grid-column: 1 / -1;
+            width: 100%;
+            padding-bottom: 0.85rem !important;
+            border-bottom: 1px solid rgba(6, 20, 47, 0.1) !important;
+        }
+
+        .pronos-entry-table .match-line {
+            grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+            width: 100%;
+            gap: 0.45rem;
+        }
+
+        .pronos-entry-table .match-home,
+        .pronos-entry-table .match-away {
+            flex-direction: column;
+            justify-content: center;
+            gap: 0.35rem;
+            min-width: 0;
+            text-align: center;
+        }
+
+        .pronos-entry-table .match-home span,
+        .pronos-entry-table .match-away span {
+            max-width: 100%;
+            white-space: normal;
+            overflow-wrap: anywhere;
+            font-size: 0.88rem;
+            line-height: 1.15;
+        }
+
+        .pronos-entry-table .club-logo-small {
+            width: 38px;
+            height: 38px;
+        }
+
+        .pronos-entry-table .match-separator {
+            align-self: center;
+            font-size: 1rem;
+        }
+
+        .match-deadline-line {
+            justify-content: center;
+            text-align: center;
+        }
+
+        .prono-mobile-field::before {
+            content: attr(data-mobile-label);
+            display: block;
+            color: var(--bs-secondary-color);
+            font-size: 0.68rem;
+            font-weight: 800;
+            letter-spacing: 0.04em;
+            line-height: 1;
+            text-transform: uppercase;
+        }
+
+        .prono-mobile-field .prono-choice-group {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            width: 100%;
+        }
+
+        .prono-mobile-field .prono-choice-label {
+            min-width: 40px;
+            padding: 0.38rem 0.62rem;
+            font-size: 0.86rem;
+        }
+
+        .prono-mobile-field .prono-tries-input {
+            width: 72px;
+            min-height: 38px;
+            font-size: 1rem;
+        }
+
+        .prono-action-cell {
+            grid-column: 1 / -1;
+            padding-top: 0.15rem !important;
+        }
+
+        .prono-action-cell .btn {
+            min-width: 130px;
+        }
+
+        .prono-action-empty {
+            display: none !important;
+        }
+
         .prono-navigation-modal-actions {
             flex-direction: column-reverse;
             align-items: stretch;
