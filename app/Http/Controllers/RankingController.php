@@ -333,10 +333,6 @@ class RankingController extends Controller
          * barrages TOP 14,
          * demi-finales TOP 14,
          * finale TOP 14.
-         *
-         * reorder() retire notamment l'ordre par défaut défini sur la
-         * relation Season::journees(), afin de construire ici un ordre
-         * explicite et unique.
          */
         $journees = $season->journees()
             ->where('type', '!=', 'preseason')
@@ -557,8 +553,52 @@ class RankingController extends Controller
             ];
         }
 
+        /*
+         * Classement saison :
+         *
+         * 1. Total de points décroissant.
+         * 2. En cas d'égalité, pseudo alphabétique.
+         * 3. En dernier recours, ID du joueur pour garantir
+         *    un ordre parfaitement stable.
+         */
         $rankingRows = collect($rankingRows)
-            ->sortByDesc('total_points')
+            ->sort(function (array $a, array $b): int {
+                $pointsComparison =
+                    $b['total_points']
+                    <=> $a['total_points'];
+
+                if ($pointsComparison !== 0) {
+                    return $pointsComparison;
+                }
+
+                $aPseudo = trim(
+                    (string) (
+                        $a['user']->nickname
+                        ?: $a['user']->name
+                        ?: ''
+                    )
+                );
+
+                $bPseudo = trim(
+                    (string) (
+                        $b['user']->nickname
+                        ?: $b['user']->name
+                        ?: ''
+                    )
+                );
+
+                $pseudoComparison = strnatcasecmp(
+                    $aPseudo,
+                    $bPseudo
+                );
+
+                if ($pseudoComparison !== 0) {
+                    return $pseudoComparison;
+                }
+
+                return (int) $a['user']->id
+                    <=> (int) $b['user']->id;
+            })
             ->values();
 
         $resultCorrectColor =
