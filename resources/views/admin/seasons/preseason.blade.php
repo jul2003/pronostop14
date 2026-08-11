@@ -1243,6 +1243,15 @@
     </div>
 @endunless
 
+<button type="button"
+        id="deleteConfirmModalTrigger"
+        class="d-none"
+        data-bs-toggle="modal"
+        data-bs-target="#deleteConfirmModal"
+        aria-hidden="true"
+        tabindex="-1">
+</button>
+
 <div class="modal fade" id="deleteConfirmModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content rounded-4">
@@ -1265,7 +1274,9 @@
                     Annuler
                 </button>
 
-                <button type="button" class="btn btn-danger rounded-pill fw-bold" id="deleteConfirmButton">
+                <button type="button"
+                        class="btn btn-danger rounded-pill fw-bold"
+                        id="deleteConfirmButton">
                     Supprimer
                 </button>
             </div>
@@ -1358,10 +1369,10 @@
             labelElement.textContent = label || '';
         }
 
-        const modalElement = document.getElementById('deleteConfirmModal');
+        const modalTrigger = document.getElementById('deleteConfirmModalTrigger');
 
-        if (window.bootstrap && modalElement) {
-            window.bootstrap.Modal.getOrCreateInstance(modalElement).show();
+        if (modalTrigger) {
+            modalTrigger.click();
         }
     }
 
@@ -1401,12 +1412,61 @@
             return;
         }
 
+        refreshPositions(container, itemSelector, positionSelector);
+
+        if (@json((bool) $season->is_locked)) {
+            return;
+        }
+
+        /*
+         * SortableJS est déjà chargé globalement dans resources/js/app.js.
+         * Il gère correctement la poignée de déplacement, contrairement au
+         * drag & drop HTML natif précédent dont dragstart ciblait la ligne
+         * draggable et non le bouton .drag-handle.
+         */
+        if (window.Sortable) {
+            container.querySelectorAll(itemSelector).forEach(function (item) {
+                item.removeAttribute('draggable');
+            });
+
+            window.Sortable.create(container, {
+                animation: 150,
+                handle: '.drag-handle',
+                draggable: itemSelector,
+                ghostClass: 'opacity-50',
+                chosenClass: 'shadow-sm',
+                onEnd: function () {
+                    refreshPositions(
+                        container,
+                        itemSelector,
+                        positionSelector
+                    );
+                },
+            });
+
+            return;
+        }
+
+        /*
+         * Secours si le bundle JavaScript n'expose pas SortableJS.
+         * On mémorise explicitement la ligne armée depuis la poignée avant
+         * le dragstart natif.
+         */
         let draggedItem = null;
+        let armedItem = null;
+
+        container.addEventListener('pointerdown', function (event) {
+            const handle = event.target.closest('.drag-handle');
+
+            armedItem = handle
+                ? handle.closest(itemSelector)
+                : null;
+        });
 
         container.addEventListener('dragstart', function (event) {
             const item = event.target.closest(itemSelector);
 
-            if (!item || !event.target.closest('.drag-handle')) {
+            if (!item || item !== armedItem) {
                 event.preventDefault();
 
                 return;
@@ -1423,26 +1483,40 @@
             }
 
             draggedItem = null;
+            armedItem = null;
 
-            refreshPositions(container, itemSelector, positionSelector);
+            refreshPositions(
+                container,
+                itemSelector,
+                positionSelector
+            );
         });
 
         container.addEventListener('dragover', function (event) {
+            if (!draggedItem) {
+                return;
+            }
+
             event.preventDefault();
 
             const target = event.target.closest(itemSelector);
 
-            if (!draggedItem || !target || draggedItem === target) {
+            if (!target || draggedItem === target) {
                 return;
             }
 
             const rectangle = target.getBoundingClientRect();
-            const next = (event.clientY - rectangle.top) / rectangle.height > 0.5;
 
-            container.insertBefore(draggedItem, next ? target.nextSibling : target);
+            const insertAfter =
+                (event.clientY - rectangle.top)
+                / rectangle.height
+                > 0.5;
+
+            container.insertBefore(
+                draggedItem,
+                insertAfter ? target.nextSibling : target
+            );
         });
-
-        refreshPositions(container, itemSelector, positionSelector);
     }
 
     function refreshPositions(container, itemSelector, positionSelector) {
@@ -1538,7 +1612,13 @@
         return ruleSelect.options[ruleSelect.selectedIndex] || null;
     }
 
-    function refreshAutoResultFields(typeSelect, ruleSelect, journeeSelect, positionSelect, helpElement) {
+    function refreshAutoResultFields(
+        typeSelect,
+        ruleSelect,
+        journeeSelect,
+        positionSelect,
+        helpElement
+    ) {
         if (!typeSelect || !ruleSelect || !journeeSelect || !positionSelect) {
             return;
         }
@@ -1546,24 +1626,49 @@
         const answerType = typeSelect.value;
 
         Array.from(ruleSelect.options).forEach(function (option) {
-            option.hidden = !optionCompatibleWithAnswerType(option, answerType);
+            option.hidden = !optionCompatibleWithAnswerType(
+                option,
+                answerType
+            );
         });
 
         const currentOption = selectedRuleOption(ruleSelect);
 
-        if (currentOption && currentOption.value && !optionCompatibleWithAnswerType(currentOption, answerType)) {
+        if (
+            currentOption
+            && currentOption.value
+            && !optionCompatibleWithAnswerType(
+                currentOption,
+                answerType
+            )
+        ) {
             ruleSelect.value = '';
         }
 
         const option = selectedRuleOption(ruleSelect);
         const hasRule = !!ruleSelect.value;
-        const requiresJournee = option && option.dataset.requiresJournee === '1';
-        const requiresPosition = option && option.dataset.requiresPosition === '1';
+
+        const requiresJournee =
+            option
+            && option.dataset.requiresJournee === '1';
+
+        const requiresPosition =
+            option
+            && option.dataset.requiresPosition === '1';
+
         const typeIsDisabled = typeSelect.disabled;
 
         ruleSelect.disabled = typeIsDisabled;
-        journeeSelect.disabled = typeIsDisabled || !hasRule || !requiresJournee;
-        positionSelect.disabled = typeIsDisabled || !hasRule || !requiresPosition;
+
+        journeeSelect.disabled =
+            typeIsDisabled
+            || !hasRule
+            || !requiresJournee;
+
+        positionSelect.disabled =
+            typeIsDisabled
+            || !hasRule
+            || !requiresPosition;
 
         if (!requiresJournee) {
             journeeSelect.value = '';
@@ -1589,13 +1694,31 @@
     function setupAutoResultFields() {
         document.querySelectorAll('.js-question-answer-type').forEach(function (typeSelect) {
             const questionId = typeSelect.dataset.questionId;
-            const ruleSelect = document.querySelector('.js-auto-result-rule[data-question-id="' + questionId + '"]');
-            const journeeSelect = document.querySelector('.js-auto-result-journee[data-question-id="' + questionId + '"]');
-            const positionSelect = document.querySelector('.js-auto-result-position[data-question-id="' + questionId + '"]');
-            const help = document.querySelector('.js-auto-result-help[data-question-id="' + questionId + '"]');
+
+            const ruleSelect = document.querySelector(
+                '.js-auto-result-rule[data-question-id="' + questionId + '"]'
+            );
+
+            const journeeSelect = document.querySelector(
+                '.js-auto-result-journee[data-question-id="' + questionId + '"]'
+            );
+
+            const positionSelect = document.querySelector(
+                '.js-auto-result-position[data-question-id="' + questionId + '"]'
+            );
+
+            const help = document.querySelector(
+                '.js-auto-result-help[data-question-id="' + questionId + '"]'
+            );
 
             function refresh() {
-                refreshAutoResultFields(typeSelect, ruleSelect, journeeSelect, positionSelect, help);
+                refreshAutoResultFields(
+                    typeSelect,
+                    ruleSelect,
+                    journeeSelect,
+                    positionSelect,
+                    help
+                );
             }
 
             typeSelect.addEventListener('change', refresh);
@@ -1607,10 +1730,17 @@
             refresh();
         });
 
-        const newTypeSelect = document.querySelector('.js-new-question-answer-type');
-        const newRuleSelect = document.querySelector('.js-new-auto-result-rule');
-        const newJourneeSelect = document.querySelector('.js-new-auto-result-journee');
-        const newPositionSelect = document.querySelector('.js-new-auto-result-position');
+        const newTypeSelect =
+            document.querySelector('.js-new-question-answer-type');
+
+        const newRuleSelect =
+            document.querySelector('.js-new-auto-result-rule');
+
+        const newJourneeSelect =
+            document.querySelector('.js-new-auto-result-journee');
+
+        const newPositionSelect =
+            document.querySelector('.js-new-auto-result-position');
 
         function refreshNewQuestionAutoFields() {
             refreshAutoResultFields(
@@ -1623,18 +1753,25 @@
         }
 
         if (newTypeSelect) {
-            newTypeSelect.addEventListener('change', refreshNewQuestionAutoFields);
+            newTypeSelect.addEventListener(
+                'change',
+                refreshNewQuestionAutoFields
+            );
         }
 
         if (newRuleSelect) {
-            newRuleSelect.addEventListener('change', refreshNewQuestionAutoFields);
+            newRuleSelect.addEventListener(
+                'change',
+                refreshNewQuestionAutoFields
+            );
         }
 
         refreshNewQuestionAutoFields();
     }
 
     document.addEventListener('DOMContentLoaded', function () {
-        const deleteButton = document.getElementById('deleteConfirmButton');
+        const deleteButton =
+            document.getElementById('deleteConfirmButton');
 
         if (deleteButton) {
             deleteButton.addEventListener('click', function () {
@@ -1642,7 +1779,8 @@
                     return;
                 }
 
-                const form = document.getElementById(pendingDeleteFormId);
+                const form =
+                    document.getElementById(pendingDeleteFormId);
 
                 if (form) {
                     form.submit();
@@ -1650,42 +1788,74 @@
             });
         }
 
-        setupReorderableList('#seasonPreseasonQuestionsList', 'tr', '.question-position-input');
-        setupReorderableList('#seasonCorrectionGroupsList', '.list-group-item', '.season-correction-group-position-input');
-        setupReorderableList('#seasonBonusRulesList', '.list-group-item', '.season-bonus-position-input');
+        setupReorderableList(
+            '#seasonPreseasonQuestionsList',
+            'tr',
+            '.question-position-input'
+        );
 
-        const questionsForm = document.getElementById('seasonPreseasonQuestionsForm');
+        setupReorderableList(
+            '#seasonCorrectionGroupsList',
+            '.list-group-item',
+            '.season-correction-group-position-input'
+        );
+
+        setupReorderableList(
+            '#seasonBonusRulesList',
+            '.list-group-item',
+            '.season-bonus-position-input'
+        );
+
+        const questionsForm =
+            document.getElementById('seasonPreseasonQuestionsForm');
 
         if (questionsForm) {
             questionsForm.addEventListener('submit', function () {
-                const container = document.querySelector('#seasonPreseasonQuestionsList');
+                const container =
+                    document.querySelector('#seasonPreseasonQuestionsList');
 
                 if (container) {
-                    refreshPositions(container, 'tr', '.question-position-input');
+                    refreshPositions(
+                        container,
+                        'tr',
+                        '.question-position-input'
+                    );
                 }
             });
         }
 
-        const correctionGroupsForm = document.getElementById('seasonCorrectionGroupsForm');
+        const correctionGroupsForm =
+            document.getElementById('seasonCorrectionGroupsForm');
 
         if (correctionGroupsForm) {
             correctionGroupsForm.addEventListener('submit', function () {
-                const container = document.querySelector('#seasonCorrectionGroupsList');
+                const container =
+                    document.querySelector('#seasonCorrectionGroupsList');
 
                 if (container) {
-                    refreshPositions(container, '.list-group-item', '.season-correction-group-position-input');
+                    refreshPositions(
+                        container,
+                        '.list-group-item',
+                        '.season-correction-group-position-input'
+                    );
                 }
             });
         }
 
-        const bonusRulesForm = document.getElementById('seasonBonusRulesForm');
+        const bonusRulesForm =
+            document.getElementById('seasonBonusRulesForm');
 
         if (bonusRulesForm) {
             bonusRulesForm.addEventListener('submit', function () {
-                const container = document.querySelector('#seasonBonusRulesList');
+                const container =
+                    document.querySelector('#seasonBonusRulesList');
 
                 if (container) {
-                    refreshPositions(container, '.list-group-item', '.season-bonus-position-input');
+                    refreshPositions(
+                        container,
+                        '.list-group-item',
+                        '.season-bonus-position-input'
+                    );
                 }
             });
         }
