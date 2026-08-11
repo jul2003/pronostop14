@@ -70,7 +70,17 @@
     <form method="POST"
           action="{{ route('pronos.store', [$season, $journee]) }}"
           autocomplete="off">
+
         @csrf
+
+        @if(! $isLocked && ! $isNotOpen && $hasEditableQuestions)
+            <div class="d-flex justify-content-center mb-4">
+                <button type="submit"
+                        class="btn btn-warning rounded-pill fw-bold px-4">
+                    Enregistrer mes pronostics avant-saison
+                </button>
+            </div>
+        @endif
 
         <div class="rugby-card p-0 overflow-hidden">
             <div class="table-responsive">
@@ -91,21 +101,27 @@
                         @foreach($questions as $question)
                             @php
                                 $prediction = $predictions->get($question->id);
-                                $questionHasOfficialResult = $question->hasOfficialResult();
-                                $questionIsDisabled = $isLocked
+
+                                $questionHasOfficialResult =
+                                    $question->hasOfficialResult();
+
+                                $questionIsDisabled =
+                                    $isLocked
                                     || $isNotOpen
                                     || $questionHasOfficialResult;
 
-                                $storedAnswer = $question->answer_type === 'free_text'
-                                    ? $prediction?->text_answer
-                                    : $prediction?->club_id;
+                                $storedAnswer =
+                                    $question->answer_type === 'free_text'
+                                        ? $prediction?->text_answer
+                                        : $prediction?->club_id;
 
-                                $currentAnswer = $questionHasOfficialResult
-                                    ? $storedAnswer
-                                    : old(
-                                        "answers.{$question->id}",
-                                        $storedAnswer
-                                    );
+                                $currentAnswer =
+                                    $questionHasOfficialResult
+                                        ? $storedAnswer
+                                        : old(
+                                            "answers.{$question->id}",
+                                            $storedAnswer
+                                        );
 
                                 $clubs = match ($question->answer_type) {
                                     'top14_club' => $top14Clubs,
@@ -152,6 +168,7 @@
                                                 data-question-label="{{ mb_strtolower($question->label) }}"
                                                 autocomplete="off"
                                                 @disabled($questionIsDisabled)>
+
                                             <option value="">
                                                 {{ $questionHasOfficialResult
                                                     ? 'Aucune réponse saisie avant la clôture'
@@ -185,13 +202,14 @@
         </div>
 
         @if(! $isLocked && ! $isNotOpen && $hasEditableQuestions)
-            <div class="d-flex justify-content-end mt-4">
+            <div class="d-flex justify-content-center mt-4">
                 <button type="submit"
                         class="btn btn-warning rounded-pill fw-bold px-4">
                     Enregistrer mes pronostics avant-saison
                 </button>
             </div>
         @endif
+
     </form>
 @endif
 
@@ -243,7 +261,8 @@
                             return;
                         }
 
-                        option.disabled = selectedValues.includes(option.value)
+                        option.disabled =
+                            selectedValues.includes(option.value)
                             && select.value !== option.value;
                     });
                 });
