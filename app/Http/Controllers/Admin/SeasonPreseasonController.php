@@ -40,13 +40,10 @@ class SeasonPreseasonController extends Controller
         return view('admin.seasons.preseason', [
             'season' => $season,
             'questions' => $season->preseasonQuestions,
-            'correctionGroups' =>
-                $season->preseasonCorrectionGroups,
-            'bonusRules' =>
-                $season->preseasonBonusRules,
+            'correctionGroups' => $season->preseasonCorrectionGroups,
+            'bonusRules' => $season->preseasonBonusRules,
             'scoringProfiles' => $scoringProfiles,
-            'autoResultRuleOptions' =>
-                SeasonPreseasonQuestion::autoResultRuleOptions(),
+            'autoResultRuleOptions' => SeasonPreseasonQuestion::autoResultRuleOptions(),
         ]);
     }
 
@@ -59,10 +56,7 @@ class SeasonPreseasonController extends Controller
         }
 
         $data = $request->validate([
-            'questions' => [
-                'nullable',
-                'array',
-            ],
+            'questions' => ['nullable', 'array'],
 
             'questions.*.label' => [
                 'required',
@@ -78,9 +72,7 @@ class SeasonPreseasonController extends Controller
 
             'questions.*.auto_result_rule' => [
                 'nullable',
-                Rule::in(
-                    $this->autoResultRuleValues()
-                ),
+                Rule::in($this->autoResultRuleValues()),
             ],
 
             'questions.*.auto_result_journee_number' => [
@@ -120,10 +112,7 @@ class SeasonPreseasonController extends Controller
             ],
         ]);
 
-        DB::transaction(function () use (
-            $season,
-            $data
-        ) {
+        DB::transaction(function () use ($season, $data) {
             foreach (
                 $data['questions'] ?? []
                 as $questionId => $questionData
@@ -139,18 +128,12 @@ class SeasonPreseasonController extends Controller
 
                 $autoResultConfig =
                     $this->normalizedAutoResultConfig(
-                        $questionData[
-                            'answer_type'
-                        ],
-
-                        $questionData[
-                            'auto_result_rule'
-                        ] ?? null,
-
+                        $questionData['answer_type'],
+                        $questionData['auto_result_rule']
+                            ?? null,
                         $questionData[
                             'auto_result_journee_number'
                         ] ?? null,
-
                         $questionData[
                             'auto_result_position'
                         ] ?? null
@@ -193,7 +176,8 @@ class SeasonPreseasonController extends Controller
                         (bool) (
                             $questionData[
                                 'is_active'
-                            ] ?? false
+                            ]
+                            ?? false
                         ),
                 ]);
             }
@@ -233,9 +217,7 @@ class SeasonPreseasonController extends Controller
 
             'auto_result_rule' => [
                 'nullable',
-                Rule::in(
-                    $this->autoResultRuleValues()
-                ),
+                Rule::in($this->autoResultRuleValues()),
             ],
 
             'auto_result_journee_number' => [
@@ -278,27 +260,20 @@ class SeasonPreseasonController extends Controller
         $autoResultConfig =
             $this->normalizedAutoResultConfig(
                 $data['answer_type'],
-
-                $data[
-                    'auto_result_rule'
-                ] ?? null,
-
-                $data[
-                    'auto_result_journee_number'
-                ] ?? null,
-
-                $data[
-                    'auto_result_position'
-                ] ?? null
+                $data['auto_result_rule']
+                    ?? null,
+                $data['auto_result_journee_number']
+                    ?? null,
+                $data['auto_result_position']
+                    ?? null
             );
 
         $season->preseasonQuestions()->create([
             'source_template_id' => null,
 
             'scoring_profile_id' =>
-                $data[
-                    'scoring_profile_id'
-                ] ?? null,
+                $data['scoring_profile_id']
+                ?? null,
 
             'label' =>
                 $data['label'],
@@ -328,9 +303,7 @@ class SeasonPreseasonController extends Controller
                 $data['position'],
 
             'is_active' =>
-                $request->boolean(
-                    'is_active'
-                ),
+                $request->boolean('is_active'),
         ]);
 
         return redirect()
@@ -352,6 +325,13 @@ class SeasonPreseasonController extends Controller
             return $this->lockedRedirect($season);
         }
 
+        /*
+         * On recharge obligatoirement la question depuis
+         * la saison courante.
+         *
+         * Une question appartenant à une autre saison ne
+         * peut donc jamais être supprimée ici.
+         */
         $question = $season
             ->preseasonQuestions()
             ->whereKey($question->id)
@@ -359,34 +339,20 @@ class SeasonPreseasonController extends Controller
 
         DB::transaction(function () use ($question) {
             /*
-             * Supprime les liaisons avec les bonus.
+             * On retire uniquement les liaisons propres
+             * à cette question de saison.
              *
-             * La table pivot utilise :
-             * - question_id
-             * - bonus_rule_id
+             * Les templates globaux ne sont pas touchés.
              */
-            $question
-                ->bonusRules()
-                ->detach();
+            $question->bonusRules()->detach();
 
-            /*
-             * Supprime les liaisons avec les groupes
-             * de correction.
-             */
             $question
                 ->correctionGroups()
                 ->detach();
 
             /*
-             * Supprime les éventuelles réponses déjà
-             * enregistrées pour cette question.
-             */
-            $question
-                ->predictions()
-                ->delete();
-
-            /*
-             * Puis supprime la question elle-même.
+             * Les prédictions utilisent une FK avec
+             * cascadeOnDelete sur question_id.
              */
             $question->delete();
         });
@@ -451,26 +417,25 @@ class SeasonPreseasonController extends Controller
             ],
         ]);
 
-        DB::transaction(function () use (
-            $season,
-            $data
-        ) {
-            $seasonQuestionIds = $season
-                ->preseasonQuestions()
-                ->pluck('id')
-                ->toArray();
+        DB::transaction(function () use ($season, $data) {
+            $seasonQuestionIds =
+                $season
+                    ->preseasonQuestions()
+                    ->pluck('id')
+                    ->toArray();
 
             foreach (
                 $data['correction_groups'] ?? []
                 as $correctionGroupId =>
                     $correctionGroupData
             ) {
-                $correctionGroup = $season
-                    ->preseasonCorrectionGroups()
-                    ->whereKey(
-                        $correctionGroupId
-                    )
-                    ->first();
+                $correctionGroup =
+                    $season
+                        ->preseasonCorrectionGroups()
+                        ->whereKey(
+                            $correctionGroupId
+                        )
+                        ->first();
 
                 if (! $correctionGroup) {
                     continue;
@@ -483,20 +448,16 @@ class SeasonPreseasonController extends Controller
                         ],
 
                     'code' =>
-                        $this
-                            ->uniqueSeasonCorrectionGroupCode(
-                                $season,
-
-                                $correctionGroupData[
-                                    'code'
-                                ] ?? null,
-
-                                $correctionGroupData[
-                                    'label'
-                                ],
-
-                                $correctionGroup->id
-                            ),
+                        $this->uniqueSeasonCorrectionGroupCode(
+                            $season,
+                            $correctionGroupData[
+                                'code'
+                            ] ?? null,
+                            $correctionGroupData[
+                                'label'
+                            ],
+                            $correctionGroup->id
+                        ),
 
                     'position' =>
                         $correctionGroupData[
@@ -507,28 +468,30 @@ class SeasonPreseasonController extends Controller
                         (bool) (
                             $correctionGroupData[
                                 'is_active'
-                            ] ?? false
+                            ]
+                            ?? false
                         ),
                 ]);
 
-                $questionIds = collect(
-                    $correctionGroupData[
-                        'question_ids'
-                    ] ?? []
-                )
-                    ->map(
-                        fn ($id) => (int) $id
+                $questionIds =
+                    collect(
+                        $correctionGroupData[
+                            'question_ids'
+                        ] ?? []
                     )
-                    ->filter(
-                        fn ($id) =>
-                            in_array(
-                                $id,
-                                $seasonQuestionIds,
-                                true
-                            )
-                    )
-                    ->values()
-                    ->all();
+                        ->map(
+                            fn ($id) => (int) $id
+                        )
+                        ->filter(
+                            fn ($id) =>
+                                in_array(
+                                    $id,
+                                    $seasonQuestionIds,
+                                    true
+                                )
+                        )
+                        ->values()
+                        ->all();
 
                 $correctionGroup
                     ->questions()
@@ -591,65 +554,69 @@ class SeasonPreseasonController extends Controller
             ],
         ]);
 
-        DB::transaction(function () use (
-            $request,
-            $season,
-            $data
-        ) {
-            $correctionGroup = $season
-                ->preseasonCorrectionGroups()
-                ->create([
-                    'source_template_id' =>
-                        null,
+        DB::transaction(
+            function () use (
+                $request,
+                $season,
+                $data
+            ) {
+                $correctionGroup =
+                    $season
+                        ->preseasonCorrectionGroups()
+                        ->create([
+                            'source_template_id' =>
+                                null,
 
-                    'label' =>
-                        $data['label'],
+                            'label' =>
+                                $data['label'],
 
-                    'code' =>
-                        $this
-                            ->uniqueSeasonCorrectionGroupCode(
-                                $season,
-                                $data['code']
-                                    ?? null,
-                                $data['label']
-                            ),
+                            'code' =>
+                                $this->uniqueSeasonCorrectionGroupCode(
+                                    $season,
+                                    $data['code']
+                                        ?? null,
+                                    $data['label']
+                                ),
 
-                    'position' =>
-                        $data['position'],
+                            'position' =>
+                                $data['position'],
 
-                    'is_active' =>
-                        $request->boolean(
-                            'is_active'
-                        ),
-                ]);
+                            'is_active' =>
+                                $request->boolean(
+                                    'is_active'
+                                ),
+                        ]);
 
-            $seasonQuestionIds = $season
-                ->preseasonQuestions()
-                ->pluck('id')
-                ->toArray();
+                $seasonQuestionIds =
+                    $season
+                        ->preseasonQuestions()
+                        ->pluck('id')
+                        ->toArray();
 
-            $questionIds = collect(
-                $data['question_ids']
-                    ?? []
-            )
-                ->map(
-                    fn ($id) => (int) $id
-                )
-                ->filter(
-                    fn ($id) =>
-                        in_array(
-                            $id,
-                            $seasonQuestionIds,
-                            true
+                $questionIds =
+                    collect(
+                        $data['question_ids']
+                        ?? []
+                    )
+                        ->map(
+                            fn ($id) => (int) $id
                         )
-                )
-                ->values()
-                ->all();
+                        ->filter(
+                            fn ($id) =>
+                                in_array(
+                                    $id,
+                                    $seasonQuestionIds,
+                                    true
+                                )
+                        )
+                        ->values()
+                        ->all();
 
-            $correctionGroup
-                ->questions()
-                ->sync($questionIds);
-        });
+                $correctionGroup
+                    ->questions()
+                    ->sync($questionIds);
+            }
+        );
 
         return redirect()
             ->route(
@@ -670,17 +637,16 @@ class SeasonPreseasonController extends Controller
             return $this->lockedRedirect($season);
         }
 
-        $correctionGroup = $season
-            ->preseasonCorrectionGroups()
-            ->whereKey(
-                $correctionGroup->id
-            )
-            ->firstOrFail();
+        $correctionGroup =
+            $season
+                ->preseasonCorrectionGroups()
+                ->whereKey(
+                    $correctionGroup->id
+                )
+                ->firstOrFail();
 
         DB::transaction(
-            function () use (
-                $correctionGroup
-            ) {
+            function () use ($correctionGroup) {
                 $correctionGroup
                     ->questions()
                     ->detach();
@@ -752,24 +718,22 @@ class SeasonPreseasonController extends Controller
             ],
         ]);
 
-        DB::transaction(function () use (
-            $season,
-            $data
-        ) {
-            $seasonQuestionIds = $season
-                ->preseasonQuestions()
-                ->pluck('id')
-                ->toArray();
+        DB::transaction(function () use ($season, $data) {
+            $seasonQuestionIds =
+                $season
+                    ->preseasonQuestions()
+                    ->pluck('id')
+                    ->toArray();
 
             foreach (
                 $data['bonus_rules'] ?? []
-                as $bonusRuleId =>
-                    $bonusRuleData
+                as $bonusRuleId => $bonusRuleData
             ) {
-                $bonusRule = $season
-                    ->preseasonBonusRules()
-                    ->whereKey($bonusRuleId)
-                    ->first();
+                $bonusRule =
+                    $season
+                        ->preseasonBonusRules()
+                        ->whereKey($bonusRuleId)
+                        ->first();
 
                 if (! $bonusRule) {
                     continue;
@@ -789,35 +753,38 @@ class SeasonPreseasonController extends Controller
                         (bool) (
                             $bonusRuleData[
                                 'is_active'
-                            ] ?? false
+                            ]
+                            ?? false
                         ),
 
                     'stop_after_match' =>
                         (bool) (
                             $bonusRuleData[
                                 'stop_after_match'
-                            ] ?? false
+                            ]
+                            ?? false
                         ),
                 ]);
 
-                $questionIds = collect(
-                    $bonusRuleData[
-                        'question_ids'
-                    ] ?? []
-                )
-                    ->map(
-                        fn ($id) => (int) $id
+                $questionIds =
+                    collect(
+                        $bonusRuleData[
+                            'question_ids'
+                        ] ?? []
                     )
-                    ->filter(
-                        fn ($id) =>
-                            in_array(
-                                $id,
-                                $seasonQuestionIds,
-                                true
-                            )
-                    )
-                    ->values()
-                    ->all();
+                        ->map(
+                            fn ($id) => (int) $id
+                        )
+                        ->filter(
+                            fn ($id) =>
+                                in_array(
+                                    $id,
+                                    $seasonQuestionIds,
+                                    true
+                                )
+                        )
+                        ->values()
+                        ->all();
 
                 $bonusRule
                     ->questions()
@@ -883,64 +850,69 @@ class SeasonPreseasonController extends Controller
             ],
         ]);
 
-        DB::transaction(function () use (
-            $request,
-            $season,
-            $data
-        ) {
-            $bonusRule = $season
-                ->preseasonBonusRules()
-                ->create([
-                    'source_template_id' =>
-                        null,
+        DB::transaction(
+            function () use (
+                $request,
+                $season,
+                $data
+            ) {
+                $bonusRule =
+                    $season
+                        ->preseasonBonusRules()
+                        ->create([
+                            'source_template_id' =>
+                                null,
 
-                    'label' =>
-                        $data['label'],
+                            'label' =>
+                                $data['label'],
 
-                    'points' =>
-                        $data['points'],
+                            'points' =>
+                                $data['points'],
 
-                    'position' =>
-                        $data['position'],
+                            'position' =>
+                                $data['position'],
 
-                    'is_active' =>
-                        $request->boolean(
-                            'is_active'
-                        ),
+                            'is_active' =>
+                                $request->boolean(
+                                    'is_active'
+                                ),
 
-                    'stop_after_match' =>
-                        $request->boolean(
-                            'stop_after_match'
-                        ),
-                ]);
+                            'stop_after_match' =>
+                                $request->boolean(
+                                    'stop_after_match'
+                                ),
+                        ]);
 
-            $seasonQuestionIds = $season
-                ->preseasonQuestions()
-                ->pluck('id')
-                ->toArray();
+                $seasonQuestionIds =
+                    $season
+                        ->preseasonQuestions()
+                        ->pluck('id')
+                        ->toArray();
 
-            $questionIds = collect(
-                $data['question_ids']
-                    ?? []
-            )
-                ->map(
-                    fn ($id) => (int) $id
-                )
-                ->filter(
-                    fn ($id) =>
-                        in_array(
-                            $id,
-                            $seasonQuestionIds,
-                            true
+                $questionIds =
+                    collect(
+                        $data['question_ids']
+                        ?? []
+                    )
+                        ->map(
+                            fn ($id) => (int) $id
                         )
-                )
-                ->values()
-                ->all();
+                        ->filter(
+                            fn ($id) =>
+                                in_array(
+                                    $id,
+                                    $seasonQuestionIds,
+                                    true
+                                )
+                        )
+                        ->values()
+                        ->all();
 
-            $bonusRule
-                ->questions()
-                ->sync($questionIds);
-        });
+                $bonusRule
+                    ->questions()
+                    ->sync($questionIds);
+            }
+        );
 
         return redirect()
             ->route(
@@ -961,12 +933,11 @@ class SeasonPreseasonController extends Controller
             return $this->lockedRedirect($season);
         }
 
-        $bonusRule = $season
-            ->preseasonBonusRules()
-            ->whereKey(
-                $bonusRule->id
-            )
-            ->firstOrFail();
+        $bonusRule =
+            $season
+                ->preseasonBonusRules()
+                ->whereKey($bonusRule->id)
+                ->firstOrFail();
 
         DB::transaction(
             function () use ($bonusRule) {
@@ -989,9 +960,8 @@ class SeasonPreseasonController extends Controller
             );
     }
 
-    public function syncToGlobal(
-        Season $season
-    ) {
+    public function syncToGlobal(Season $season)
+    {
         if ($season->is_locked) {
             return $this->lockedRedirect($season);
         }
@@ -1003,8 +973,7 @@ class SeasonPreseasonController extends Controller
                 'preseasonBonusRules.questions',
             ]);
 
-            $seasonQuestionToGlobalTemplateIds =
-                [];
+            $seasonQuestionToGlobalTemplateIds = [];
 
             foreach (
                 $season
@@ -1013,14 +982,9 @@ class SeasonPreseasonController extends Controller
                     ->get()
                 as $question
             ) {
-                if (
-                    $question
-                        ->scoring_profile_id
-                ) {
+                if ($question->scoring_profile_id) {
                     $profile =
-                        ScoringProfile::with(
-                            'rules'
-                        )
+                        ScoringProfile::with('rules')
                             ->where(
                                 'category',
                                 'preseason'
@@ -1032,27 +996,26 @@ class SeasonPreseasonController extends Controller
                             ->first();
 
                     if ($profile) {
-                        $rule = $profile
-                            ->rules()
-                            ->where(
-                                'code',
-                                'correct'
-                            )
-                            ->first();
+                        $rule =
+                            $profile
+                                ->rules()
+                                ->where(
+                                    'code',
+                                    'correct'
+                                )
+                                ->first();
 
                         if ($rule) {
                             $rule->update([
                                 'points' =>
-                                    $question
-                                        ->points,
+                                    $question->points,
                             ]);
                         }
                     }
                 }
 
                 $template =
-                    $question
-                        ->source_template_id
+                    $question->source_template_id
                         ? PreseasonPredictionTemplate::find(
                             $question
                                 ->source_template_id
@@ -1065,28 +1028,22 @@ class SeasonPreseasonController extends Controller
                 }
 
                 $autoResultConfig =
-                    $this
-                        ->normalizedAutoResultConfig(
-                            $question
-                                ->answer_type,
-
-                            $question
-                                ->auto_result_rule,
-
-                            $question
-                                ->auto_result_journee_number,
-
-                            $question
-                                ->auto_result_position
-                        );
+                    $this->normalizedAutoResultConfig(
+                        $question->answer_type,
+                        $question
+                            ->auto_result_rule,
+                        $question
+                            ->auto_result_journee_number,
+                        $question
+                            ->auto_result_position
+                    );
 
                 $template->fill([
                     'label' =>
                         $question->label,
 
                     'answer_type' =>
-                        $question
-                            ->answer_type,
+                        $question->answer_type,
 
                     'auto_result_rule' =>
                         $autoResultConfig[
@@ -1116,10 +1073,7 @@ class SeasonPreseasonController extends Controller
 
                 $template->save();
 
-                if (
-                    ! $question
-                        ->source_template_id
-                ) {
+                if (! $question->source_template_id) {
                     $question->update([
                         'source_template_id' =>
                             $template->id,
@@ -1195,27 +1149,418 @@ class SeasonPreseasonController extends Controller
                         )
                         : null;
 
-                if (
-                    ! $correctionGroupTemplate
-                ) {
+                if (! $correctionGroupTemplate) {
                     $correctionGroupTemplate =
                         new PreseasonCorrectionGroupTemplate();
                 }
 
                 $correctionGroupTemplate->fill([
                     'label' =>
-                        $correctionGroup
-                            ->label,
+                        $correctionGroup->label,
 
                     'code' =>
-                        $this
-                            ->uniqueGlobalCorrectionGroupCode(
-                                $correctionGroup
-                                    ->code,
-
-                                $correctionGroup
-                                    ->label,
-
-                                $correctionGroupTemplate
+                        $this->uniqueGlobalCorrectionGroupCode(
+                            $correctionGroup
+                                ->code,
+                            $correctionGroup
+                                ->label,
+                            $correctionGroupTemplate
                                     ->exists
-                                    ? $cor
+                                ? $correctionGroupTemplate
+                                    ->id
+                                : null
+                        ),
+
+                    'position' =>
+                        $correctionGroup
+                            ->position,
+
+                    'is_active' =>
+                        $correctionGroup
+                            ->is_active,
+                ]);
+
+                $correctionGroupTemplate->save();
+
+                if (
+                    ! $correctionGroup
+                        ->source_template_id
+                ) {
+                    $correctionGroup->update([
+                        'source_template_id' =>
+                            $correctionGroupTemplate
+                                ->id,
+                    ]);
+                }
+
+                $globalQuestionIds =
+                    $correctionGroup
+                        ->questions
+                        ->pluck('id')
+                        ->map(
+                            fn (
+                                $seasonQuestionId
+                            ) =>
+                                $seasonQuestionToGlobalTemplateIds[
+                                    $seasonQuestionId
+                                ] ?? null
+                        )
+                        ->filter()
+                        ->values()
+                        ->all();
+
+                $correctionGroupTemplate
+                    ->questions()
+                    ->sync($globalQuestionIds);
+
+                $seasonCorrectionGroupToGlobalTemplateIds[] =
+                    $correctionGroupTemplate->id;
+            }
+
+            PreseasonCorrectionGroupTemplate::query()
+                ->whereNotIn(
+                    'id',
+                    $seasonCorrectionGroupToGlobalTemplateIds
+                        ?: [0]
+                )
+                ->get()
+                ->each(
+                    function (
+                        PreseasonCorrectionGroupTemplate
+                        $correctionGroupTemplate
+                    ) {
+                        $correctionGroupTemplate
+                            ->questions()
+                            ->detach();
+
+                        $correctionGroupTemplate
+                            ->delete();
+                    }
+                );
+
+            $seasonBonusToGlobalTemplateIds = [];
+
+            foreach (
+                $season
+                    ->preseasonBonusRules()
+                    ->with('questions')
+                    ->orderBy('position')
+                    ->get()
+                as $bonusRule
+            ) {
+                $bonusTemplate =
+                    $bonusRule->source_template_id
+                        ? PreseasonBonusRuleTemplate::find(
+                            $bonusRule
+                                ->source_template_id
+                        )
+                        : null;
+
+                if (! $bonusTemplate) {
+                    $bonusTemplate =
+                        new PreseasonBonusRuleTemplate();
+                }
+
+                $bonusTemplate->fill([
+                    'label' =>
+                        $bonusRule->label,
+
+                    'points' =>
+                        $bonusRule->points,
+
+                    'position' =>
+                        $bonusRule->position,
+
+                    'is_active' =>
+                        $bonusRule->is_active,
+
+                    'stop_after_match' =>
+                        $bonusRule
+                            ->stop_after_match,
+                ]);
+
+                $bonusTemplate->save();
+
+                if (
+                    ! $bonusRule
+                        ->source_template_id
+                ) {
+                    $bonusRule->update([
+                        'source_template_id' =>
+                            $bonusTemplate->id,
+                    ]);
+                }
+
+                $globalQuestionIds =
+                    $bonusRule
+                        ->questions
+                        ->pluck('id')
+                        ->map(
+                            fn (
+                                $seasonQuestionId
+                            ) =>
+                                $seasonQuestionToGlobalTemplateIds[
+                                    $seasonQuestionId
+                                ] ?? null
+                        )
+                        ->filter()
+                        ->values()
+                        ->all();
+
+                $bonusTemplate
+                    ->questions()
+                    ->sync($globalQuestionIds);
+
+                $seasonBonusToGlobalTemplateIds[] =
+                    $bonusTemplate->id;
+            }
+
+            PreseasonBonusRuleTemplate::query()
+                ->whereNotIn(
+                    'id',
+                    $seasonBonusToGlobalTemplateIds
+                        ?: [0]
+                )
+                ->get()
+                ->each(
+                    function (
+                        PreseasonBonusRuleTemplate
+                        $bonusTemplate
+                    ) {
+                        $bonusTemplate
+                            ->questions()
+                            ->detach();
+
+                        $bonusTemplate->delete();
+                    }
+                );
+        });
+
+        return redirect()
+            ->route(
+                'admin.seasons.preseason.edit',
+                $season
+            )
+            ->with(
+                'success',
+                'La configuration avant-saison de cette saison a été appliquée aux paramètres globaux.'
+            );
+    }
+
+    private function lockedRedirect(
+        Season $season
+    ) {
+        return redirect()
+            ->route(
+                'admin.seasons.preseason.edit',
+                $season
+            )
+            ->with(
+                'error',
+                'Cette saison est verrouillée : la configuration avant-saison ne peut plus être modifiée.'
+            );
+    }
+
+    private function autoResultRuleValues(): array
+    {
+        return array_keys(
+            SeasonPreseasonQuestion::autoResultRuleOptions()
+        );
+    }
+
+    private function normalizedAutoResultConfig(
+        string $answerType,
+        ?string $rule,
+        mixed $journeeNumber,
+        mixed $autoResultPosition
+    ): array {
+        if (
+            blank($rule)
+            || ! array_key_exists(
+                $rule,
+                SeasonPreseasonQuestion::autoResultRuleOptions()
+            )
+        ) {
+            return $this->emptyAutoResultConfig();
+        }
+
+        if (
+            ! SeasonPreseasonQuestion::autoResultRuleSupportsAnswerType(
+                $rule,
+                $answerType
+            )
+        ) {
+            return $this->emptyAutoResultConfig();
+        }
+
+        $normalizedJourneeNumber = null;
+
+        if (
+            SeasonPreseasonQuestion::autoResultRuleRequiresJourneeNumber(
+                $rule
+            )
+        ) {
+            if (
+                $journeeNumber === null
+                || $journeeNumber === ''
+            ) {
+                return $this->emptyAutoResultConfig();
+            }
+
+            $normalizedJourneeNumber =
+                (int) $journeeNumber;
+
+            if (
+                $normalizedJourneeNumber < 1
+                || $normalizedJourneeNumber > 26
+            ) {
+                return $this->emptyAutoResultConfig();
+            }
+        }
+
+        $normalizedAutoResultPosition = null;
+
+        if (
+            SeasonPreseasonQuestion::autoResultRuleRequiresPosition(
+                $rule
+            )
+        ) {
+            if (
+                $autoResultPosition === null
+                || $autoResultPosition === ''
+            ) {
+                return $this->emptyAutoResultConfig();
+            }
+
+            $normalizedAutoResultPosition =
+                (int) $autoResultPosition;
+
+            if (
+                $normalizedAutoResultPosition < 1
+                || $normalizedAutoResultPosition > 14
+            ) {
+                return $this->emptyAutoResultConfig();
+            }
+        }
+
+        return [
+            'auto_result_rule' =>
+                $rule,
+
+            'auto_result_journee_number' =>
+                $normalizedJourneeNumber,
+
+            'auto_result_position' =>
+                $normalizedAutoResultPosition,
+        ];
+    }
+
+    private function emptyAutoResultConfig(): array
+    {
+        return [
+            'auto_result_rule' => null,
+            'auto_result_journee_number' => null,
+            'auto_result_position' => null,
+        ];
+    }
+
+    private function uniqueSeasonCorrectionGroupCode(
+        Season $season,
+        ?string $requestedCode,
+        string $label,
+        ?int $ignoreId = null
+    ): string {
+        $baseCode =
+            Str::slug(
+                $requestedCode ?: $label,
+                '_'
+            )
+            ?: 'groupe_correction';
+
+        $code = $baseCode;
+        $suffix = 2;
+
+        while (
+            SeasonPreseasonCorrectionGroup::query()
+                ->where(
+                    'season_id',
+                    $season->id
+                )
+                ->where(
+                    'code',
+                    $code
+                )
+                ->when(
+                    $ignoreId,
+                    fn ($query) =>
+                        $query->where(
+                            'id',
+                            '!=',
+                            $ignoreId
+                        )
+                )
+                ->exists()
+        ) {
+            $code =
+                $baseCode.'_'.$suffix;
+
+            $suffix++;
+        }
+
+        return $code;
+    }
+
+    private function uniqueGlobalCorrectionGroupCode(
+        ?string $requestedCode,
+        string $label,
+        ?int $ignoreId = null
+    ): string {
+        $baseCode =
+            Str::slug(
+                $requestedCode ?: $label,
+                '_'
+            )
+            ?: 'groupe_correction';
+
+        $code = $baseCode;
+        $suffix = 2;
+
+        while (
+            PreseasonCorrectionGroupTemplate::query()
+                ->where(
+                    'code',
+                    $code
+                )
+                ->when(
+                    $ignoreId,
+                    fn ($query) =>
+                        $query->where(
+                            'id',
+                            '!=',
+                            $ignoreId
+                        )
+                )
+                ->exists()
+        ) {
+            $code =
+                $baseCode.'_'.$suffix;
+
+            $suffix++;
+        }
+
+        return $code;
+    }
+
+    private function resolveSeason(
+        ?Season $season = null
+    ): Season {
+        if ($season) {
+            return $season;
+        }
+
+        return Season::where(
+            'is_active',
+            true
+        )->firstOrFail();
+    }
+}

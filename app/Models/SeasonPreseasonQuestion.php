@@ -6,17 +6,23 @@ use Illuminate\Database\Eloquent\Model;
 
 class SeasonPreseasonQuestion extends Model
 {
-    public const AUTO_RESULT_RULE_TOP14_POSITION = 'top14_position';
+    public const AUTO_RESULT_RULE_TOP14_POSITION =
+        'top14_position';
 
-    public const AUTO_RESULT_RULE_TOP14_PLAYOFF_1_WINNER = 'top14_playoff_1_winner';
+    public const AUTO_RESULT_RULE_TOP14_PLAYOFF_1_WINNER =
+        'top14_playoff_1_winner';
 
-    public const AUTO_RESULT_RULE_TOP14_PLAYOFF_2_WINNER = 'top14_playoff_2_winner';
+    public const AUTO_RESULT_RULE_TOP14_PLAYOFF_2_WINNER =
+        'top14_playoff_2_winner';
 
-    public const AUTO_RESULT_RULE_TOP14_FINAL_WINNER = 'top14_final_winner';
+    public const AUTO_RESULT_RULE_TOP14_FINAL_WINNER =
+        'top14_final_winner';
 
-    public const AUTO_RESULT_RULE_PROD2_FINAL_WINNER = 'prod2_final_winner';
+    public const AUTO_RESULT_RULE_PROD2_FINAL_WINNER =
+        'prod2_final_winner';
 
-    public const AUTO_RESULT_RULE_ACCESS_MATCH_WINNER = 'access_match_winner';
+    public const AUTO_RESULT_RULE_ACCESS_MATCH_WINNER =
+        'access_match_winner';
 
     protected $fillable = [
         'season_id',
@@ -46,7 +52,9 @@ class SeasonPreseasonQuestion extends Model
 
     public function season()
     {
-        return $this->belongsTo(Season::class);
+        return $this->belongsTo(
+            Season::class
+        );
     }
 
     public function sourceTemplate()
@@ -103,8 +111,12 @@ class SeasonPreseasonQuestion extends Model
 
     public function hasOfficialResult(): bool
     {
-        if ($this->answer_type === 'free_text') {
-            return filled($this->result_text_answer);
+        if (
+            $this->answer_type === 'free_text'
+        ) {
+            return filled(
+                $this->result_text_answer
+            );
         }
 
         return $this->result_club_id !== null;
@@ -183,13 +195,18 @@ class SeasonPreseasonQuestion extends Model
         ?string $rule,
         ?string $answerType
     ): bool {
-        if (blank($rule) || blank($answerType)) {
+        if (
+            blank($rule)
+            || blank($answerType)
+        ) {
             return false;
         }
 
         return in_array(
             $answerType,
-            self::autoResultRuleCompatibleAnswerTypes($rule),
+            self::autoResultRuleCompatibleAnswerTypes(
+                $rule
+            ),
             true
         );
     }
@@ -197,12 +214,14 @@ class SeasonPreseasonQuestion extends Model
     public static function autoResultRuleRequiresJourneeNumber(
         ?string $rule
     ): bool {
-        return $rule === self::AUTO_RESULT_RULE_TOP14_POSITION;
+        return $rule ===
+            self::AUTO_RESULT_RULE_TOP14_POSITION;
     }
 
     public static function autoResultRuleRequiresPosition(
         ?string $rule
     ): bool {
-        return $rule === self::AUTO_RESULT_RULE_TOP14_POSITION;
+        return $rule ===
+            self::AUTO_RESULT_RULE_TOP14_POSITION;
     }
 }
