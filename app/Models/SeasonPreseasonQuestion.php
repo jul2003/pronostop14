@@ -51,22 +51,34 @@ class SeasonPreseasonQuestion extends Model
 
     public function sourceTemplate()
     {
-        return $this->belongsTo(PreseasonPredictionTemplate::class, 'source_template_id');
+        return $this->belongsTo(
+            PreseasonPredictionTemplate::class,
+            'source_template_id'
+        );
     }
 
     public function scoringProfile()
     {
-        return $this->belongsTo(ScoringProfile::class, 'scoring_profile_id');
+        return $this->belongsTo(
+            ScoringProfile::class,
+            'scoring_profile_id'
+        );
     }
 
     public function resultClub()
     {
-        return $this->belongsTo(Club::class, 'result_club_id');
+        return $this->belongsTo(
+            Club::class,
+            'result_club_id'
+        );
     }
 
     public function predictions()
     {
-        return $this->hasMany(SeasonPreseasonPrediction::class, 'question_id');
+        return $this->hasMany(
+            SeasonPreseasonPrediction::class,
+            'question_id'
+        );
     }
 
     public function bonusRules()
@@ -74,9 +86,9 @@ class SeasonPreseasonQuestion extends Model
         return $this->belongsToMany(
             SeasonPreseasonBonusRule::class,
             'season_preseason_bonus_rule_questions',
-            'season_preseason_question_id',
-            'season_preseason_bonus_rule_id'
-        );
+            'question_id',
+            'bonus_rule_id'
+        )->withTimestamps();
     }
 
     public function correctionGroups()
@@ -112,23 +124,37 @@ class SeasonPreseasonQuestion extends Model
 
     public function autoResultRuleLabel(): string
     {
-        return self::autoResultRuleOptions()[$this->auto_result_rule] ?? 'Aucun';
+        return self::autoResultRuleOptions()[
+            $this->auto_result_rule
+        ] ?? 'Aucun';
     }
 
     public static function autoResultRuleOptions(): array
     {
         return [
-            self::AUTO_RESULT_RULE_TOP14_POSITION => 'Position TOP 14 à la journée cible',
-            self::AUTO_RESULT_RULE_TOP14_PLAYOFF_1_WINNER => 'Vainqueur barrage TOP 14 1',
-            self::AUTO_RESULT_RULE_TOP14_PLAYOFF_2_WINNER => 'Vainqueur barrage TOP 14 2',
-            self::AUTO_RESULT_RULE_TOP14_FINAL_WINNER => 'Vainqueur finale TOP 14',
-            self::AUTO_RESULT_RULE_PROD2_FINAL_WINNER => 'Vainqueur finale PRO D2',
-            self::AUTO_RESULT_RULE_ACCESS_MATCH_WINNER => 'Vainqueur access match',
+            self::AUTO_RESULT_RULE_TOP14_POSITION =>
+                'Position TOP 14 à la journée cible',
+
+            self::AUTO_RESULT_RULE_TOP14_PLAYOFF_1_WINNER =>
+                'Vainqueur barrage TOP 14 1',
+
+            self::AUTO_RESULT_RULE_TOP14_PLAYOFF_2_WINNER =>
+                'Vainqueur barrage TOP 14 2',
+
+            self::AUTO_RESULT_RULE_TOP14_FINAL_WINNER =>
+                'Vainqueur finale TOP 14',
+
+            self::AUTO_RESULT_RULE_PROD2_FINAL_WINNER =>
+                'Vainqueur finale PRO D2',
+
+            self::AUTO_RESULT_RULE_ACCESS_MATCH_WINNER =>
+                'Vainqueur access match',
         ];
     }
 
-    public static function autoResultRuleCompatibleAnswerTypes(string $rule): array
-    {
+    public static function autoResultRuleCompatibleAnswerTypes(
+        string $rule
+    ): array {
         return match ($rule) {
             self::AUTO_RESULT_RULE_TOP14_POSITION,
             self::AUTO_RESULT_RULE_TOP14_PLAYOFF_1_WINNER,
@@ -153,8 +179,10 @@ class SeasonPreseasonQuestion extends Model
         };
     }
 
-    public static function autoResultRuleSupportsAnswerType(?string $rule, ?string $answerType): bool
-    {
+    public static function autoResultRuleSupportsAnswerType(
+        ?string $rule,
+        ?string $answerType
+    ): bool {
         if (blank($rule) || blank($answerType)) {
             return false;
         }
@@ -166,13 +194,15 @@ class SeasonPreseasonQuestion extends Model
         );
     }
 
-    public static function autoResultRuleRequiresJourneeNumber(?string $rule): bool
-    {
+    public static function autoResultRuleRequiresJourneeNumber(
+        ?string $rule
+    ): bool {
         return $rule === self::AUTO_RESULT_RULE_TOP14_POSITION;
     }
 
-    public static function autoResultRuleRequiresPosition(?string $rule): bool
-    {
+    public static function autoResultRuleRequiresPosition(
+        ?string $rule
+    ): bool {
         return $rule === self::AUTO_RESULT_RULE_TOP14_POSITION;
     }
 }
