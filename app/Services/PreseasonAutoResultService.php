@@ -11,9 +11,8 @@ use Illuminate\Support\Collection;
 
 class PreseasonAutoResultService
 {
-    private const MAX_POINTS_PER_REMAINING_MATCH = 5;
     public function __construct(
-       private readonly Top14StandingService $top14StandingService
+        private readonly Top14StandingService $top14StandingService
     ) {
     }
 
@@ -88,39 +87,33 @@ class PreseasonAutoResultService
                 $targetJourneeNumber,
                 $autoResultPosition
             ),
-
             SeasonPreseasonQuestion::AUTO_RESULT_RULE_TOP14_PLAYOFF_1_WINNER => $this->detectSpecialMatchWinner(
                 $season,
                 'top14_playoff',
                 'barrage TOP 14 1',
                 1
             ),
-
             SeasonPreseasonQuestion::AUTO_RESULT_RULE_TOP14_PLAYOFF_2_WINNER => $this->detectSpecialMatchWinner(
                 $season,
                 'top14_playoff',
                 'barrage TOP 14 2',
                 2
             ),
-
             SeasonPreseasonQuestion::AUTO_RESULT_RULE_TOP14_FINAL_WINNER => $this->detectSpecialMatchWinner(
                 $season,
                 'top14_final',
                 'finale TOP 14'
             ),
-
             SeasonPreseasonQuestion::AUTO_RESULT_RULE_PROD2_FINAL_WINNER => $this->detectSpecialMatchWinner(
                 $season,
                 'prod2_final',
                 'finale PRO D2'
             ),
-
             SeasonPreseasonQuestion::AUTO_RESULT_RULE_ACCESS_MATCH_WINNER => $this->detectSpecialMatchWinner(
                 $season,
                 'access_match',
                 'access match TOP 14 / PRO D2'
             ),
-
             default => null,
         };
 
@@ -291,7 +284,6 @@ class PreseasonAutoResultService
         $resolution = [
             'club' => $row['club'],
             'points' => (int) $row['points'],
-
             'explanation' => $row['club']->name
                 .' est mathématiquement certain d’être '
                 .$positionLabel
@@ -352,7 +344,6 @@ class PreseasonAutoResultService
         return [
             'club' => $row['club'],
             'points' => (int) $row['points'],
-
             'explanation' => $row['club']->name
                 .' est classé '
                 .$positionLabel
@@ -479,139 +470,16 @@ class PreseasonAutoResultService
         return true;
     }
 
-    private function standingsUntilTargetJournee( Season $season, int $targetJourneeNumber): Collection {
+    private function standingsUntilTargetJournee(
+        Season $season,
+        int $targetJourneeNumber
+    ): Collection {
         return $this
             ->top14StandingService
             ->standingsThroughJournee(
                 $season,
                 $targetJourneeNumber
             );
-    }
-
-    private function applyMatchToStandings(
-        array &$rowsByClubId,
-        MatchGame $match
-    ): void {
-        $homeClubId = (int) $match->home_club_id;
-        $awayClubId = (int) $match->away_club_id;
-
-        $rowsByClubId[$homeClubId]['played']++;
-        $rowsByClubId[$awayClubId]['played']++;
-
-        $result = strtolower((string) $match->actual_result);
-
-        if ($result === 'v') {
-            $rowsByClubId[$homeClubId]['won']++;
-            $rowsByClubId[$homeClubId]['points'] += 4;
-
-            $rowsByClubId[$awayClubId]['lost']++;
-        } elseif ($result === 'd') {
-            $rowsByClubId[$awayClubId]['won']++;
-            $rowsByClubId[$awayClubId]['points'] += 4;
-
-            $rowsByClubId[$homeClubId]['lost']++;
-        } elseif ($result === 'n') {
-            $rowsByClubId[$homeClubId]['drawn']++;
-            $rowsByClubId[$homeClubId]['points'] += 2;
-
-            $rowsByClubId[$awayClubId]['drawn']++;
-            $rowsByClubId[$awayClubId]['points'] += 2;
-        }
-
-        $this->applyBonusToStanding(
-            $rowsByClubId[$homeClubId],
-            $match->actual_home_bonus
-        );
-
-        $this->applyBonusToStanding(
-            $rowsByClubId[$awayClubId],
-            $match->actual_away_bonus
-        );
-    }
-
-    private function applyBonusToStanding(
-        array &$row,
-        ?string $bonus
-    ): void {
-        $bonus = $this->normalizeBonus($bonus);
-
-        if ($bonus === null) {
-            return;
-        }
-
-        if ($bonus === 'o') {
-            $row['offensive_bonus']++;
-            $row['bonus_total']++;
-            $row['points']++;
-
-            return;
-        }
-
-        if ($bonus === 'd') {
-            $row['defensive_bonus']++;
-            $row['bonus_total']++;
-            $row['points']++;
-        }
-    }
-
-    private function normalizeBonus(?string $value): ?string
-    {
-        if ($value === null) {
-            return null;
-        }
-
-        $value = strtolower(trim($value));
-
-        return in_array($value, ['o', 'd'], true)
-            ? $value
-            : null;
-    }
-
-    private function compareStandingRows(
-        array $a,
-        array $b
-    ): int {
-        $comparison = $b['points'] <=> $a['points'];
-
-        if ($comparison !== 0) {
-            return $comparison;
-        }
-
-        $comparison = $b['won'] <=> $a['won'];
-
-        if ($comparison !== 0) {
-            return $comparison;
-        }
-
-        $comparison = $b['drawn'] <=> $a['drawn'];
-
-        if ($comparison !== 0) {
-            return $comparison;
-        }
-
-        $comparison = $b['bonus_total'] <=> $a['bonus_total'];
-
-        if ($comparison !== 0) {
-            return $comparison;
-        }
-
-        $comparison = $a['lost'] <=> $b['lost'];
-
-        if ($comparison !== 0) {
-            return $comparison;
-        }
-
-        $comparison = strcasecmp(
-            $a['club']->name,
-            $b['club']->name
-        );
-
-        if ($comparison !== 0) {
-            return $comparison;
-        }
-
-        return (int) $a['club']->id
-            <=> (int) $b['club']->id;
     }
 
     private function clubIsCompatibleWithQuestion(
