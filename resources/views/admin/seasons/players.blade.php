@@ -19,9 +19,13 @@
 
     <p class="text-muted mb-0">
         @if($season->is_locked)
-            Cette saison est verrouillée. Les joueurs sont consultables uniquement.
+            Cette saison est verrouillée.
+            Les joueurs sont consultables uniquement.
         @else
-            Sélectionne les utilisateurs qui participent à cette saison, puis déplace les joueurs sélectionnés pour définir leur ordre d’affichage.
+            Sélectionne les utilisateurs qui participent
+            à cette saison, puis déplace les joueurs
+            sélectionnés pour définir leur ordre
+            d’affichage.
         @endif
     </p>
 </div>
@@ -33,14 +37,29 @@
         </div>
 
         <div>
-            Les joueurs de cette saison ne peuvent plus être modifiés.
-            Pour corriger la liste des joueurs, il faut d’abord déverrouiller la saison depuis sa page d’édition.
+            Les joueurs de cette saison ne peuvent
+            plus être modifiés.
+
+            Pour corriger la liste des joueurs,
+            il faut d’abord déverrouiller la saison
+            depuis sa page d’édition.
         </div>
     </div>
 @endif
 
+<div class="mb-3">
+    <h3 class="h5 fw-bold mb-1">
+        Participants
+    </h3>
+
+    <p class="text-muted mb-0">
+        Gestion des joueurs inscrits à cette saison.
+    </p>
+</div>
+
 <form method="POST"
       action="{{ route('admin.seasons.players.sync', $season) }}">
+
     @csrf
 
     <div class="rugby-card p-0 overflow-hidden">
@@ -85,6 +104,7 @@
 
                             <td class="fw-bold"
                                 style="color: {{ $user->color ?? '#06142f' }}">
+
                                 @if($season->is_locked)
                                     <span class="text-muted me-2">
                                         ☰
@@ -143,6 +163,10 @@
     @endunless
 </form>
 
+<div class="mt-5">
+    <x-admin.prediction-activity-matrix :season="$season" />
+</div>
+
 @endsection
 
 @push('scripts')
@@ -151,9 +175,15 @@
 
         <script>
             window.addEventListener('load', function () {
-                const list = document.getElementById('playersList');
+                const list =
+                    document.getElementById(
+                        'playersList'
+                    );
 
-                if (!list || !window.Sortable) {
+                if (
+                    !list
+                    || !window.Sortable
+                ) {
                     return;
                 }
 
@@ -163,30 +193,42 @@
                     ghostClass: 'opacity-50',
 
                     onEnd: function () {
-                        const players = [...list.querySelectorAll('tr')]
+                        const players = [
+                            ...list.querySelectorAll(
+                                'tr'
+                            )
+                        ]
                             .filter(function (row) {
-                                const checkbox = row.querySelector(
-                                    'input[type="checkbox"]'
-                                );
+                                const checkbox =
+                                    row.querySelector(
+                                        'input[type="checkbox"]'
+                                    );
 
-                                return checkbox && checkbox.checked;
+                                return checkbox
+                                    && checkbox.checked;
                             })
                             .map(function (row) {
                                 return row.dataset.id;
                             });
 
-                        fetch("{{ route('admin.seasons.players.reorder', $season) }}", {
-                            method: 'POST',
+                        fetch(
+                            "{{ route('admin.seasons.players.reorder', $season) }}",
+                            {
+                                method: 'POST',
 
-                            headers: {
-                                'Content-Type': 'application/json',
-                                'X-CSRF-TOKEN': '{{ csrf_token() }}',
-                            },
+                                headers: {
+                                    'Content-Type':
+                                        'application/json',
 
-                            body: JSON.stringify({
-                                players: players
-                            }),
-                        });
+                                    'X-CSRF-TOKEN':
+                                        '{{ csrf_token() }}',
+                                },
+
+                                body: JSON.stringify({
+                                    players: players
+                                }),
+                            }
+                        );
                     },
                 });
             });
