@@ -12,6 +12,10 @@ use Illuminate\Support\Collection;
 class PreseasonAutoResultService
 {
     private const MAX_POINTS_PER_REMAINING_MATCH = 5;
+    public function __construct(
+       private readonly Top14StandingService $top14StandingService
+    ) {
+    }
 
     public function suggestionsAfterJourneeResultsSaved(Season $season, Journee $journee): array
     {
@@ -475,82 +479,13 @@ class PreseasonAutoResultService
         return true;
     }
 
-    private function standingsUntilTargetJournee(
-        Season $season,
-        int $targetJourneeNumber
-    ): Collection {
-        $clubs = $season->clubs()
-            ->wherePivot('competition', 'top14')
-            ->orderBy('name')
-            ->get();
-
-        $rowsByClubId = [];
-
-        foreach ($clubs as $club) {
-            $rowsByClubId[$club->id] = [
-                'club' => $club,
-                'played' => 0,
-                'won' => 0,
-                'drawn' => 0,
-                'lost' => 0,
-                'offensive_bonus' => 0,
-                'defensive_bonus' => 0,
-                'bonus_total' => 0,
-                'points' => 0,
-                'remaining_matches' => $targetJourneeNumber,
-
-                'max_points' => self::MAX_POINTS_PER_REMAINING_MATCH
-                    * $targetJourneeNumber,
-            ];
-        }
-
-        $journees = $this->regularJourneesThroughTarget(
-            $season,
-            $targetJourneeNumber
-        );
-
-        foreach ($journees as $journee) {
-            foreach ($journee->matches as $match) {
-                if (blank($match->actual_result)) {
-                    continue;
-                }
-
-                if (
-                    ! isset(
-                        $rowsByClubId[$match->home_club_id],
-                        $rowsByClubId[$match->away_club_id]
-                    )
-                ) {
-                    continue;
-                }
-
-                $this->applyMatchToStandings(
-                    $rowsByClubId,
-                    $match
-                );
-            }
-        }
-
-        foreach ($rowsByClubId as &$row) {
-            $row['remaining_matches'] = max(
-                0,
-                $targetJourneeNumber - (int) $row['played']
+    private function standingsUntilTargetJournee( Season $season, int $targetJourneeNumber): Collection {
+        return $this
+            ->top14StandingService
+            ->standingsThroughJournee(
+                $season,
+                $targetJourneeNumber
             );
-
-            $row['max_points'] = (int) $row['points']
-                + (
-                    $row['remaining_matches']
-                    * self::MAX_POINTS_PER_REMAINING_MATCH
-                );
-        }
-
-        unset($row);
-
-        return collect($rowsByClubId)
-            ->sort(
-                fn (array $a, array $b) => $this->compareStandingRows($a, $b)
-            )
-            ->values();
     }
 
     private function applyMatchToStandings(

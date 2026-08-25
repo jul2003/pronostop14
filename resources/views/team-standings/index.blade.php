@@ -23,7 +23,8 @@
         </h2>
 
         <p class="text-muted mb-0">
-            Classement calculé avec les journées régulières avant le {{ $currentDate->format('d/m/Y') }}
+            Classement calculé avec les journées régulières avant le
+            {{ $currentDate->format('d/m/Y') }}
             ayant au moins un résultat saisi.
         </p>
     </div>
@@ -39,11 +40,13 @@
 <div class="rugby-card p-4 mb-4">
     <div class="row g-3 align-items-end">
         <div class="col-md-5">
-            <label for="seasonSelect" class="form-label fw-bold">
+            <label for="seasonSelect"
+                   class="form-label fw-bold">
                 Saison
             </label>
 
-            <select id="seasonSelect" class="form-select">
+            <select id="seasonSelect"
+                    class="form-select">
                 @foreach($seasons as $seasonOption)
                     <option value="{{ route('team-standings.season', $seasonOption) }}"
                             @selected($seasonOption->id === $selectedSeason->id)>
@@ -73,7 +76,8 @@
 
 @if($includedJournees->isEmpty())
     <div class="alert alert-info">
-        Aucune journée régulière avant la date du jour ne possède encore de résultat saisi.
+        Aucune journée régulière avant la date du jour
+        ne possède encore de résultat saisi.
     </div>
 @else
     <div class="rugby-card p-3 mb-4">
@@ -96,18 +100,53 @@
         <table class="table table-hover align-middle mb-0 team-standing-table">
             <thead class="table-light">
                 <tr>
-                    <th class="text-center">Rang</th>
-                    <th>Club</th>
-                    <th class="text-center">J</th>
-                    <th class="text-center">G</th>
-                    <th class="text-center">N</th>
-                    <th class="text-center">P</th>
-                    <th class="text-center">Dom.</th>
-                    <th class="text-center">Ext.</th>
-                    <th class="text-center">BO</th>
-                    <th class="text-center">BD</th>
-                    <th class="text-center">Bonus</th>
-                    <th class="text-center">Pts</th>
+                    <th class="text-center">
+                        Rang
+                    </th>
+
+                    <th>
+                        Club
+                    </th>
+
+                    <th class="text-center">
+                        J
+                    </th>
+
+                    <th class="text-center">
+                        G
+                    </th>
+
+                    <th class="text-center">
+                        N
+                    </th>
+
+                    <th class="text-center">
+                        P
+                    </th>
+
+                    <th class="text-center">
+                        Dom.
+                    </th>
+
+                    <th class="text-center">
+                        Ext.
+                    </th>
+
+                    <th class="text-center">
+                        BO
+                    </th>
+
+                    <th class="text-center">
+                        BD
+                    </th>
+
+                    <th class="text-center">
+                        Bonus
+                    </th>
+
+                    <th class="text-center">
+                        Pts
+                    </th>
                 </tr>
             </thead>
 
@@ -115,6 +154,11 @@
                 @forelse($standings as $row)
                     @php
                         $club = $row['club'];
+
+                        $penaltyPoints = (int) (
+                            $row['penalty_points']
+                            ?? 0
+                        );
                     @endphp
 
                     <tr>
@@ -128,8 +172,17 @@
                                      alt="{{ $club->name }}"
                                      class="club-logo">
 
-                                <div class="fw-bold">
-                                    {{ $club->name }}
+                                <div>
+                                    <div class="fw-bold">
+                                        {{ $club->name }}
+                                    </div>
+
+                                    @if($penaltyPoints > 0)
+                                        <div class="small text-danger fw-bold">
+                                            {{ $penaltyPoints }}
+                                            point(s) de pénalité
+                                        </div>
+                                    @endif
                                 </div>
                             </div>
                         </td>
@@ -176,7 +229,8 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="12" class="text-center text-muted py-4">
+                        <td colspan="12"
+                            class="text-center text-muted py-4">
                             Aucun club sur cette saison.
                         </td>
                     </tr>
@@ -192,12 +246,23 @@
     </div>
 
     <div class="text-muted">
-        Victoire : 4 pts · Nul : 2 pts · Défaite : 0 pt · Bonus offensif : +1 · Bonus défensif : +1.
+        Victoire : 4 pts ·
+        Nul : 2 pts ·
+        Défaite : 0 pt ·
+        Bonus offensif : +1 ·
+        Bonus défensif : +1.
     </div>
 
     <div class="text-muted small mt-2">
-        Le classement est trié par points, victoires, nuls, bonus, puis défaites.
-        L’application ne calcule pas de différence de points terrain car les scores exacts des matchs ne sont pas saisis.
+        Les éventuels points de pénalité sont déduits du total
+        obtenu sur le terrain avant le calcul du classement.
+    </div>
+
+    <div class="text-muted small mt-2">
+        Le classement est trié par points, victoires, nuls,
+        bonus, puis défaites.
+        L’application ne calcule pas de différence de points
+        terrain car les scores exacts des matchs ne sont pas saisis.
     </div>
 </div>
 
@@ -230,18 +295,28 @@
 
 @push('scripts')
 <script>
-    document.addEventListener('DOMContentLoaded', function () {
-        const select = document.getElementById('seasonSelect');
+    document.addEventListener(
+        'DOMContentLoaded',
+        function () {
+            const select =
+                document.getElementById(
+                    'seasonSelect'
+                );
 
-        if (!select) {
-            return;
-        }
-
-        select.addEventListener('change', function () {
-            if (select.value) {
-                window.location.href = select.value;
+            if (!select) {
+                return;
             }
-        });
-    });
+
+            select.addEventListener(
+                'change',
+                function () {
+                    if (select.value) {
+                        window.location.href =
+                            select.value;
+                    }
+                }
+            );
+        }
+    );
 </script>
 @endpush

@@ -258,6 +258,36 @@ Route::middleware(['auth', 'admin'])->group(function () {
     Route::post('/admin/saisons/{season}/clubs', [SeasonController::class, 'syncClubs'])
         ->name('admin.seasons.clubs.sync');
 
+    Route::post(
+        '/admin/saisons/{season}/clubs/penalites',
+        [
+            \App\Http\Controllers\Admin\SeasonClubPenaltyController::class,
+            'store',
+        ]
+    )->name(
+        'admin.seasons.club-penalties.store'
+    );
+
+    Route::put(
+        '/admin/saisons/{season}/clubs/penalites/{penalty}',
+        [
+            \App\Http\Controllers\Admin\SeasonClubPenaltyController::class,
+            'update',
+        ]
+    )->name(
+        'admin.seasons.club-penalties.update'
+    );
+
+    Route::delete(
+        '/admin/saisons/{season}/clubs/penalites/{penalty}',
+        [
+            \App\Http\Controllers\Admin\SeasonClubPenaltyController::class,
+            'destroy',
+        ]
+    )->name(
+        'admin.seasons.club-penalties.destroy'
+    );
+
     Route::get('/admin/saisons/{season}/joueurs', [SeasonController::class, 'players'])
         ->name('admin.seasons.players');
 
