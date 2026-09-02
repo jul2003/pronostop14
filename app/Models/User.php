@@ -23,6 +23,10 @@ class User extends Authenticatable
         'last_login_at',
         'must_change_password',
         'is_active',
+
+        'notify_new_prediction',
+        'notify_results_available',
+        'notify_prediction_reminder',
     ];
 
     protected $hidden = [
@@ -33,61 +37,103 @@ class User extends Authenticatable
     protected function casts(): array
     {
         return [
-            'email_verified_at' => 'datetime',
-            'password' => 'hashed',
-            'last_login_at' => 'datetime',
-            'must_change_password' => 'boolean',
-            'is_active' => 'boolean',
+            'email_verified_at' =>
+                'datetime',
+
+            'password' =>
+                'hashed',
+
+            'last_login_at' =>
+                'datetime',
+
+            'must_change_password' =>
+                'boolean',
+
+            'is_active' =>
+                'boolean',
+
+            'notify_new_prediction' =>
+                'boolean',
+
+            'notify_results_available' =>
+                'boolean',
+
+            'notify_prediction_reminder' =>
+                'boolean',
+
+            'notification_features_seen_at' =>
+                'datetime',
         ];
     }
 
     protected static function booted(): void
     {
-        static::creating(function (User $user) {
-            if (self::count() === 0) {
-                $user->role = 'super_admin';
+        static::creating(
+            function (User $user) {
+                if (self::count() === 0) {
+                    $user->role =
+                        'super_admin';
+                }
             }
-        });
+        );
     }
 
     public function pronos()
     {
-        return $this->hasMany(Prono::class);
+        return $this->hasMany(
+            Prono::class
+        );
     }
 
     public function isSuperAdmin(): bool
     {
-        return $this->role === 'super_admin';
+        return $this->role
+            === 'super_admin';
     }
 
     public function isAdmin(): bool
     {
-        return in_array($this->role, ['admin', 'super_admin'], true);
+        return in_array(
+            $this->role,
+            [
+                'admin',
+                'super_admin',
+            ],
+            true
+        );
     }
 
     public function isPlayer(): bool
     {
-        return $this->role === 'player';
+        return $this->role
+            === 'player';
     }
 
     public function isActive(): bool
     {
-        return (bool) $this->is_active;
+        return (bool)
+            $this->is_active;
     }
 
     public function journeeScores()
     {
-        return $this->hasMany(JourneeUserScore::class);
+        return $this->hasMany(
+            JourneeUserScore::class
+        );
     }
 
     public function getDisplayNameAttribute(): string
     {
-        return $this->nickname ?: $this->name;
+        return $this->nickname
+            ?: $this->name;
     }
 
     public function seasons()
     {
-        return $this->belongsToMany(Season::class)
+        return $this
+            ->belongsToMany(
+                Season::class
+            )
             ->withTimestamps();
     }
 
@@ -96,8 +142,9 @@ class User extends Authenticatable
         return 'nickname';
     }
 
-    public function routeNotificationForMail($notification = null)
-    {
+    public function routeNotificationForMail(
+        $notification = null
+    ) {
         return $this->email;
     }
 }

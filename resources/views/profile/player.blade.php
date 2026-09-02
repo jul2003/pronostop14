@@ -234,7 +234,7 @@
                         Au moins une des deux adresses email doit être renseignée.
                     </div>
 
-                    <hr class="my-4">
+                    @include('profile.partials.email-notifications')
 
                     <div class="mb-4">
                         <h2 class="h5 fw-bold mb-1">

@@ -4,17 +4,20 @@ namespace App\Notifications;
 
 use App\Models\Journee;
 use App\Models\Season;
+use Carbon\Carbon;
 use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
-class PredictionAvailableNotification extends Notification
+class PredictionReminderNotification extends Notification
 {
     use Queueable;
 
     public function __construct(
         public readonly Season $season,
-        public readonly Journee $journee
+        public readonly Journee $journee,
+        public readonly Carbon $deadline,
+        public readonly int $reminderHours
     ) {
     }
 
@@ -29,10 +32,15 @@ class PredictionAvailableNotification extends Notification
     public function toMail(
         object $notifiable
     ): MailMessage {
+        $label =
+            $this->journee->type === 'preseason'
+                ? 'tes pronostics avant-saison'
+                : 'ton pronostic pour '
+                    .$this->journee->name;
+
         return (new MailMessage)
             ->subject(
-                'PronosTOP14 — Nouveau prono : '
-                .$this->journee->name
+                'PronosTOP14 — Rappel : prono à compléter'
             )
             ->greeting(
                 'Bonjour '
@@ -40,26 +48,24 @@ class PredictionAvailableNotification extends Notification
                 .','
             )
             ->line(
-                'Un nouveau pronostic est disponible pour '
-                .$this->journee->name
-                .' de la saison '
-                .$this->season->name
+                'Petit rappel : '
+                .$label
+                .' ne sont pas encore complètement renseignés.'
+            )
+            ->line(
+                'La date limite est fixée au '
+                .$this->deadline->format(
+                    'd/m/Y à H:i'
+                )
                 .'.'
             )
             ->line(
-                'Les 7 matchs sont disponibles et la saisie des pronostics est activée.'
-            )
-            ->line(
-                'Date limite : '
-                .$this->journee
-                    ->first_match_at
-                    ->format(
-                        'd/m/Y à H:i'
-                    )
-                .'.'
+                'Le rappel est actuellement configuré '
+                .$this->reminderHours
+                .' heure(s) avant la clôture.'
             )
             ->action(
-                'Saisir mon prono',
+                'Compléter mon prono',
                 route(
                     'pronos.show',
                     [
@@ -67,9 +73,6 @@ class PredictionAvailableNotification extends Notification
                         $this->journee,
                     ]
                 )
-            )
-            ->line(
-                'Bonne chance !'
             )
             ->salutation(
                 'À bientôt sur PronosTOP14'

@@ -8,7 +8,7 @@ use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
-class PredictionAvailableNotification extends Notification
+class ResultsAvailableNotification extends Notification
 {
     use Queueable;
 
@@ -31,7 +31,7 @@ class PredictionAvailableNotification extends Notification
     ): MailMessage {
         return (new MailMessage)
             ->subject(
-                'PronosTOP14 — Nouveau prono : '
+                'PronosTOP14 — Résultats disponibles : '
                 .$this->journee->name
             )
             ->greeting(
@@ -40,36 +40,22 @@ class PredictionAvailableNotification extends Notification
                 .','
             )
             ->line(
-                'Un nouveau pronostic est disponible pour '
+                'Tous les résultats de '
                 .$this->journee->name
-                .' de la saison '
-                .$this->season->name
-                .'.'
+                .' sont maintenant enregistrés.'
             )
             ->line(
-                'Les 7 matchs sont disponibles et la saisie des pronostics est activée.'
-            )
-            ->line(
-                'Date limite : '
-                .$this->journee
-                    ->first_match_at
-                    ->format(
-                        'd/m/Y à H:i'
-                    )
-                .'.'
+                'Les points et le classement de la journée sont disponibles sur PronosTOP14.'
             )
             ->action(
-                'Saisir mon prono',
+                'Voir les résultats',
                 route(
-                    'pronos.show',
+                    'results.journee',
                     [
                         $this->season,
                         $this->journee,
                     ]
                 )
-            )
-            ->line(
-                'Bonne chance !'
             )
             ->salutation(
                 'À bientôt sur PronosTOP14'

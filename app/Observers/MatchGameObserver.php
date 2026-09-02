@@ -4,23 +4,38 @@ namespace App\Observers;
 
 use App\Models\MatchGame;
 use App\Services\PredictionAnnouncementService;
+use App\Services\ResultAnnouncementService;
 
 class MatchGameObserver
 {
-    public function created(
+    public function saved(
         MatchGame $match
     ): void {
-        $journee =
-            $match->journee;
+        $match->loadMissing(
+            'journee'
+        );
 
-        if (! $journee) {
+        if (! $match->journee) {
             return;
         }
 
+        /*
+         * Le 7e match peut rendre le prono disponible.
+         */
         app(
             PredictionAnnouncementService::class
         )->sendIfReady(
-            $journee
+            $match->journee
+        );
+
+        /*
+         * Le dernier résultat peut rendre la journée
+         * complètement terminée.
+         */
+        app(
+            ResultAnnouncementService::class
+        )->sendIfComplete(
+            $match->journee
         );
     }
 }

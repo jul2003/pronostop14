@@ -3,16 +3,14 @@
 namespace App\Services;
 
 use App\Models\Journee;
-use App\Notifications\PredictionAvailableNotification;
+use App\Notifications\ResultsAvailableNotification;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Notification;
 use Throwable;
 
-class PredictionAnnouncementService
+class ResultAnnouncementService
 {
-    private const REQUIRED_MATCHES_COUNT = 7;
-
-    public function sendIfReady(
+    public function sendIfComplete(
         Journee|int $journee
     ): bool {
         $journeeId =
@@ -30,36 +28,45 @@ class PredictionAnnouncementService
 
         if (
             $journee
-                ->prediction_announcement_sent_at
+                ->result_announcement_sent_at
         ) {
             return false;
         }
+
+        $expectedMatches =
+            $journee->expectedMatchesCount();
 
         /*
-         * La règle demandée concerne J1 à J26 :
-         *
-         * 1. pronos activés
-         * 2. 7 matchs présents
-         * 3. date du premier match renseignée
+         * L'avant-saison n'est pas constituée de MatchGame.
          */
-        if ($journee->type !== 'regular') {
-            return false;
-        }
-
-        if (! $journee->predictions_enabled) {
-            return false;
-        }
-
-        if (! $journee->first_match_at) {
-            return false;
-        }
-
         if (
+            $expectedMatches === null
+            || $expectedMatches < 1
+        ) {
+            return false;
+        }
+
+        $matchesCount =
             $journee
                 ->matches()
-                ->count()
-            !== self::REQUIRED_MATCHES_COUNT
+                ->count();
+
+        if (
+            $matchesCount
+            !== $expectedMatches
         ) {
+            return false;
+        }
+
+        $unfinishedMatches =
+            $journee
+                ->matches()
+                ->whereNull(
+                    'actual_result'
+                )
+                ->count();
+
+        if ($unfinishedMatches > 0) {
             return false;
         }
 
@@ -71,7 +78,7 @@ class PredictionAnnouncementService
                 true
             )
             ->where(
-                'users.notify_new_prediction',
+                'users.notify_results_available',
                 true
             )
             ->whereNotNull(
@@ -88,7 +95,7 @@ class PredictionAnnouncementService
             if ($players->isNotEmpty()) {
                 Notification::send(
                     $players,
-                    new PredictionAvailableNotification(
+                    new ResultsAvailableNotification(
                         $journee->season,
                         $journee
                     )
@@ -96,7 +103,7 @@ class PredictionAnnouncementService
             }
         } catch (Throwable $exception) {
             Log::error(
-                'Échec de la notification de nouveau prono.',
+                'Échec de la notification de résultats.',
                 [
                     'journee_id' =>
                         $journee->id,
@@ -109,12 +116,8 @@ class PredictionAnnouncementService
             return false;
         }
 
-        /*
-         * Même si tous les joueurs ont désactivé le mail,
-         * l'événement est considéré comme traité.
-         */
         $journee->forceFill([
-            'prediction_announcement_sent_at' =>
+            'result_announcement_sent_at' =>
                 now(),
         ])->saveQuietly();
 
