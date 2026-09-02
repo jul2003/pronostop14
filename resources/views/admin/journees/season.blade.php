@@ -3,7 +3,14 @@
 @section('content')
 
 @php
-    $currentAppDateTime = app(\App\Services\AppDateService::class)->now();
+    $currentAppDateTime =
+        app(\App\Services\AppDateService::class)
+            ->now();
+
+    $resultAccessService =
+        app(
+            \App\Services\JourneeResultAccessService::class
+        );
 @endphp
 
 @include('admin.partials.back-link', [
@@ -22,9 +29,11 @@
 
     <p class="text-muted mb-0">
         @if($season->is_locked)
-            Cette saison est verrouillée. Les journées sont consultables uniquement.
+            Cette saison est verrouillée.
+            Les journées sont consultables uniquement.
         @else
-            Gère les journées, les dates du premier match, les matchs, l’ouverture des pronostics et les résultats.
+            Gère les journées, les dates du premier match,
+            les matchs, l’ouverture des pronostics et les résultats.
         @endif
     </p>
 </div>
@@ -36,8 +45,11 @@
         </div>
 
         <div>
-            Les journées, dates et matchs de cette saison ne peuvent plus être modifiés.
-            Les résultats restent accessibles en consultation.
+            Les journées, dates et matchs de cette saison
+            ne peuvent plus être modifiés.
+
+            Les résultats restent accessibles en consultation
+            uniquement lorsque la date de la journée est arrivée.
         </div>
     </div>
 @endif
@@ -52,7 +64,8 @@
 
     <div class="rugby-card p-4">
         <div class="alert alert-info">
-            Aucune journée n’a encore été générée pour cette saison.
+            Aucune journée n’a encore été générée
+            pour cette saison.
         </div>
 
         @if($season->is_locked)
@@ -62,7 +75,10 @@
             </span>
         @else
             <form method="POST"
-                  action="{{ route('admin.seasons.generateJournees', $season) }}">
+                  action="{{ route(
+                      'admin.seasons.generateJournees',
+                      $season
+                  ) }}">
                 @csrf
 
                 <button type="submit"
@@ -79,37 +95,130 @@
             <table class="table table-hover align-middle mb-0">
                 <thead class="table-light">
                     <tr>
-                        <th style="width: 90px;">N°</th>
-                        <th>Journée</th>
-                        <th>Type</th>
-                        <th class="text-center">Premier match</th>
-                        <th class="text-center">Matchs / résultats</th>
-                        <th class="text-center">Pronos</th>
-                        <th class="text-end">Actions</th>
+                        <th style="width: 90px;">
+                            N°
+                        </th>
+
+                        <th>
+                            Journée
+                        </th>
+
+                        <th>
+                            Type
+                        </th>
+
+                        <th class="text-center">
+                            Premier match
+                        </th>
+
+                        <th class="text-center">
+                            Matchs / résultats
+                        </th>
+
+                        <th class="text-center">
+                            Pronos
+                        </th>
+
+                        <th class="text-end">
+                            Actions
+                        </th>
                     </tr>
                 </thead>
 
                 <tbody>
                     @foreach($journees as $journee)
                         @php
-                            $journeeHasStarted = $journee->first_match_at !== null
-                                && $currentAppDateTime->greaterThanOrEqualTo($journee->first_match_at);
+                            $hasDefinedDate =
+                                $resultAccessService
+                                    ->hasDefinedDate(
+                                        $journee
+                                    );
 
-                            $preparationIsLocked = $season->is_locked || $journeeHasStarted;
+                            $journeeHasStarted =
+                                $journee->first_match_at !== null
+                                && $currentAppDateTime
+                                    ->greaterThanOrEqualTo(
+                                        $journee->first_match_at
+                                    );
 
-                            $expectedMatchesCount = $journee->expectedMatchesCount();
-                            $matchesCount = (int) ($journee->matches_count ?? 0);
-                            $finishedMatchesCount = (int) ($journee->finished_matches_count ?? 0);
+                            $preparationIsLocked =
+                                $season->is_locked
+                                || $journeeHasStarted;
 
-                            $progressBadgeClass = 'text-bg-secondary';
+                            $resultsAreFuture =
+                                $resultAccessService
+                                    ->isFuture(
+                                        $journee
+                                    );
 
-                            if ($expectedMatchesCount !== null) {
-                                if ($matchesCount < (int) $expectedMatchesCount) {
-                                    $progressBadgeClass = 'text-bg-danger';
-                                } elseif ($finishedMatchesCount < $matchesCount) {
-                                    $progressBadgeClass = 'text-bg-warning';
+                            $resultsAreAccessible =
+                                $resultAccessService
+                                    ->canAccessResults(
+                                        $journee
+                                    );
+
+                            $resultsAreUnavailable =
+                                ! $resultsAreAccessible;
+
+                            $resultsAvailableFrom =
+                                $resultAccessService
+                                    ->availableFromLabel(
+                                        $journee
+                                    );
+
+                            if (! $hasDefinedDate) {
+                                $resultsUnavailableMessage =
+                                    'Définis d’abord la date du premier match.';
+                            } elseif ($resultsAreFuture) {
+                                $resultsUnavailableMessage =
+                                    'Résultats disponibles à partir du '
+                                    .$resultsAvailableFrom
+                                    .'.';
+                            } else {
+                                $resultsUnavailableMessage =
+                                    null;
+                            }
+
+                            $expectedMatchesCount =
+                                $journee
+                                    ->expectedMatchesCount();
+
+                            $matchesCount =
+                                (int) (
+                                    $journee->matches_count
+                                    ?? 0
+                                );
+
+                            $finishedMatchesCount =
+                                (int) (
+                                    $journee
+                                        ->finished_matches_count
+                                    ?? 0
+                                );
+
+                            $progressBadgeClass =
+                                'text-bg-secondary';
+
+                            if (
+                                $resultsAreAccessible
+                                && $expectedMatchesCount
+                                    !== null
+                            ) {
+                                if (
+                                    $matchesCount
+                                    < (int) $expectedMatchesCount
+                                ) {
+                                    $progressBadgeClass =
+                                        'text-bg-danger';
+                                } elseif (
+                                    $finishedMatchesCount
+                                    < $matchesCount
+                                ) {
+                                    $progressBadgeClass =
+                                        'text-bg-warning';
                                 } else {
-                                    $progressBadgeClass = 'text-bg-success';
+                                    $progressBadgeClass =
+                                        'text-bg-success';
                                 }
                             }
                         @endphp
@@ -124,9 +233,20 @@
                                     {{ $journee->name }}
                                 </div>
 
-                                @if($season->is_locked)
+                                @if(! $hasDefinedDate)
+                                    <div class="text-danger small fw-bold mt-1">
+                                        Date du premier match non définie :
+                                        résultats indisponibles.
+                                    </div>
+                                @elseif($resultsAreFuture)
                                     <div class="text-muted small mt-1">
-                                        Saison verrouillée : consultation uniquement.
+                                        Résultats disponibles à partir du
+                                        {{ $resultsAvailableFrom }}.
+                                    </div>
+                                @elseif($season->is_locked)
+                                    <div class="text-muted small mt-1">
+                                        Saison verrouillée :
+                                        consultation uniquement.
                                     </div>
                                 @endif
                             </td>
@@ -150,6 +270,10 @@
                                     <span class="badge rounded-pill text-bg-secondary">
                                         —
                                     </span>
+                                @elseif($resultsAreUnavailable)
+                                    <span class="badge rounded-pill text-bg-secondary">
+                                        {{ $matchesCount }}/—
+                                    </span>
                                 @else
                                     <span class="badge rounded-pill {{ $progressBadgeClass }}">
                                         {{ $matchesCount }}/{{ $finishedMatchesCount }}
@@ -172,13 +296,20 @@
                             <td class="text-end">
                                 <div class="d-inline-grid gap-2"
                                      style="grid-template-columns: 92px 82px 92px;">
+
                                     @if($preparationIsLocked)
                                         <span class="btn btn-sm btn-outline-secondary rounded-pill fw-bold disabled"
                                               aria-disabled="true">
                                             Modifier
                                         </span>
                                     @else
-                                        <a href="{{ route('admin.seasons.journees.edit', [$season, $journee]) }}"
+                                        <a href="{{ route(
+                                            'admin.seasons.journees.edit',
+                                            [
+                                                $season,
+                                                $journee
+                                            ]
+                                        ) }}"
                                            class="btn btn-sm btn-outline-secondary rounded-pill fw-bold">
                                             Modifier
                                         </a>
@@ -187,10 +318,21 @@
                                     @if($journee->type === 'preseason')
                                         <span></span>
 
-                                        <a href="{{ route('admin.seasons.preseason-results.edit', $season) }}"
-                                           class="btn btn-sm btn-outline-warning rounded-pill fw-bold">
-                                            Résultats
-                                        </a>
+                                        @if($resultsAreUnavailable)
+                                            <span class="btn btn-sm btn-outline-warning rounded-pill fw-bold disabled"
+                                                  aria-disabled="true"
+                                                  title="{{ $resultsUnavailableMessage }}">
+                                                Résultats
+                                            </span>
+                                        @else
+                                            <a href="{{ route(
+                                                'admin.seasons.preseason-results.edit',
+                                                $season
+                                            ) }}"
+                                               class="btn btn-sm btn-outline-warning rounded-pill fw-bold">
+                                                Résultats
+                                            </a>
+                                        @endif
                                     @else
                                         @if($preparationIsLocked)
                                             <span class="btn btn-sm btn-outline-primary rounded-pill fw-bold disabled"
@@ -198,16 +340,36 @@
                                                 Matchs
                                             </span>
                                         @else
-                                            <a href="{{ route('admin.seasons.journees.matches', [$season, $journee]) }}"
+                                            <a href="{{ route(
+                                                'admin.seasons.journees.matches',
+                                                [
+                                                    $season,
+                                                    $journee
+                                                ]
+                                            ) }}"
                                                class="btn btn-sm btn-outline-primary rounded-pill fw-bold">
                                                 Matchs
                                             </a>
                                         @endif
 
-                                        <a href="{{ route('admin.seasons.journees.results', [$season, $journee]) }}"
-                                           class="btn btn-sm btn-outline-warning rounded-pill fw-bold">
-                                            Résultats
-                                        </a>
+                                        @if($resultsAreUnavailable)
+                                            <span class="btn btn-sm btn-outline-warning rounded-pill fw-bold disabled"
+                                                  aria-disabled="true"
+                                                  title="{{ $resultsUnavailableMessage }}">
+                                                Résultats
+                                            </span>
+                                        @else
+                                            <a href="{{ route(
+                                                'admin.seasons.journees.results',
+                                                [
+                                                    $season,
+                                                    $journee
+                                                ]
+                                            ) }}"
+                                               class="btn btn-sm btn-outline-warning rounded-pill fw-bold">
+                                                Résultats
+                                            </a>
+                                        @endif
                                     @endif
                                 </div>
                             </td>
