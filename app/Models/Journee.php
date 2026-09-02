@@ -16,6 +16,7 @@ class Journee extends Model
         'slug',
         'first_match_at',
         'predictions_enabled',
+        'prediction_announcement_sent_at',
     ];
 
     protected function casts(): array
@@ -23,6 +24,7 @@ class Journee extends Model
         return [
             'first_match_at' => 'datetime',
             'predictions_enabled' => 'boolean',
+            'prediction_announcement_sent_at' => 'datetime',
         ];
     }
 
@@ -82,42 +84,69 @@ class Journee extends Model
         return 'slug';
     }
 
-    public function resolveRouteBinding($value, $field = null)
-    {
-        $field = $field ?: $this->getRouteKeyName();
+    public function resolveRouteBinding(
+        $value,
+        $field = null
+    ) {
+        $field = $field
+            ?: $this->getRouteKeyName();
 
-        $journee = $this->routeBindingQueryForCurrentSeason()
-            ->where($field, $value)
-            ->first();
+        $journee =
+            $this->routeBindingQueryForCurrentSeason()
+                ->where($field, $value)
+                ->first();
 
-        if ($journee || $field !== 'slug') {
+        if (
+            $journee
+            || $field !== 'slug'
+        ) {
             return $journee;
         }
 
-        $currentSlug = $this->currentSlugForLegacySlug(
-            (string) $value
-        );
+        $currentSlug =
+            $this->currentSlugForLegacySlug(
+                (string) $value
+            );
 
         if (! $currentSlug) {
             return null;
         }
 
-        return $this->routeBindingQueryForCurrentSeason()
-            ->where('slug', $currentSlug)
+        return $this
+            ->routeBindingQueryForCurrentSeason()
+            ->where(
+                'slug',
+                $currentSlug
+            )
             ->first();
     }
 
     public function getTypeLabelAttribute(): string
     {
         return match ($this->type) {
-            'preseason' => 'Avant-saison',
-            'regular' => 'Journée régulière',
-            'prod2_final' => 'Finale PRO D2',
-            'access_match' => 'Access match',
-            'top14_playoff' => 'Barrages TOP 14',
-            'top14_semifinal' => 'Demi-finales TOP 14',
-            'top14_final' => 'Finale TOP 14',
-            default => $this->type,
+            'preseason' =>
+                'Avant-saison',
+
+            'regular' =>
+                'Journée régulière',
+
+            'prod2_final' =>
+                'Finale PRO D2',
+
+            'access_match' =>
+                'Access match',
+
+            'top14_playoff' =>
+                'Barrages TOP 14',
+
+            'top14_semifinal' =>
+                'Demi-finales TOP 14',
+
+            'top14_final' =>
+                'Finale TOP 14',
+
+            default =>
+                $this->type,
         };
     }
 
@@ -125,44 +154,68 @@ class Journee extends Model
     {
         return match ($this->type) {
             'regular' => (int) (
-                $this->season->top14_clubs_count / 2
+                $this->season->top14_clubs_count
+                / 2
             ),
+
             'prod2_final' => 1,
+
             'access_match' => 1,
+
             'top14_playoff' => 2,
+
             'top14_semifinal' => 2,
+
             'top14_final' => 1,
+
             'preseason' => null,
+
             default => null,
         };
     }
 
     public function hasExpectedMatchesCount(): bool
     {
-        $expected = $this->expectedMatchesCount();
+        $expected =
+            $this->expectedMatchesCount();
 
         if ($expected === null) {
             return true;
         }
 
-        return $this->matches_count === $expected;
+        return $this->matches_count
+            === $expected;
     }
 
     public function allowedResultOptions(): array
     {
         return match ($this->type) {
-            'regular' => ['v', 'n', 'd'],
+            'regular' => [
+                'v',
+                'n',
+                'd',
+            ],
+
             'access_match',
             'top14_playoff',
             'prod2_final',
             'top14_semifinal',
-            'top14_final' => ['v', 'd'],
-            default => ['v', 'n', 'd'],
+            'top14_final' => [
+                'v',
+                'd',
+            ],
+
+            default => [
+                'v',
+                'n',
+                'd',
+            ],
         };
     }
 
-    public function allowsResult(string $result): bool
-    {
+    public function allowsResult(
+        string $result
+    ): bool {
         return in_array(
             $result,
             $this->allowedResultOptions(),
@@ -179,6 +232,7 @@ class Journee extends Model
                 'v' => 'Équipe 1',
                 'd' => 'Équipe 2',
             ],
+
             default => [
                 'v' => 'Domicile',
                 'n' => 'Nul',
@@ -195,10 +249,14 @@ class Journee extends Model
             'd' => 'd',
         ];
 
-        return collect($this->allowedResultOptions())
+        return collect(
+            $this->allowedResultOptions()
+        )
             ->mapWithKeys(
                 fn (string $result) => [
-                    $result => $labels[$result] ?? $result,
+                    $result =>
+                        $labels[$result]
+                        ?? $result,
                 ]
             )
             ->all();
@@ -213,38 +271,50 @@ class Journee extends Model
         ];
     }
 
-    public function resultOptionLabel(string $result): string
-    {
-        return $this->resultOptionLabels()[$result] ?? $result;
+    public function resultOptionLabel(
+        string $result
+    ): string {
+        return $this
+            ->resultOptionLabels()[$result]
+            ?? $result;
     }
 
-    public function resultOptionShortLabel(string $result): string
-    {
-        return $this->resultOptionShortLabels()[$result] ?? $result;
+    public function resultOptionShortLabel(
+        string $result
+    ): string {
+        return $this
+            ->resultOptionShortLabels()[$result]
+            ?? $result;
     }
 
     private function routeBindingQueryForCurrentSeason(): Builder
     {
-        $query = $this->newQuery();
-        $season = request()->route('season');
+        $query =
+            $this->newQuery();
+
+        $season =
+            request()->route('season');
 
         /*
-         * Les routes raccourcies comme /admin/saisons/journees
-         * ne contiennent aucun paramètre {season}. Elles ne résolvent
-         * toutefois aucune journée directement, donc la recherche
-         * globale reste disponible dans ce cas.
+         * Les routes raccourcies comme
+         * /admin/saisons/journees ne contiennent
+         * aucun paramètre {season}.
          */
         if (! $season) {
             return $query;
         }
 
         /*
-         * Laravel résout normalement Season avant Journee puisque
-         * {season} apparaît avant {journee}. Cette partie couvre
-         * également le cas où le paramètre contient encore le slug.
+         * Laravel résout normalement Season avant
+         * Journee puisque {season} apparaît avant
+         * {journee}.
          */
         if (! $season instanceof Season) {
-            $season = (new Season())->resolveRouteBinding($season);
+            $season =
+                (new Season())
+                    ->resolveRouteBinding(
+                        $season
+                    );
         }
 
         if ($season instanceof Season) {
@@ -257,17 +327,33 @@ class Journee extends Model
         return $query;
     }
 
-    private function currentSlugForLegacySlug(string $slug): ?string
-    {
-        if (preg_match('/^journee-(\d+)$/i', $slug, $matches)) {
+    private function currentSlugForLegacySlug(
+        string $slug
+    ): ?string {
+        if (
+            preg_match(
+                '/^journee-(\d+)$/i',
+                $slug,
+                $matches
+            )
+        ) {
             return 'J'.((int) $matches[1]);
         }
 
-        if (preg_match('/^j(\d+)$/i', $slug, $matches)) {
+        if (
+            preg_match(
+                '/^j(\d+)$/i',
+                $slug,
+                $matches
+            )
+        ) {
             return 'J'.((int) $matches[1]);
         }
 
-        if ($slug === 'access-match-top-14-pro-d2') {
+        if (
+            $slug
+            === 'access-match-top-14-pro-d2'
+        ) {
             return 'access-match';
         }
 
