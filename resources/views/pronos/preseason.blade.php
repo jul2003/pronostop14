@@ -28,7 +28,7 @@
             {{ $season->name }}
 
             @if($preseasonDeadline)
-                · limite : {{ $preseasonDeadline->format('d/m/Y') }}
+                · limite : {{ $preseasonDeadline->format('d/m/Y à H:i') }}
             @endif
         </div>
     </div>
