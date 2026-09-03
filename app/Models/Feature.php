@@ -47,9 +47,10 @@ class Feature extends Model
                 User::class,
                 'feature_user'
             )
-            ->withPivot(
-                'seen_at'
-            )
+            ->withPivot([
+                'seen_at',
+                'snapshot',
+            ])
             ->withTimestamps();
     }
 

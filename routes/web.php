@@ -22,6 +22,7 @@ use App\Http\Controllers\PronoController;
 use App\Http\Controllers\RankingController;
 use App\Http\Controllers\SeasonRuleController;
 use App\Http\Controllers\TeamStandingController;
+use App\Http\Controllers\FeatureHistoryController;
 use App\Models\Journee;
 use App\Models\Season;
 use App\Models\User;
@@ -61,6 +62,9 @@ Route::middleware('auth')->group(function () {
 
     Route::put('/profile', [PlayerProfileController::class, 'update'])
         ->name('profile.update');
+
+    Route::get('/nouveautes', [FeatureHistoryController::class,'index',])
+        ->name('features.index');
 
     Route::get('/pronos', [PronoController::class, 'index'])
         ->name('pronos.index');

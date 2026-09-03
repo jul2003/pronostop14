@@ -13,9 +13,6 @@ use Illuminate\View\View;
 
 class AuthenticatedSessionController extends Controller
 {
-    /**
-     * Display the login view.
-     */
     public function create(): View|RedirectResponse
     {
         if (User::count() === 0) {
@@ -29,9 +26,6 @@ class AuthenticatedSessionController extends Controller
         );
     }
 
-    /**
-     * Handle an incoming authentication request.
-     */
     public function store(
         LoginRequest $request,
         FeatureAnnouncementService $featureAnnouncements
@@ -46,22 +40,15 @@ class AuthenticatedSessionController extends Controller
             $request->user();
 
         /*
-         * Les nouveautés ne doivent pas prendre
-         * la priorité sur un changement obligatoire
-         * de mot de passe.
+         * Les nouveautés ne prennent jamais
+         * la priorité sur un changement
+         * obligatoire de mot de passe.
          */
         if (
             $user
             && ! $user
                 ->must_change_password
         ) {
-            /*
-             * Cette recherche est désormais
-             * entièrement générique.
-             *
-             * Aucune clé de feature n'est codée
-             * en dur dans ce contrôleur.
-             */
             $features =
                 $featureAnnouncements
                     ->unseenFor(
@@ -73,25 +60,32 @@ class AuthenticatedSessionController extends Controller
                     ->isNotEmpty()
             ) {
                 /*
-                 * La page suivante saura quelles
-                 * nouveautés afficher.
+                 * Un unique payload sert :
+                 *
+                 * 1. à la modale affichée maintenant ;
+                 * 2. au snapshot historique.
+                 *
+                 * Les deux contenus sont donc
+                 * strictement identiques.
                  */
+                $payloads =
+                    $featureAnnouncements
+                        ->payloadFor(
+                            $features
+                        );
+
                 $request
                     ->session()
                     ->flash(
-                        'login_feature_ids',
-                        $features
-                            ->modelKeys()
+                        'login_feature_announcements',
+                        $payloads
                     );
 
-                /*
-                 * Création automatique dans
-                 * feature_user.
-                 */
                 $featureAnnouncements
                     ->markSeen(
                         $user,
-                        $features
+                        $features,
+                        $payloads
                     );
             }
         }
@@ -104,9 +98,6 @@ class AuthenticatedSessionController extends Controller
         );
     }
 
-    /**
-     * Destroy an authenticated session.
-     */
     public function destroy(
         Request $request
     ): RedirectResponse {

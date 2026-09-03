@@ -134,10 +134,6 @@ class User extends Authenticatable
             ->withTimestamps();
     }
 
-    /**
-     * Fonctionnalités déjà présentées
-     * à cet utilisateur.
-     */
     public function seenFeatures()
     {
         return $this
@@ -145,9 +141,10 @@ class User extends Authenticatable
                 Feature::class,
                 'feature_user'
             )
-            ->withPivot(
-                'seen_at'
-            )
+            ->withPivot([
+                'seen_at',
+                'snapshot',
+            ])
             ->withTimestamps();
     }
 

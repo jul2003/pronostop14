@@ -1,11 +1,17 @@
 <!DOCTYPE html>
+
 <html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
+
 <head>
+
     <meta charset="utf-8">
 
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="viewport"
+          content="width=device-width, initial-scale=1">
 
-    <title>{{ config('app.name', 'Pronos TOP 14') }}</title>
+    <title>
+        {{ config('app.name', 'Pronos TOP 14') }}
+    </title>
 
     <link rel="icon"
           href="{{ asset('favicon.ico') }}"
@@ -25,12 +31,17 @@
     ])
 
     @stack('styles')
+
 </head>
+
 
 <body class="rugby-page">
 
+
 <header class="site-header">
+
     <div class="topbar">
+
         <div class="container d-flex justify-content-between align-items-center">
 
             <a href="{{ route('home') }}"
@@ -43,9 +54,12 @@
                 <span class="brand-title">
                     Top 14
                 </span>
+
             </a>
 
+
             @auth
+
                 <div class="d-flex align-items-center gap-3">
 
                     <a href="{{ route('player-profile.edit') }}"
@@ -58,7 +72,9 @@
                         <span>
                             {{ auth()->user()->display_name }}
                         </span>
+
                     </a>
+
 
                     <form method="POST"
                           action="{{ route('logout') }}">
@@ -69,16 +85,22 @@
                                 class="logout-link">
                             Déconnexion
                         </button>
+
                     </form>
 
                 </div>
+
             @endauth
 
         </div>
+
     </div>
 
+
     @auth
+
         <nav class="main-nav">
+
             <div class="container d-flex flex-wrap gap-4">
 
                 <a href="{{ route('home') }}">
@@ -105,19 +127,33 @@
                     Barèmes
                 </a>
 
+
                 @if(auth()->user()->isAdmin())
+
                     <a href="{{ route('admin.index') }}"
                        class="admin-link">
                         Administration
                     </a>
+
                 @endif
 
+
+                {{-- Toujours en dernière position --}}
+                <a href="{{ route('features.index') }}">
+                    Nouveautés
+                </a>
+
             </div>
+
         </nav>
+
     @endauth
+
 </header>
 
+
 @if(session()->has('impersonator_id'))
+
     <div class="alert alert-warning rounded-0 mb-0 text-center fw-bold">
 
         Mode reprise historique :
@@ -126,6 +162,7 @@
         <strong>
             {{ auth()->user()->display_name }}
         </strong>
+
 
         <form method="POST"
               action="{{ route('impersonation.stop') }}"
@@ -139,44 +176,112 @@
             </button>
 
         </form>
+
     </div>
+
 @endif
+
 
 <main class="container py-4">
 
-    @if(session('success'))
-        <div class="alert alert-success">
-            {{ session('success') }}
-        </div>
-    @endif
+    @php
+        $flashMessages = [
+            'success' =>
+                'success',
 
-    @if(session('error'))
-        <div class="alert alert-warning">
-            {{ session('error') }}
-        </div>
-    @endif
+            'status' =>
+                'success',
+
+            'info' =>
+                'info',
+
+            'warning' =>
+                'warning',
+
+            'error' =>
+                'warning',
+        ];
+    @endphp
+
+
+    @foreach($flashMessages as $flashKey => $alertClass)
+
+        @if(session()->has($flashKey))
+
+            @php
+                $flashValue =
+                    session(
+                        $flashKey
+                    );
+
+                $flashItems =
+                    is_array(
+                        $flashValue
+                    )
+                        ? $flashValue
+                        : [$flashValue];
+            @endphp
+
+
+            <div class="alert alert-{{ $alertClass }}">
+
+                @if(count($flashItems) === 1)
+
+                    {{ $flashItems[0] }}
+
+                @else
+
+                    <ul class="mb-0">
+
+                        @foreach($flashItems as $flashItem)
+
+                            <li>
+                                {{ $flashItem }}
+                            </li>
+
+                        @endforeach
+
+                    </ul>
+
+                @endif
+
+            </div>
+
+        @endif
+
+    @endforeach
+
 
     @if($errors->any())
+
         <div class="alert alert-danger">
+
             <ul class="mb-0">
 
                 @foreach($errors->all() as $error)
+
                     <li>
                         {{ $error }}
                     </li>
+
                 @endforeach
 
             </ul>
+
         </div>
+
     @endif
+
 
     @yield('content')
 
 </main>
 
+
 @include(
     'partials.notification-features-modal'
 )
+
 
 <script>
     function togglePassword(
@@ -192,17 +297,29 @@
             return;
         }
 
-        if (input.type === 'password') {
-            input.type = 'text';
-            button.innerHTML = 'Masquer';
+        if (
+            input.type
+            === 'password'
+        ) {
+            input.type =
+                'text';
+
+            button.innerHTML =
+                'Masquer';
         } else {
-            input.type = 'password';
-            button.innerHTML = 'Afficher';
+            input.type =
+                'password';
+
+            button.innerHTML =
+                'Afficher';
         }
     }
 </script>
 
+
 @stack('scripts')
 
+
 </body>
+
 </html>
