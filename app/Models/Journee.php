@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Services\AppDateService;
+use App\Services\AppSettingService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 
@@ -15,32 +16,42 @@ class Journee extends Model
         'name',
         'slug',
         'first_match_at',
+        'predictions_visible_at',
         'predictions_enabled',
         'prediction_announcement_sent_at',
+        'result_announcement_sent_at',
     ];
 
     protected function casts(): array
     {
         return [
             'first_match_at' => 'datetime',
+            'predictions_visible_at' => 'datetime',
             'predictions_enabled' => 'boolean',
             'prediction_announcement_sent_at' => 'datetime',
+            'result_announcement_sent_at' => 'datetime',
         ];
     }
 
     public function season()
     {
-        return $this->belongsTo(Season::class);
+        return $this->belongsTo(
+            Season::class
+        );
     }
 
     public function matches()
     {
-        return $this->hasMany(MatchGame::class);
+        return $this->hasMany(
+            MatchGame::class
+        );
     }
 
     public function userScores()
     {
-        return $this->hasMany(JourneeUserScore::class);
+        return $this->hasMany(
+            JourneeUserScore::class
+        );
     }
 
     public function isLocked(): bool
@@ -49,14 +60,21 @@ class Journee extends Model
             return false;
         }
 
-        return $this->first_match_at->lte(
-            app(AppDateService::class)->now()
-        );
+        return $this
+            ->first_match_at
+            ->lte(
+                app(
+                    AppDateService::class
+                )->now()
+            );
     }
 
     public function isPredictionOpen(): bool
     {
-        if ($this->predictions_enabled === false) {
+        if (
+            $this->predictions_enabled
+                === false
+        ) {
             return false;
         }
 
@@ -64,14 +82,103 @@ class Journee extends Model
             return false;
         }
 
-        return app(AppDateService::class)
+        return app(
+            AppDateService::class
+        )
             ->now()
-            ->lt($this->first_match_at);
+            ->lt(
+                $this->first_match_at
+            );
     }
 
     public function isPredictionLocked(): bool
     {
-        return ! $this->isPredictionOpen();
+        return ! $this
+            ->isPredictionOpen();
+    }
+
+    /**
+     * Date à partir de laquelle les pronostics
+     * des joueurs deviennent visibles.
+     *
+     * Le paramètre global décide si la date
+     * anticipée peut être utilisée.
+     */
+    public function predictionRecapVisibleAt()
+    {
+        /*
+         * Une journée sans date de premier match
+         * ne doit jamais être publiée.
+         */
+        if (! $this->first_match_at) {
+            return null;
+        }
+
+        $settings = app(
+            AppSettingService::class
+        );
+
+        /*
+         * Fonction globale désactivée :
+         * comportement historique.
+         *
+         * predictions_visible_at est conservée
+         * en base mais totalement ignorée.
+         */
+        if (
+            ! $settings
+                ->predictionRecapEarlyVisibilityEnabled()
+        ) {
+            return $this->first_match_at;
+        }
+
+        /*
+         * Fonction activée mais aucune date
+         * spécifique :
+         * fallback sur le premier match.
+         */
+        if (! $this->predictions_visible_at) {
+            return $this->first_match_at;
+        }
+
+        /*
+         * Cette fonctionnalité sert uniquement
+         * à ANTICIPER l'affichage.
+         *
+         * Si une date égale ou postérieure au
+         * premier match est renseignée, le premier
+         * match reste la date de publication.
+         */
+        if (
+            $this->predictions_visible_at
+                ->gte(
+                    $this->first_match_at
+                )
+        ) {
+            return $this->first_match_at;
+        }
+
+        return $this
+            ->predictions_visible_at;
+    }
+
+    public function isPredictionRecapVisible(): bool
+    {
+        $visibleAt =
+            $this
+                ->predictionRecapVisibleAt();
+
+        if (! $visibleAt) {
+            return false;
+        }
+
+        return app(
+            AppDateService::class
+        )
+            ->now()
+            ->gte(
+                $visibleAt
+            );
     }
 
     public function isPreparationLocked(): bool
@@ -92,8 +199,12 @@ class Journee extends Model
             ?: $this->getRouteKeyName();
 
         $journee =
-            $this->routeBindingQueryForCurrentSeason()
-                ->where($field, $value)
+            $this
+                ->routeBindingQueryForCurrentSeason()
+                ->where(
+                    $field,
+                    $value
+                )
                 ->first();
 
         if (
@@ -104,9 +215,10 @@ class Journee extends Model
         }
 
         $currentSlug =
-            $this->currentSlugForLegacySlug(
-                (string) $value
-            );
+            $this
+                ->currentSlugForLegacySlug(
+                    (string) $value
+                );
 
         if (! $currentSlug) {
             return null;
@@ -154,30 +266,40 @@ class Journee extends Model
     {
         return match ($this->type) {
             'regular' => (int) (
-                $this->season->top14_clubs_count
+                $this
+                    ->season
+                    ->top14_clubs_count
                 / 2
             ),
 
-            'prod2_final' => 1,
+            'prod2_final' =>
+                1,
 
-            'access_match' => 1,
+            'access_match' =>
+                1,
 
-            'top14_playoff' => 2,
+            'top14_playoff' =>
+                2,
 
-            'top14_semifinal' => 2,
+            'top14_semifinal' =>
+                2,
 
-            'top14_final' => 1,
+            'top14_final' =>
+                1,
 
-            'preseason' => null,
+            'preseason' =>
+                null,
 
-            default => null,
+            default =>
+                null,
         };
     }
 
     public function hasExpectedMatchesCount(): bool
     {
         $expected =
-            $this->expectedMatchesCount();
+            $this
+                ->expectedMatchesCount();
 
         if ($expected === null) {
             return true;
@@ -250,10 +372,13 @@ class Journee extends Model
         ];
 
         return collect(
-            $this->allowedResultOptions()
+            $this
+                ->allowedResultOptions()
         )
             ->mapWithKeys(
-                fn (string $result) => [
+                fn (
+                    string $result
+                ) => [
                     $result =>
                         $labels[$result]
                         ?? $result,
@@ -275,7 +400,9 @@ class Journee extends Model
         string $result
     ): string {
         return $this
-            ->resultOptionLabels()[$result]
+            ->resultOptionLabels()[
+                $result
+            ]
             ?? $result;
     }
 
@@ -283,7 +410,9 @@ class Journee extends Model
         string $result
     ): string {
         return $this
-            ->resultOptionShortLabels()[$result]
+            ->resultOptionShortLabels()[
+                $result
+            ]
             ?? $result;
     }
 
@@ -293,7 +422,10 @@ class Journee extends Model
             $this->newQuery();
 
         $season =
-            request()->route('season');
+            request()
+                ->route(
+                    'season'
+                );
 
         /*
          * Les routes raccourcies comme
@@ -309,7 +441,10 @@ class Journee extends Model
          * Journee puisque {season} apparaît avant
          * {journee}.
          */
-        if (! $season instanceof Season) {
+        if (
+            ! $season
+                instanceof Season
+        ) {
             $season =
                 (new Season())
                     ->resolveRouteBinding(
@@ -317,7 +452,10 @@ class Journee extends Model
                     );
         }
 
-        if ($season instanceof Season) {
+        if (
+            $season
+                instanceof Season
+        ) {
             $query->where(
                 'season_id',
                 $season->getKey()
@@ -337,7 +475,9 @@ class Journee extends Model
                 $matches
             )
         ) {
-            return 'J'.((int) $matches[1]);
+            return 'J'.(
+                (int) $matches[1]
+            );
         }
 
         if (
@@ -347,12 +487,15 @@ class Journee extends Model
                 $matches
             )
         ) {
-            return 'J'.((int) $matches[1]);
+            return 'J'.(
+                (int) $matches[1]
+            );
         }
 
         if (
             $slug
-            === 'access-match-top-14-pro-d2'
+            ===
+            'access-match-top-14-pro-d2'
         ) {
             return 'access-match';
         }

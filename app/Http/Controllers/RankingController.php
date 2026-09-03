@@ -112,10 +112,10 @@ class RankingController extends Controller
             404
         );
 
-        if (! $journee->isLocked()) {
+        if (! $journee->isPredictionRecapVisible()) {
             abort(
                 403,
-                'Les résultats de cette journée ne sont pas encore visibles.'
+                'Les pronostics de cette journée ne sont pas encore visibles.'
             );
         }
 

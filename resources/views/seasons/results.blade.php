@@ -219,7 +219,7 @@
                                         @selected($selectedJournee?->id === $journee->id)>
                                     {{ $journeeSelectionLabel($journee) }}
 
-                                    @if(! $journee->isLocked())
+                                    @if(! $journee->isPredictionRecapVisible())
                                         — masqué
                                     @endif
                                 </option>
@@ -564,7 +564,7 @@
                                                 ][$player->id] ?? null;
                                         @endphp
 
-                                        @if($journee->isLocked())
+                                        @if($journee->isPredictionRecapVisible())
                                             <td class="player-prono-cell player-mini-cell player-group-start-cell"
                                                 style="--player-color: {{ $playerColor($player) }};">
                                                 {{ $resultValue($prono?->predicted_result) }}
