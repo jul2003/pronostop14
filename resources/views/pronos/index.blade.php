@@ -9,10 +9,33 @@
     $rankingIsAvailable = $rankingIsAvailable ?? false;
     $previousJournee = $previousJournee ?? null;
     $nextJournee = $nextJournee ?? null;
+
+    /*
+     * Affichage anticipé du récapitulatif.
+     *
+     * predictionRecapVisibleAt() tient déjà compte
+     * du paramètre application global.
+     *
+     * Si la fonctionnalité est désactivée,
+     * elle retourne first_match_at et le bloc
+     * ci-dessous n'est donc pas affiché.
+     */
+    $predictionRecapVisibleAt = $journee->predictionRecapVisibleAt();
+
+    $hasEarlyPredictionRecap =
+        $journee->type !== 'preseason'
+        && $journee->first_match_at
+        && $predictionRecapVisibleAt
+        && $predictionRecapVisibleAt->lt(
+            $journee->first_match_at
+        );
 @endphp
 
+
 <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4">
+
     <div>
+
         <div class="text-uppercase text-primary fw-bold small">
             Mes pronostics
         </div>
@@ -22,15 +45,23 @@
         </h2>
 
         <p class="text-muted mb-0">
+
             {{ $season->name }}
 
             @if($journee->first_match_at)
-                · premier match : {{ $journee->first_match_at->format('d/m/Y H:i') }}
+
+                · premier match :
+                {{ $journee->first_match_at->format('d/m/Y H:i') }}
+
             @endif
+
         </p>
+
     </div>
 
+
     <div class="d-flex flex-wrap gap-2 prono-page-header-actions">
+
         <a href="{{ route('pronos.index') }}"
            class="btn btn-outline-secondary rounded-pill fw-bold px-4">
             ← Retour aux journées
@@ -41,82 +72,175 @@
             Résultats & points
         </a>
 
+
         @if($rankingIsAvailable)
+
             <a href="{{ route('rankings.journee', [$season, $journee]) }}"
                class="btn btn-warning rounded-pill fw-bold px-4">
                 Classement journée
             </a>
+
         @endif
+
     </div>
+
 </div>
 
+
 @if($predictionWarning)
+
     <div class="alert alert-warning">
         {{ $predictionWarning }}
     </div>
+
 @elseif($errors->any())
+
     <div class="alert alert-danger">
         {{ $errors->first() }}
     </div>
+
 @elseif($predictionNotice)
+
     <div class="alert alert-{{ $predictionNotice['type'] }}">
         {{ $predictionNotice['message'] }}
     </div>
+
 @endif
 
+
+@if($hasEarlyPredictionRecap)
+
+    <div class="alert alert-info">
+
+        <div class="fw-bold mb-1">
+            👀 Affichage anticipé des pronostics
+        </div>
+
+        <div>
+
+            @if($journee->isPredictionRecapVisible())
+
+                Le récapitulatif des pronostics
+                est visible sur la page Résultats depuis le
+
+                <strong>
+                    {{ $predictionRecapVisibleAt->format('d/m/Y à H:i') }}
+                </strong>.
+
+            @else
+
+                Le récapitulatif des pronostics
+                sera visible sur la page Résultats à partir du
+
+                <strong>
+                    {{ $predictionRecapVisibleAt->format('d/m/Y à H:i') }}
+                </strong>.
+
+            @endif
+
+
+            @if($journee->isPredictionOpen())
+
+                <br>
+
+                Tu peux continuer à modifier ton pronostic jusqu’au
+
+                <strong>
+                    {{ $journee->first_match_at->format('d/m/Y à H:i') }}
+                </strong>.
+
+            @endif
+
+        </div>
+
+    </div>
+
+@endif
+
+
 @if($previousJournee || $nextJournee || ($hasOpenMatches && $matches->isNotEmpty()))
+
     <div class="prono-day-actions mb-4">
+
         <div class="prono-day-actions-previous">
+
             @if($previousJournee)
+
                 <a href="{{ route('pronos.show', [$season, $previousJournee]) }}"
                    class="btn btn-outline-primary rounded-pill fw-bold px-4 js-prono-navigation-link"
                    data-navigation-name="{{ $previousJournee->name }}"
                    title="{{ $previousJournee->name }}">
                     ← Journée précédente : {{ $previousJournee->name }}
                 </a>
+
             @endif
+
         </div>
 
+
         <div class="prono-day-actions-save">
+
             @if($hasOpenMatches && $matches->isNotEmpty())
+
                 <button type="submit"
                         form="pronoEntryForm"
                         class="btn btn-warning rounded-pill fw-bold px-4">
                     Enregistrer mes pronostics
                 </button>
+
             @endif
+
         </div>
 
+
         <div class="prono-day-actions-next">
+
             @if($nextJournee)
+
                 <a href="{{ route('pronos.show', [$season, $nextJournee]) }}"
                    class="btn btn-outline-primary rounded-pill fw-bold px-4 js-prono-navigation-link"
                    data-navigation-name="{{ $nextJournee->name }}"
                    title="{{ $nextJournee->name }}">
                     Journée suivante : {{ $nextJournee->name }} →
                 </a>
+
             @endif
+
         </div>
+
     </div>
+
 @endif
 
+
 @if($matches->isEmpty())
+
     <div class="rugby-card p-4">
+
         <div class="alert alert-info mb-0">
             Aucun match disponible pour cette journée.
         </div>
+
     </div>
+
 @else
+
     <form method="POST"
           id="pronoEntryForm"
           action="{{ route('pronos.store', [$season, $journee]) }}"
           autocomplete="off">
+
         @csrf
 
+
         <div class="rugby-card p-0 overflow-hidden pronos-entry-card">
+
             <div class="table-responsive pronos-entry-table-wrapper">
+
                 <table class="table table-hover align-middle mb-0 prono-table pronos-entry-table">
+
                     <thead class="table-light">
+
                         <tr>
                             <th>Match</th>
                             <th class="text-center">Résultat</th>
@@ -125,10 +249,14 @@
                             <th class="text-center">Bonus ext.</th>
                             <th class="text-center">Action</th>
                         </tr>
+
                     </thead>
 
+
                     <tbody>
+
                         @foreach($matches as $match)
+
                             @php
                                 $prono = $match->pronos->first();
 
@@ -157,10 +285,15 @@
                                 );
                             @endphp
 
+
                             <tr class="{{ $matchIsLocked ? 'table-light' : '' }}">
+
                                 <td class="match-cell">
+
                                     <div class="match-line">
+
                                         <div class="match-home">
+
                                             <img src="{{ $match->homeClub->logo_url }}"
                                                  alt="{{ $match->homeClub->name }}"
                                                  class="club-logo-small">
@@ -168,13 +301,17 @@
                                             <span>
                                                 {{ $match->homeClub->name }}
                                             </span>
+
                                         </div>
+
 
                                         <div class="match-separator">
                                             -
                                         </div>
 
+
                                         <div class="match-away">
+
                                             <img src="{{ $match->awayClub->logo_url }}"
                                                  alt="{{ $match->awayClub->name }}"
                                                  class="club-logo-small">
@@ -182,42 +319,64 @@
                                             <span>
                                                 {{ $match->awayClub->name }}
                                             </span>
+
                                         </div>
+
                                     </div>
 
+
                                     @if($hasException)
+
                                         <div class="match-deadline-line mt-1">
+
                                             <span class="badge rounded-pill text-bg-warning">
                                                 Date limite exceptionnelle
                                             </span>
 
                                             @if($matchDeadline)
+
                                                 <span class="small text-muted">
-                                                    Prono jusqu’au {{ $matchDeadline->format('d/m/Y H:i') }}
+                                                    Prono jusqu’au
+                                                    {{ $matchDeadline->format('d/m/Y H:i') }}
                                                 </span>
+
                                             @endif
 
+
                                             @if($matchIsLocked)
+
                                                 <span class="badge rounded-pill text-bg-secondary">
                                                     Verrouillé
                                                 </span>
+
                                             @endif
+
                                         </div>
+
                                     @elseif($matchIsLocked)
+
                                         <div class="match-deadline-line mt-1">
+
                                             <span class="badge rounded-pill text-bg-secondary">
                                                 Verrouillé
                                             </span>
+
                                         </div>
+
                                     @endif
+
                                 </td>
+
 
                                 <td class="text-center prono-mobile-field prono-result-cell"
                                     data-mobile-label="Résultat">
+
                                     <div class="prono-choice-group"
                                          role="group"
                                          aria-label="Résultat du match {{ $match->homeClub->name }} contre {{ $match->awayClub->name }}">
+
                                         @foreach($journee->resultOptionShortLabels() as $value => $label)
+
                                             <input type="radio"
                                                    id="predicted_result_{{ $match->id }}_{{ $value }}"
                                                    name="pronos[{{ $match->id }}][predicted_result]"
@@ -233,12 +392,17 @@
                                                    title="{{ $journee->resultOptionLabel($value) }}">
                                                 {{ $label }}
                                             </label>
+
                                         @endforeach
+
                                     </div>
+
                                 </td>
+
 
                                 <td class="text-center prono-mobile-field prono-tries-cell"
                                     data-mobile-label="Essais">
+
                                     <input type="text"
                                            inputmode="numeric"
                                            pattern="[0-9]*"
@@ -253,14 +417,19 @@
                                            aria-label="Nombre d’essais pour {{ $match->homeClub->name }} contre {{ $match->awayClub->name }}"
                                            @disabled($matchIsLocked)
                                            @if(! $matchIsLocked) required @endif>
+
                                 </td>
+
 
                                 <td class="text-center prono-mobile-field prono-home-bonus-cell"
                                     data-mobile-label="Bonus dom.">
+
                                     <div class="prono-choice-group bonus-choice-group"
                                          role="group"
                                          aria-label="Bonus domicile pour {{ $match->homeClub->name }} contre {{ $match->awayClub->name }}">
+
                                         @foreach(['o' => 'o', '-' => '-', 'd' => 'd'] as $value => $label)
+
                                             <input type="radio"
                                                    id="predicted_home_bonus_{{ $match->id }}_{{ $value }}"
                                                    name="pronos[{{ $match->id }}][predicted_home_bonus]"
@@ -275,16 +444,23 @@
                                                    title="Clique une deuxième fois pour enlever le choix">
                                                 {{ $label }}
                                             </label>
+
                                         @endforeach
+
                                     </div>
+
                                 </td>
+
 
                                 <td class="text-center prono-mobile-field prono-away-bonus-cell"
                                     data-mobile-label="Bonus ext.">
+
                                     <div class="prono-choice-group bonus-choice-group"
                                          role="group"
                                          aria-label="Bonus extérieur pour {{ $match->homeClub->name }} contre {{ $match->awayClub->name }}">
+
                                         @foreach(['o' => 'o', '-' => '-', 'd' => 'd'] as $value => $label)
+
                                             <input type="radio"
                                                    id="predicted_away_bonus_{{ $match->id }}_{{ $value }}"
                                                    name="pronos[{{ $match->id }}][predicted_away_bonus]"
@@ -299,12 +475,18 @@
                                                    title="Clique une deuxième fois pour enlever le choix">
                                                 {{ $label }}
                                             </label>
+
                                         @endforeach
+
                                     </div>
+
                                 </td>
 
+
                                 <td class="text-center prono-action-cell {{ $prono ? '' : 'prono-action-empty' }}">
+
                                     @if($prono && ! $matchIsLocked)
+
                                         <button type="button"
                                                 class="btn btn-outline-danger btn-sm rounded-pill fw-bold px-3"
                                                 data-bs-toggle="modal"
@@ -312,31 +494,48 @@
                                                 aria-haspopup="dialog">
                                             Effacer
                                         </button>
+
                                     @elseif($prono)
+
                                         <span class="small text-muted">
                                             Verrouillé
                                         </span>
+
                                     @else
+
                                         <span class="text-muted">
                                             —
                                         </span>
+
                                     @endif
+
                                 </td>
+
                             </tr>
+
                         @endforeach
+
                     </tbody>
+
                 </table>
+
             </div>
+
         </div>
+
     </form>
 
+
     @foreach($matches as $match)
+
         @php
             $prono = $match->pronos->first();
             $matchIsLocked = $match->isPredictionLocked();
         @endphp
 
+
         @if($prono && ! $matchIsLocked)
+
             <div class="modal fade prono-delete-modal"
                  id="deletePronoModal{{ $match->id }}"
                  tabindex="-1"
@@ -344,9 +543,13 @@
                  aria-hidden="true">
 
                 <div class="modal-dialog modal-dialog-centered">
+
                     <div class="modal-content border-0 shadow">
+
                         <div class="modal-header border-0 pb-0">
+
                             <div>
+
                                 <div class="text-uppercase text-danger fw-bold small mb-1">
                                     Effacer un pronostic
                                 </div>
@@ -355,22 +558,30 @@
                                     id="deletePronoModalLabel{{ $match->id }}">
                                     Confirmer l’effacement
                                 </h2>
+
                             </div>
+
 
                             <button type="button"
                                     class="btn-close"
                                     data-bs-dismiss="modal"
                                     aria-label="Fermer">
                             </button>
+
                         </div>
 
+
                         <div class="modal-body">
+
                             <p class="text-muted mb-3">
                                 Tu vas effacer le pronostic enregistré pour ce match :
                             </p>
 
+
                             <div class="prono-delete-match">
+
                                 <div class="prono-delete-team">
+
                                     <img src="{{ $match->homeClub->logo_url }}"
                                          alt="{{ $match->homeClub->name }}"
                                          class="prono-delete-logo">
@@ -378,13 +589,17 @@
                                     <span class="fw-bold">
                                         {{ $match->homeClub->name }}
                                     </span>
+
                                 </div>
+
 
                                 <div class="fw-bold text-muted">
                                     -
                                 </div>
 
+
                                 <div class="prono-delete-team">
+
                                     <img src="{{ $match->awayClub->logo_url }}"
                                          alt="{{ $match->awayClub->name }}"
                                          class="prono-delete-logo">
@@ -392,33 +607,44 @@
                                     <span class="fw-bold">
                                         {{ $match->awayClub->name }}
                                     </span>
+
                                 </div>
+
                             </div>
+
 
                             <p class="small text-muted mt-3 mb-3">
                                 Tu pourras saisir de nouveau ce pronostic tant que le match reste ouvert.
                             </p>
 
+
                             <div class="alert alert-warning mb-0">
+
                                 <div class="fw-bold mb-1">
                                     Attention
                                 </div>
 
                                 Les autres modifications effectuées sur cette journée mais pas encore
                                 enregistrées seront perdues.
+
                             </div>
+
                         </div>
 
+
                         <div class="modal-footer border-0 pt-0">
+
                             <button type="button"
                                     class="btn btn-outline-secondary rounded-pill fw-bold px-4"
                                     data-bs-dismiss="modal">
                                 Annuler
                             </button>
 
+
                             <form method="POST"
                                   action="{{ route('pronos.store', [$season, $journee]) }}"
                                   class="m-0">
+
                                 @csrf
 
                                 <input type="hidden"
@@ -429,16 +655,26 @@
                                         class="btn btn-danger rounded-pill fw-bold px-4">
                                     Effacer le pronostic
                                 </button>
+
                             </form>
+
                         </div>
+
                     </div>
+
                 </div>
+
             </div>
+
         @endif
+
     @endforeach
+
 @endif
 
+
 @if($previousJournee || $nextJournee)
+
     <button type="button"
             id="openUnsavedPronoNavigationModal"
             class="d-none"
@@ -448,15 +684,21 @@
             tabindex="-1">
     </button>
 
+
     <div class="modal fade prono-navigation-modal"
          id="unsavedPronoNavigationModal"
          tabindex="-1"
          aria-labelledby="unsavedPronoNavigationModalLabel"
          aria-hidden="true">
+
         <div class="modal-dialog modal-dialog-centered">
+
             <div class="modal-content border-0 shadow">
+
                 <div class="modal-header border-0 pb-0">
+
                     <div>
+
                         <div class="text-uppercase text-warning fw-bold small mb-1">
                             Modifications non enregistrées
                         </div>
@@ -465,7 +707,9 @@
                             id="unsavedPronoNavigationModalLabel">
                             Enregistrer avant de changer de journée ?
                         </h2>
+
                     </div>
+
 
                     <button type="button"
                             id="dismissUnsavedPronoNavigationModal"
@@ -473,15 +717,21 @@
                             data-bs-dismiss="modal"
                             aria-label="Fermer">
                     </button>
+
                 </div>
 
+
                 <div class="modal-body">
+
                     <p class="text-muted mb-3">
                         Tu as modifié un ou plusieurs pronostics sur
-                        <strong>{{ $journee->name }}</strong> sans les enregistrer.
+                        <strong>{{ $journee->name }}</strong>
+                        sans les enregistrer.
                     </p>
 
+
                     <div class="prono-navigation-destination">
+
                         <div class="text-uppercase text-muted fw-bold small mb-1">
                             Destination
                         </div>
@@ -490,14 +740,20 @@
                              id="unsavedPronoNavigationDestination">
                             Journée suivante
                         </div>
+
                     </div>
+
 
                     <div class="alert alert-warning mt-3 mb-0">
-                        En continuant sans enregistrer, les dernières modifications de cette journée seront perdues.
+                        En continuant sans enregistrer, les dernières modifications
+                        de cette journée seront perdues.
                     </div>
+
                 </div>
 
+
                 <div class="modal-footer border-0 pt-0 prono-navigation-modal-actions">
+
                     <button type="button"
                             class="btn btn-outline-secondary rounded-pill fw-bold px-4"
                             data-bs-dismiss="modal">
@@ -515,15 +771,22 @@
                             class="btn btn-warning rounded-pill fw-bold px-4">
                         Enregistrer puis continuer
                     </button>
+
                 </div>
+
             </div>
+
         </div>
+
     </div>
+
 @endif
 
 @endsection
 
+
 @push('styles')
+
 <style>
     .prono-day-actions {
         display: grid;
@@ -623,7 +886,9 @@
         border-radius: 1rem;
     }
 
+
     @media (max-width: 991.98px) {
+
         .prono-day-actions {
             grid-template-columns: 1fr;
         }
@@ -638,9 +903,12 @@
             width: 100%;
             white-space: normal;
         }
+
     }
 
+
     @media (max-width: 767.98px) {
+
         .prono-page-header-actions {
             width: 100%;
         }
@@ -803,9 +1071,12 @@
         .prono-navigation-modal-actions .btn {
             width: 100%;
         }
+
     }
 
+
     @media (max-width: 575.98px) {
+
         .prono-delete-match {
             gap: 0.5rem;
             padding: 0.75rem;
@@ -833,14 +1104,22 @@
         .prono-delete-modal .modal-footer form .btn {
             width: 100%;
         }
+
     }
 </style>
+
 @endpush
 
+
 @push('scripts')
+
 <script>
     document.addEventListener('DOMContentLoaded', function () {
-        const pronoEntryForm = document.getElementById('pronoEntryForm');
+
+        const pronoEntryForm =
+            document.getElementById(
+                'pronoEntryForm'
+            );
 
         const triesInputs = Array.from(
             document.querySelectorAll(
@@ -850,83 +1129,150 @@
             return !input.disabled;
         });
 
-        const navigationLinks = document.querySelectorAll(
-            '.js-prono-navigation-link'
-        );
 
-        const navigationModalElement = document.getElementById(
-            'unsavedPronoNavigationModal'
-        );
+        const navigationLinks =
+            document.querySelectorAll(
+                '.js-prono-navigation-link'
+            );
 
-        const navigationModalOpenButton = document.getElementById(
-            'openUnsavedPronoNavigationModal'
-        );
 
-        const navigationModalDismissButton = document.getElementById(
-            'dismissUnsavedPronoNavigationModal'
-        );
+        const navigationModalElement =
+            document.getElementById(
+                'unsavedPronoNavigationModal'
+            );
 
-        const navigationDestination = document.getElementById(
-            'unsavedPronoNavigationDestination'
-        );
+        const navigationModalOpenButton =
+            document.getElementById(
+                'openUnsavedPronoNavigationModal'
+            );
 
-        const continueWithoutSavingButton = document.getElementById(
-            'continuePronoNavigationWithoutSaving'
-        );
+        const navigationModalDismissButton =
+            document.getElementById(
+                'dismissUnsavedPronoNavigationModal'
+            );
 
-        const saveAndContinueButton = document.getElementById(
-            'savePronoAndContinueNavigation'
-        );
+        const navigationDestination =
+            document.getElementById(
+                'unsavedPronoNavigationDestination'
+            );
 
-        const navigationStorageKey = @json('pronostop14:prono-navigation:'.auth()->id().':'.$season->id.':'.$journee->id);
-        const pronoSaveSucceeded = @json(session('success') === 'Pronostics enregistrés.');
+        const continueWithoutSavingButton =
+            document.getElementById(
+                'continuePronoNavigationWithoutSaving'
+            );
+
+        const saveAndContinueButton =
+            document.getElementById(
+                'savePronoAndContinueNavigation'
+            );
+
+
+        const navigationStorageKey =
+            @json(
+                'pronostop14:prono-navigation:'
+                .auth()->id()
+                .':'
+                .$season->id
+                .':'
+                .$journee->id
+            );
+
+        const pronoSaveSucceeded =
+            @json(
+                session('success')
+                === 'Pronostics enregistrés.'
+            );
+
 
         let pendingNavigation = null;
         let navigationToStoreOnSubmit = null;
 
+
         function removeStoredNavigation() {
+
             try {
+
                 window.sessionStorage.removeItem(
                     navigationStorageKey
                 );
+
             } catch (error) {
-                // La navigation reste utilisable même si le stockage est indisponible.
+
+                /*
+                 * La navigation reste utilisable même
+                 * si le stockage est indisponible.
+                 */
+
             }
+
         }
 
-        function storeNavigationAfterSubmit(navigation) {
+
+        function storeNavigationAfterSubmit(
+            navigation
+        ) {
+
             try {
+
                 window.sessionStorage.setItem(
                     navigationStorageKey,
-                    JSON.stringify(navigation)
+                    JSON.stringify(
+                        navigation
+                    )
                 );
+
             } catch (error) {
-                // Le formulaire sera tout de même enregistré sur la journée courante.
+
+                /*
+                 * Le formulaire sera tout de même
+                 * enregistré sur la journée courante.
+                 */
+
             }
+
         }
+
 
         function readStoredNavigation() {
+
             try {
-                const storedValue = window.sessionStorage.getItem(
-                    navigationStorageKey
-                );
+
+                const storedValue =
+                    window.sessionStorage.getItem(
+                        navigationStorageKey
+                    );
 
                 return storedValue
-                    ? JSON.parse(storedValue)
+                    ? JSON.parse(
+                        storedValue
+                    )
                     : null;
+
             } catch (error) {
+
                 return null;
+
             }
+
         }
 
-        const storedNavigation = readStoredNavigation();
+
+        const storedNavigation =
+            readStoredNavigation();
+
 
         if (storedNavigation) {
+
             removeStoredNavigation();
 
             const storedNavigationIsRecent =
-                Number.isFinite(storedNavigation.submittedAt)
-                && Date.now() - storedNavigation.submittedAt < 300000;
+                Number.isFinite(
+                    storedNavigation.submittedAt
+                )
+                && Date.now()
+                    - storedNavigation.submittedAt
+                    < 300000;
+
 
             if (
                 pronoSaveSucceeded
@@ -934,13 +1280,20 @@
                 && typeof storedNavigation.url === 'string'
                 && storedNavigation.url !== ''
             ) {
-                window.location.assign(storedNavigation.url);
+
+                window.location.assign(
+                    storedNavigation.url
+                );
 
                 return;
+
             }
+
         }
 
+
         function hasUnsavedPronoChanges() {
+
             if (!pronoEntryForm) {
                 return false;
             }
@@ -950,194 +1303,380 @@
                     '.js-prono-dirty-track'
                 )
             ).some(function (input) {
+
                 if (input.disabled) {
                     return false;
                 }
+
 
                 if (
                     input.type === 'radio'
                     || input.type === 'checkbox'
                 ) {
-                    const savedChecked =
-                        input.dataset.savedChecked === '1';
 
-                    return input.checked !== savedChecked;
+                    const savedChecked =
+                        input.dataset.savedChecked
+                        === '1';
+
+                    return input.checked
+                        !== savedChecked;
+
                 }
+
 
                 const savedValue =
-                    input.dataset.savedValue ?? '';
+                    input.dataset.savedValue
+                    ?? '';
 
-                return input.value !== savedValue;
+                return input.value
+                    !== savedValue;
+
             });
+
         }
 
-        navigationLinks.forEach(function (link) {
-            link.addEventListener('click', function (event) {
-                if (!hasUnsavedPronoChanges()) {
-                    return;
-                }
 
-                event.preventDefault();
+        navigationLinks.forEach(
+            function (link) {
 
-                pendingNavigation = {
-                    url: link.href,
-                    name: link.dataset.navigationName || 'la journée choisie',
-                };
+                link.addEventListener(
+                    'click',
+                    function (event) {
 
-                if (navigationDestination) {
-                    navigationDestination.textContent =
-                        pendingNavigation.name;
-                }
+                        if (
+                            !hasUnsavedPronoChanges()
+                        ) {
+                            return;
+                        }
 
-                navigationModalOpenButton?.click();
-            });
-        });
-
-        continueWithoutSavingButton?.addEventListener(
-            'click',
-            function () {
-                if (!pendingNavigation) {
-                    return;
-                }
-
-                const targetUrl = pendingNavigation.url;
-
-                removeStoredNavigation();
-                pendingNavigation = null;
-
-                window.location.assign(targetUrl);
-            }
-        );
-
-        saveAndContinueButton?.addEventListener(
-            'click',
-            function () {
-                if (!pendingNavigation || !pronoEntryForm) {
-                    return;
-                }
-
-                if (!pronoEntryForm.checkValidity()) {
-                    navigationModalDismissButton?.click();
-                    pronoEntryForm.reportValidity();
-
-                    return;
-                }
-
-                navigationToStoreOnSubmit = {
-                    url: pendingNavigation.url,
-                    name: pendingNavigation.name,
-                    submittedAt: Date.now(),
-                };
-
-                navigationModalDismissButton?.click();
-
-                pronoEntryForm.requestSubmit();
-
-                window.setTimeout(function () {
-                    navigationToStoreOnSubmit = null;
-                }, 0);
-            }
-        );
-
-        pronoEntryForm?.addEventListener('submit', function () {
-            if (!navigationToStoreOnSubmit) {
-                removeStoredNavigation();
-
-                return;
-            }
-
-            storeNavigationAfterSubmit(
-                navigationToStoreOnSubmit
-            );
-        });
-
-        navigationModalElement?.addEventListener(
-            'hidden.bs.modal',
-            function () {
-                pendingNavigation = null;
-            }
-        );
-
-        triesInputs.forEach(function (input, index) {
-            input.addEventListener('keydown', function (event) {
-                if (event.key !== 'Tab') {
-                    return;
-                }
-
-                const nextIndex = event.shiftKey
-                    ? index - 1
-                    : index + 1;
-
-                const nextInput = triesInputs[nextIndex];
-
-                if (!nextInput) {
-                    return;
-                }
-
-                event.preventDefault();
-                nextInput.focus();
-                nextInput.select();
-            });
-        });
-
-        document
-            .querySelectorAll('.bonus-choice-label')
-            .forEach(function (label) {
-                label.addEventListener('pointerdown', function () {
-                    const input = document.getElementById(
-                        label.getAttribute('for')
-                    );
-
-                    if (!input || input.disabled) {
-                        return;
-                    }
-
-                    input.dataset.wasChecked = input.checked
-                        ? '1'
-                        : '0';
-                });
-            });
-
-        document
-            .querySelectorAll('.bonus-choice-input')
-            .forEach(function (input) {
-                input.addEventListener('pointerdown', function () {
-                    if (input.disabled) {
-                        return;
-                    }
-
-                    input.dataset.wasChecked = input.checked
-                        ? '1'
-                        : '0';
-                });
-
-                input.addEventListener('keydown', function (event) {
-                    if (input.disabled) {
-                        return;
-                    }
-
-                    if (event.key === ' ' || event.key === 'Enter') {
-                        input.dataset.wasChecked = input.checked
-                            ? '1'
-                            : '0';
-                    }
-                });
-
-                input.addEventListener('click', function (event) {
-                    if (input.disabled) {
-                        return;
-                    }
-
-                    if (input.dataset.wasChecked === '1') {
                         event.preventDefault();
 
-                        window.setTimeout(function () {
-                            input.checked = false;
-                            input.dataset.wasChecked = '0';
-                        }, 0);
+
+                        pendingNavigation = {
+                            url: link.href,
+                            name:
+                                link.dataset.navigationName
+                                || 'la journée choisie',
+                        };
+
+
+                        if (navigationDestination) {
+
+                            navigationDestination.textContent =
+                                pendingNavigation.name;
+
+                        }
+
+
+                        navigationModalOpenButton
+                            ?.click();
+
                     }
-                });
-            });
+                );
+
+            }
+        );
+
+
+        continueWithoutSavingButton
+            ?.addEventListener(
+                'click',
+                function () {
+
+                    if (!pendingNavigation) {
+                        return;
+                    }
+
+
+                    const targetUrl =
+                        pendingNavigation.url;
+
+
+                    removeStoredNavigation();
+
+                    pendingNavigation =
+                        null;
+
+
+                    window.location.assign(
+                        targetUrl
+                    );
+
+                }
+            );
+
+
+        saveAndContinueButton
+            ?.addEventListener(
+                'click',
+                function () {
+
+                    if (
+                        !pendingNavigation
+                        || !pronoEntryForm
+                    ) {
+                        return;
+                    }
+
+
+                    if (
+                        !pronoEntryForm
+                            .checkValidity()
+                    ) {
+
+                        navigationModalDismissButton
+                            ?.click();
+
+                        pronoEntryForm
+                            .reportValidity();
+
+                        return;
+
+                    }
+
+
+                    navigationToStoreOnSubmit = {
+                        url:
+                            pendingNavigation.url,
+
+                        name:
+                            pendingNavigation.name,
+
+                        submittedAt:
+                            Date.now(),
+                    };
+
+
+                    navigationModalDismissButton
+                        ?.click();
+
+                    pronoEntryForm
+                        .requestSubmit();
+
+
+                    window.setTimeout(
+                        function () {
+                            navigationToStoreOnSubmit =
+                                null;
+                        },
+                        0
+                    );
+
+                }
+            );
+
+
+        pronoEntryForm
+            ?.addEventListener(
+                'submit',
+                function () {
+
+                    if (
+                        !navigationToStoreOnSubmit
+                    ) {
+
+                        removeStoredNavigation();
+
+                        return;
+
+                    }
+
+
+                    storeNavigationAfterSubmit(
+                        navigationToStoreOnSubmit
+                    );
+
+                }
+            );
+
+
+        navigationModalElement
+            ?.addEventListener(
+                'hidden.bs.modal',
+                function () {
+
+                    pendingNavigation =
+                        null;
+
+                }
+            );
+
+
+        triesInputs.forEach(
+            function (
+                input,
+                index
+            ) {
+
+                input.addEventListener(
+                    'keydown',
+                    function (event) {
+
+                        if (
+                            event.key !== 'Tab'
+                        ) {
+                            return;
+                        }
+
+
+                        const nextIndex =
+                            event.shiftKey
+                                ? index - 1
+                                : index + 1;
+
+
+                        const nextInput =
+                            triesInputs[
+                                nextIndex
+                            ];
+
+
+                        if (!nextInput) {
+                            return;
+                        }
+
+
+                        event.preventDefault();
+
+                        nextInput.focus();
+
+                        nextInput.select();
+
+                    }
+                );
+
+            }
+        );
+
+
+        document
+            .querySelectorAll(
+                '.bonus-choice-label'
+            )
+            .forEach(
+                function (label) {
+
+                    label.addEventListener(
+                        'pointerdown',
+                        function () {
+
+                            const input =
+                                document.getElementById(
+                                    label.getAttribute(
+                                        'for'
+                                    )
+                                );
+
+
+                            if (
+                                !input
+                                || input.disabled
+                            ) {
+                                return;
+                            }
+
+
+                            input.dataset.wasChecked =
+                                input.checked
+                                    ? '1'
+                                    : '0';
+
+                        }
+                    );
+
+                }
+            );
+
+
+        document
+            .querySelectorAll(
+                '.bonus-choice-input'
+            )
+            .forEach(
+                function (input) {
+
+                    input.addEventListener(
+                        'pointerdown',
+                        function () {
+
+                            if (input.disabled) {
+                                return;
+                            }
+
+
+                            input.dataset.wasChecked =
+                                input.checked
+                                    ? '1'
+                                    : '0';
+
+                        }
+                    );
+
+
+                    input.addEventListener(
+                        'keydown',
+                        function (event) {
+
+                            if (input.disabled) {
+                                return;
+                            }
+
+
+                            if (
+                                event.key === ' '
+                                || event.key === 'Enter'
+                            ) {
+
+                                input.dataset.wasChecked =
+                                    input.checked
+                                        ? '1'
+                                        : '0';
+
+                            }
+
+                        }
+                    );
+
+
+                    input.addEventListener(
+                        'click',
+                        function (event) {
+
+                            if (input.disabled) {
+                                return;
+                            }
+
+
+                            if (
+                                input.dataset.wasChecked
+                                === '1'
+                            ) {
+
+                                event.preventDefault();
+
+
+                                window.setTimeout(
+                                    function () {
+
+                                        input.checked =
+                                            false;
+
+                                        input.dataset.wasChecked =
+                                            '0';
+
+                                    },
+                                    0
+                                );
+
+                            }
+
+                        }
+                    );
+
+                }
+            );
+
     });
 </script>
+
 @endpush
