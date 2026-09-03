@@ -17,44 +17,9 @@ class PlayerProfileController extends Controller
         $user =
             $request->user();
 
-        $showNotificationFeaturesAnnouncement =
-            false;
-
-        /*
-         * La session n'est positionnée qu'après
-         * une vraie connexion.
-         */
-        $announcementPending =
-            (bool) $request
-                ->session()
-                ->pull(
-                    'notification_features_announcement_pending',
-                    false
-                );
-
-        if (
-            $announcementPending
-            && $user
-                ->notification_features_seen_at
-                === null
-        ) {
-            $showNotificationFeaturesAnnouncement =
-                true;
-
-            /*
-             * On considère la nouveauté comme vue dès
-             * l'affichage de cette page.
-             *
-             * saveQuietly évite tout effet secondaire.
-             */
-            $user->forceFill([
-                'notification_features_seen_at' =>
-                    now(),
-            ])->saveQuietly();
-        }
-
         $playerColors =
-            $this->playerColors();
+            $this
+                ->playerColors();
 
         $usedPlayerColors =
             User::query()
@@ -71,9 +36,12 @@ class PlayerProfileController extends Controller
                     'color',
                 ])
                 ->mapWithKeys(
-                    fn (User $player) => [
+                    fn (
+                        User $player
+                    ) => [
                         strtoupper(
-                            (string) $player->color
+                            (string)
+                            $player->color
                         ) =>
                             $player->nickname,
                     ]
@@ -88,9 +56,6 @@ class PlayerProfileController extends Controller
 
                 'usedPlayerColors' =>
                     $usedPlayerColors,
-
-                'showNotificationFeaturesAnnouncement' =>
-                    $showNotificationFeaturesAnnouncement,
             ]
         );
     }
@@ -104,14 +69,16 @@ class PlayerProfileController extends Controller
         $request->merge([
             'nickname' =>
                 strtoupper(
-                    (string) $request->input(
+                    (string)
+                    $request->input(
                         'nickname'
                     )
                 ),
 
             'color' =>
                 strtoupper(
-                    (string) $request->input(
+                    (string)
+                    $request->input(
                         'color'
                     )
                 ),
@@ -164,7 +131,8 @@ class PlayerProfileController extends Controller
                         'string',
 
                         Rule::in(
-                            $this->playerColors()
+                            $this
+                                ->playerColors()
                         ),
 
                         Rule::unique(
@@ -175,18 +143,28 @@ class PlayerProfileController extends Controller
                         ),
                     ],
 
+                    /*
+                     * Ces champs sont présents sur
+                     * le formulaire actuel grâce aux
+                     * inputs hidden + checkbox.
+                     *
+                     * "sometimes" permet toutefois
+                     * aux anciennes requêtes et aux
+                     * tests qui ne les envoient pas
+                     * de continuer à fonctionner.
+                     */
                     'notify_new_prediction' => [
-                        'required',
+                        'sometimes',
                         'boolean',
                     ],
 
                     'notify_results_available' => [
-                        'required',
+                        'sometimes',
                         'boolean',
                     ],
 
                     'notify_prediction_reminder' => [
-                        'required',
+                        'sometimes',
                         'boolean',
                     ],
 
@@ -227,13 +205,21 @@ class PlayerProfileController extends Controller
         }
 
         unset(
-            $data['current_password'],
-            $data['password_confirmation']
+            $data[
+                'current_password'
+            ]
+        );
+
+        unset(
+            $data[
+                'password_confirmation'
+            ]
         );
 
         /*
-         * Le champ email central reste utilisé
-         * par Laravel pour les notifications.
+         * Le champ email central reste
+         * l'adresse utilisée par Laravel
+         * pour envoyer les notifications.
          */
         $data['email'] =
             $data['email_pro']
@@ -258,7 +244,8 @@ class PlayerProfileController extends Controller
             ->map(
                 fn ($color) =>
                     strtoupper(
-                        (string) $color
+                        (string)
+                        $color
                     )
             )
             ->values()

@@ -1,113 +1,234 @@
 @auth
-    @if(session('show_notification_features_modal'))
+
+    @php
+        $featureIds = collect(
+            session(
+                'login_feature_ids',
+                []
+            )
+        )
+            ->filter()
+            ->unique()
+            ->values();
+
+        $features = $featureIds->isEmpty()
+            ? collect()
+            : \App\Models\Feature::query()
+                ->whereIn(
+                    'id',
+                    $featureIds
+                )
+                ->orderBy(
+                    'position'
+                )
+                ->orderBy(
+                    'id'
+                )
+                ->get();
+
+        $actionFeatures =
+            $features
+                ->filter(
+                    fn ($feature) =>
+                        filled(
+                            $feature->action_label
+                        )
+                        && filled(
+                            $feature->action_url
+                        )
+                );
+    @endphp
+
+
+    @if($features->isNotEmpty())
 
         <button type="button"
-                id="notificationFeaturesModalTrigger"
+                id="featureAnnouncementsModalTrigger"
                 class="d-none"
                 data-bs-toggle="modal"
-                data-bs-target="#notificationFeaturesModal"
+                data-bs-target="#featureAnnouncementsModal"
                 aria-hidden="true">
         </button>
 
+
         <div class="modal fade"
-             id="notificationFeaturesModal"
+             id="featureAnnouncementsModal"
              tabindex="-1"
-             aria-labelledby="notificationFeaturesModalLabel"
+             aria-labelledby="featureAnnouncementsModalLabel"
              aria-hidden="true"
              data-bs-backdrop="static"
              data-bs-keyboard="false">
 
-            <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+
                 <div class="modal-content border-0 shadow rounded-4">
 
+
+                    {{-- HEADER --}}
+
                     <div class="modal-header border-0 pb-0">
+
                         <div>
+
                             <div class="text-uppercase text-success fw-bold small mb-1">
                                 Connexion réussie
                             </div>
 
                             <h2 class="modal-title h4 fw-bold mb-0"
-                                id="notificationFeaturesModalLabel">
-                                ✨ Nouvelle fonctionnalité
+                                id="featureAnnouncementsModalLabel">
+
+                                @if($features->count() > 1)
+                                    ✨ Nouvelles fonctionnalités
+                                @else
+                                    ✨ Nouvelle fonctionnalité
+                                @endif
+
                             </h2>
+
                         </div>
+
                     </div>
+
+
+                    {{-- BODY --}}
 
                     <div class="modal-body pt-3">
 
-                        <p class="mb-3">
-                            PronosTOP14 peut maintenant t’envoyer
-                            des notifications par email.
-                        </p>
+                        @foreach($features as $feature)
 
-                        <div class="border rounded-4 p-3 mb-3 bg-light">
+                            @if(! $loop->first)
 
-                            <div class="mb-3">
-                                <div class="fw-bold">
-                                    🏉 Nouveau prono disponible
-                                </div>
+                                <hr class="my-4">
 
-                                <div class="small text-muted">
-                                    Un email lorsqu’une nouvelle journée
-                                    est prête à être pronostiquée.
-                                </div>
-                            </div>
+                            @endif
 
-                            <div class="mb-3">
-                                <div class="fw-bold">
-                                    🏆 Résultats disponibles
-                                </div>
 
-                                <div class="small text-muted">
-                                    Un email lorsque tous les résultats
-                                    d’une journée sont enregistrés.
-                                </div>
-                            </div>
+                            <section>
 
-                            <div>
-                                <div class="fw-bold">
-                                    ⏰ Rappel avant clôture
-                                </div>
+                                <h3 class="h5 fw-bold mb-2">
 
-                                <div class="small text-muted">
-                                    Un rappel lorsqu’un prono est encore
-                                    incomplet à l’approche de sa date limite.
-                                </div>
-                            </div>
+                                    @if($feature->icon)
+                                        {{ $feature->icon }}
+                                    @endif
 
-                        </div>
+                                    {{ $feature->title }}
 
-                        <div class="alert alert-info mb-0">
-                            <strong>
-                                Aucune notification n’est activée automatiquement.
-                            </strong>
+                                </h3>
 
-                            <div class="mt-1">
-                                Tu peux choisir librement les notifications
-                                que tu souhaites recevoir depuis ton profil.
-                            </div>
-                        </div>
+
+                                @if($feature->description)
+
+                                    <p class="mb-3">
+                                        {{ $feature->description }}
+                                    </p>
+
+                                @endif
+
+
+                                @if(
+                                    is_array(
+                                        $feature->details
+                                    )
+                                    && count(
+                                        $feature->details
+                                    ) > 0
+                                )
+
+                                    <div class="border rounded-4 p-3 bg-light">
+
+                                        @foreach(
+                                            $feature->details
+                                            as $detail
+                                        )
+
+                                            <div @class([
+                                                'mb-3' =>
+                                                    ! $loop->last,
+                                            ])>
+
+                                                @if(
+                                                    ! empty(
+                                                        $detail[
+                                                            'title'
+                                                        ]
+                                                        ?? null
+                                                    )
+                                                )
+
+                                                    <div class="fw-bold">
+                                                        {{ $detail['title'] }}
+                                                    </div>
+
+                                                @endif
+
+
+                                                @if(
+                                                    ! empty(
+                                                        $detail[
+                                                            'text'
+                                                        ]
+                                                        ?? null
+                                                    )
+                                                )
+
+                                                    <div class="small text-muted">
+                                                        {{ $detail['text'] }}
+                                                    </div>
+
+                                                @endif
+
+                                            </div>
+
+                                        @endforeach
+
+                                    </div>
+
+                                @endif
+
+                            </section>
+
+                        @endforeach
 
                     </div>
 
+
+                    {{-- FOOTER --}}
+
                     <div class="modal-footer border-0 pt-0">
-                        <a href="{{ route('player-profile.edit') }}#notifications-email"
-                           class="btn btn-warning rounded-pill fw-bold px-4">
-                            Découvrir et configurer mes notifications
-                        </a>
+
+                        <button type="button"
+                                class="btn btn-outline-secondary rounded-pill fw-bold px-4"
+                                data-bs-dismiss="modal">
+                            J’ai compris
+                        </button>
+
+
+                        @foreach($actionFeatures as $feature)
+
+                            <a href="{{ $feature->action_url }}"
+                               class="btn btn-warning rounded-pill fw-bold px-4">
+                                {{ $feature->action_label }}
+                            </a>
+
+                        @endforeach
+
                     </div>
 
                 </div>
+
             </div>
+
         </div>
+
 
         <script>
             document.addEventListener(
                 'DOMContentLoaded',
                 function () {
+
                     const trigger =
                         document.getElementById(
-                            'notificationFeaturesModalTrigger'
+                            'featureAnnouncementsModalTrigger'
                         );
 
                     if (!trigger) {
@@ -115,9 +236,11 @@
                     }
 
                     trigger.click();
+
                 }
             );
         </script>
 
     @endif
+
 @endauth

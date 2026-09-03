@@ -60,9 +60,6 @@ class User extends Authenticatable
 
             'notify_prediction_reminder' =>
                 'boolean',
-
-            'notification_features_seen_at' =>
-                'datetime',
         ];
     }
 
@@ -133,6 +130,23 @@ class User extends Authenticatable
         return $this
             ->belongsToMany(
                 Season::class
+            )
+            ->withTimestamps();
+    }
+
+    /**
+     * Fonctionnalités déjà présentées
+     * à cet utilisateur.
+     */
+    public function seenFeatures()
+    {
+        return $this
+            ->belongsToMany(
+                Feature::class,
+                'feature_user'
+            )
+            ->withPivot(
+                'seen_at'
             )
             ->withTimestamps();
     }

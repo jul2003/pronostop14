@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Auth;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\LoginRequest;
 use App\Models\User;
+use App\Services\FeatureAnnouncementService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -18,17 +19,22 @@ class AuthenticatedSessionController extends Controller
     public function create(): View|RedirectResponse
     {
         if (User::count() === 0) {
-            return redirect()->route('home');
+            return redirect()->route(
+                'home'
+            );
         }
 
-        return view('auth.login');
+        return view(
+            'auth.login'
+        );
     }
 
     /**
      * Handle an incoming authentication request.
      */
     public function store(
-        LoginRequest $request
+        LoginRequest $request,
+        FeatureAnnouncementService $featureAnnouncements
     ): RedirectResponse {
         $request->authenticate();
 
@@ -36,50 +42,60 @@ class AuthenticatedSessionController extends Controller
             ->session()
             ->regenerate();
 
-        $user = $request->user();
+        $user =
+            $request->user();
 
         /*
-         * Présentation unique de la nouvelle fonctionnalité
-         * de notifications email.
-         *
-         * On ne la présente pas tant qu'un changement
-         * obligatoire de mot de passe est en attente.
+         * Les nouveautés ne doivent pas prendre
+         * la priorité sur un changement obligatoire
+         * de mot de passe.
          */
         if (
             $user
-            && ! $user->must_change_password
-            && $user->notification_features_seen_at === null
+            && ! $user
+                ->must_change_password
         ) {
             /*
-             * Le flash ne sera disponible que sur
-             * la première page affichée après connexion.
-             */
-            $request
-                ->session()
-                ->flash(
-                    'show_notification_features_modal',
-                    true
-                );
-
-            /*
-             * On mémorise que l'annonce a été présentée.
+             * Cette recherche est désormais
+             * entièrement générique.
              *
-             * Ainsi elle ne réapparaîtra pas à chaque
-             * connexion suivante.
+             * Aucune clé de feature n'est codée
+             * en dur dans ce contrôleur.
              */
-            $user->forceFill([
-                'notification_features_seen_at' =>
-                    now(),
-            ])->saveQuietly();
+            $features =
+                $featureAnnouncements
+                    ->unseenFor(
+                        $user
+                    );
+
+            if (
+                $features
+                    ->isNotEmpty()
+            ) {
+                /*
+                 * La page suivante saura quelles
+                 * nouveautés afficher.
+                 */
+                $request
+                    ->session()
+                    ->flash(
+                        'login_feature_ids',
+                        $features
+                            ->modelKeys()
+                    );
+
+                /*
+                 * Création automatique dans
+                 * feature_user.
+                 */
+                $featureAnnouncements
+                    ->markSeen(
+                        $user,
+                        $features
+                    );
+            }
         }
 
-        /*
-         * La connexion garde son comportement normal :
-         * retour vers l'URL initialement demandée
-         * ou vers l'accueil.
-         *
-         * La modale s'affichera par-dessus cette page.
-         */
         return redirect()->intended(
             route(
                 'home',
