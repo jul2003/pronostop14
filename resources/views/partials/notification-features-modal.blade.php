@@ -3,10 +3,8 @@
     @php
         $featureAnnouncements =
             collect(
-                session(
-                    'login_feature_announcements',
-                    []
-                )
+                $loginFeatureAnnouncements
+                ?? []
             );
 
         $actionFeatures =
@@ -49,21 +47,27 @@
                 <div class="modal-content border-0 shadow rounded-4">
 
 
+                    {{-- HEADER --}}
+
                     <div class="modal-header border-0 pb-0">
 
                         <div>
 
                             <div class="text-uppercase text-success fw-bold small mb-1">
-                                Connexion réussie
+                                PronosTOP14
                             </div>
 
                             <h2 class="modal-title h4 fw-bold mb-0"
                                 id="featureAnnouncementsModalLabel">
 
                                 @if($featureAnnouncements->count() > 1)
+
                                     ✨ Nouvelles fonctionnalités
+
                                 @else
+
                                     ✨ Nouvelle fonctionnalité
+
                                 @endif
 
                             </h2>
@@ -72,6 +76,8 @@
 
                     </div>
 
+
+                    {{-- CONTENU --}}
 
                     <div class="modal-body pt-3">
 
@@ -110,6 +116,8 @@
                     </div>
 
 
+                    {{-- ACTIONS --}}
+
                     <div class="modal-footer border-0 pt-0">
 
                         <button type="button"
@@ -123,7 +131,9 @@
 
                             <a href="{{ $feature['action_url'] }}"
                                class="btn btn-warning rounded-pill fw-bold px-4">
+
                                 {{ $feature['action_label'] }}
+
                             </a>
 
                         @endforeach

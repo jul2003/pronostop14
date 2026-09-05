@@ -26,7 +26,19 @@ return Application::configure(
                 append: [
                     \App\Http\Middleware\EnsureUserIsActive::class,
 
+                    /*
+                     * Le changement obligatoire
+                     * de mot de passe reste prioritaire.
+                     */
                     \App\Http\Middleware\ForcePasswordChange::class,
+
+                    /*
+                     * Détection générique des nouveautés.
+                     *
+                     * Fonctionne aussi avec une session
+                     * restaurée par "Se souvenir de moi".
+                     */
+                    \App\Http\Middleware\ShowUnseenFeatures::class,
 
                     \App\Http\Middleware\BlockFutureJourneeResults::class,
                 ]

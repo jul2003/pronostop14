@@ -5,7 +5,6 @@ namespace App\Http\Controllers\Auth;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\LoginRequest;
 use App\Models\User;
-use App\Services\FeatureAnnouncementService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -13,6 +12,9 @@ use Illuminate\View\View;
 
 class AuthenticatedSessionController extends Controller
 {
+    /**
+     * Display the login view.
+     */
     public function create(): View|RedirectResponse
     {
         if (User::count() === 0) {
@@ -26,9 +28,11 @@ class AuthenticatedSessionController extends Controller
         );
     }
 
+    /**
+     * Handle an incoming authentication request.
+     */
     public function store(
-        LoginRequest $request,
-        FeatureAnnouncementService $featureAnnouncements
+        LoginRequest $request
     ): RedirectResponse {
         $request->authenticate();
 
@@ -36,60 +40,13 @@ class AuthenticatedSessionController extends Controller
             ->session()
             ->regenerate();
 
-        $user =
-            $request->user();
-
         /*
-         * Les nouveautés ne prennent jamais
-         * la priorité sur un changement
-         * obligatoire de mot de passe.
+         * Aucune logique de nouveautés ici.
+         *
+         * Après cette redirection, la première
+         * vraie page authentifiée passera par
+         * ShowUnseenFeatures.
          */
-        if (
-            $user
-            && ! $user
-                ->must_change_password
-        ) {
-            $features =
-                $featureAnnouncements
-                    ->unseenFor(
-                        $user
-                    );
-
-            if (
-                $features
-                    ->isNotEmpty()
-            ) {
-                /*
-                 * Un unique payload sert :
-                 *
-                 * 1. à la modale affichée maintenant ;
-                 * 2. au snapshot historique.
-                 *
-                 * Les deux contenus sont donc
-                 * strictement identiques.
-                 */
-                $payloads =
-                    $featureAnnouncements
-                        ->payloadFor(
-                            $features
-                        );
-
-                $request
-                    ->session()
-                    ->flash(
-                        'login_feature_announcements',
-                        $payloads
-                    );
-
-                $featureAnnouncements
-                    ->markSeen(
-                        $user,
-                        $features,
-                        $payloads
-                    );
-            }
-        }
-
         return redirect()->intended(
             route(
                 'home',
@@ -98,6 +55,9 @@ class AuthenticatedSessionController extends Controller
         );
     }
 
+    /**
+     * Destroy an authenticated session.
+     */
     public function destroy(
         Request $request
     ): RedirectResponse {
