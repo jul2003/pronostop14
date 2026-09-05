@@ -12,6 +12,7 @@ use App\Services\KnockoutMatchSetupService;
 use App\Services\PreseasonAutoResultService;
 use App\Services\PreseasonScoringService;
 use App\Services\ScoringService;
+use App\Services\JourneeResultAccessService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
@@ -179,11 +180,18 @@ class MatchController extends Controller
         return back()->with('success', 'Match supprimé.');
     }
 
-    public function results(Season $season, Journee $journee)
-    {
-        $this->ensureJourneeBelongsToSeason($season, $journee);
+    public function results(
+        Season $season,
+        Journee $journee,
+        JourneeResultAccessService $resultAccessService
+    ) {
+        $this->ensureJourneeBelongsToSeason(
+            $season,
+            $journee
+        );
 
-        $matches = $journee->matches()
+        $matches = $journee
+            ->matches()
             ->with([
                 'homeClub',
                 'awayClub',
@@ -193,37 +201,76 @@ class MatchController extends Controller
             ->orderBy('id')
             ->get();
 
-        $resultsJournees = $season->journees()
-            ->where('type', '!=', 'preseason')
+        /*
+        * On ne conserve dans la navigation
+        * précédent / suivant que les journées
+        * dont les résultats sont réellement
+        * accessibles.
+        *
+        * Cela utilise exactement la même règle
+        * que le middleware de protection.
+        */
+        $resultsJournees = $season
+            ->journees()
+            ->where(
+                'type',
+                '!=',
+                'preseason'
+            )
             ->whereHas('matches')
             ->orderBy('number')
             ->orderBy('id')
-            ->get();
+            ->get()
+            ->filter(
+                fn (Journee $resultsJournee) =>
+                    $resultAccessService
+                        ->canAccessResults(
+                            $resultsJournee
+                        )
+            )
+            ->values();
 
-        $currentJourneeIndex = $resultsJournees->search(
-            fn (Journee $resultsJournee) => (int) $resultsJournee->id === (int) $journee->id
-        );
+        $currentJourneeIndex =
+            $resultsJournees->search(
+                fn (Journee $resultsJournee) =>
+                    (int) $resultsJournee->id
+                    === (int) $journee->id
+            );
 
         $previousJournee = null;
         $nextJournee = null;
 
         if ($currentJourneeIndex !== false) {
             if ($currentJourneeIndex > 0) {
-                $previousJournee = $resultsJournees->get($currentJourneeIndex - 1);
+                $previousJournee =
+                    $resultsJournees->get(
+                        $currentJourneeIndex - 1
+                    );
             }
 
-            if ($currentJourneeIndex < $resultsJournees->count() - 1) {
-                $nextJournee = $resultsJournees->get($currentJourneeIndex + 1);
+            if (
+                $currentJourneeIndex
+                < $resultsJournees->count() - 1
+            ) {
+                $nextJournee =
+                    $resultsJournees->get(
+                        $currentJourneeIndex + 1
+                    );
             }
         }
 
-        return view('admin.matches.results', [
-            'season' => $season,
-            'journee' => $journee,
-            'matches' => $matches,
-            'previousJournee' => $previousJournee,
-            'nextJournee' => $nextJournee,
-        ]);
+        return view(
+            'admin.matches.results',
+            [
+                'season' => $season,
+                'journee' => $journee,
+                'matches' => $matches,
+                'previousJournee' =>
+                    $previousJournee,
+                'nextJournee' =>
+                    $nextJournee,
+            ]
+        );
     }
 
     public function storeResults(

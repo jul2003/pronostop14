@@ -35,33 +35,41 @@ class BlockFutureJourneeResults
             return $next($request);
         }
 
-        $season = $this->resolveSeason(
-            $request
-        );
+        $season =
+            $this->resolveSeason(
+                $request
+            );
 
         if (! $season) {
             return $next($request);
         }
 
-        $journee = $this->resolveJournee(
-            $request,
-            $season
-        );
+        $journee =
+            $this->resolveJournee(
+                $request,
+                $season
+            );
 
         if (! $journee) {
             return $next($request);
         }
 
         if (
-            $this->resultAccessService
-                ->canAccessResults($journee)
+            $this
+                ->resultAccessService
+                ->canAccessResults(
+                    $journee
+                )
         ) {
             return $next($request);
         }
 
         if (
-            ! $this->resultAccessService
-                ->hasDefinedDate($journee)
+            ! $this
+                ->resultAccessService
+                ->hasDefinedDate(
+                    $journee
+                )
         ) {
             $message =
                 'Les résultats de '
@@ -69,7 +77,8 @@ class BlockFutureJourneeResults
                 .' ne sont pas accessibles tant qu’aucune date de premier match n’est définie.';
         } else {
             $availableFrom =
-                $this->resultAccessService
+                $this
+                    ->resultAccessService
                     ->availableFromLabel(
                         $journee
                     );
@@ -87,9 +96,15 @@ class BlockFutureJourneeResults
             }
         }
 
-        return redirect()
-            ->route(
-                'admin.seasons.journees',
+        /*
+         * Si l'utilisateur venait de
+         * "Résultats à saisir", on le ramène
+         * à cet endroit et non à la liste
+         * générale des journées.
+         */
+        return $this
+            ->redirectAfterBlockedAccess(
+                $request,
                 $season
             )
             ->with(
@@ -102,7 +117,9 @@ class BlockFutureJourneeResults
         Request $request
     ): bool {
         $routeName =
-            $request->route()?->getName();
+            $request
+                ->route()
+                ?->getName();
 
         if (! $routeName) {
             return false;
@@ -119,7 +136,9 @@ class BlockFutureJourneeResults
         Request $request
     ): ?Season {
         $season =
-            $request->route('season');
+            $request->route(
+                'season'
+            );
 
         if ($season instanceof Season) {
             return $season;
@@ -146,7 +165,9 @@ class BlockFutureJourneeResults
         Season $season
     ): ?Journee {
         $journee =
-            $request->route('journee');
+            $request->route(
+                'journee'
+            );
 
         if ($journee instanceof Journee) {
             if (
@@ -173,9 +194,10 @@ class BlockFutureJourneeResults
         }
 
         if (
-            $this->isPreseasonResultRoute(
-                $request
-            )
+            $this
+                ->isPreseasonResultRoute(
+                    $request
+                )
         ) {
             return $season
                 ->journees()
@@ -193,12 +215,55 @@ class BlockFutureJourneeResults
         Request $request
     ): bool {
         $routeName =
-            $request->route()?->getName();
+            $request
+                ->route()
+                ?->getName();
 
         return $routeName
             && str_contains(
                 $routeName,
                 'preseason'
             );
+    }
+
+    private function redirectAfterBlockedAccess(
+        Request $request,
+        Season $season
+    ) {
+        /*
+         * On conserve le contexte de navigation
+         * "Résultats à saisir".
+         */
+        if (
+            $this
+                ->isFromPendingResults(
+                    $request
+                )
+        ) {
+            return redirect()->route(
+                'admin.pending-results.index'
+            );
+        }
+
+        /*
+         * Accès depuis l'administration
+         * classique des journées.
+         */
+        return redirect()->route(
+            'admin.seasons.journees',
+            $season
+        );
+    }
+
+    private function isFromPendingResults(
+        Request $request
+    ): bool {
+        return
+            $request->query(
+                'from'
+            ) === 'pending-results'
+            || $request->input(
+                'from'
+            ) === 'pending-results';
     }
 }
