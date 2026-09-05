@@ -48,11 +48,8 @@ class PronoController extends Controller
         ]);
     }
 
-    public function show(
-        Season $season,
-        Journee $journee,
-        PreseasonDeadlineService $preseasonDeadlineService
-    ) {
+    public function show(Season $season, Journee $journee, PreseasonDeadlineService $preseasonDeadlineService)
+    {
         $this->ensureUserCanAccessSeason($season);
 
         if ($journee->season_id !== $season->id) {
@@ -113,12 +110,8 @@ class PronoController extends Controller
         ]);
     }
 
-    public function storeAll(
-        Request $request,
-        Season $season,
-        Journee $journee,
-        PreseasonDeadlineService $preseasonDeadlineService
-    ) {
+    public function storeAll(Request $request, Season $season, Journee $journee, PreseasonDeadlineService $preseasonDeadlineService)
+    {
         $this->ensureUserCanAccessSeason($season);
 
         if ($journee->season_id !== $season->id) {
@@ -185,6 +178,12 @@ class PronoController extends Controller
             }
         }
 
+        /*
+         * Une seule date pour toute la soumission de la journée.
+         * Elle ne sera plus affectée par les recalculs de points.
+         */
+        $submittedAt = now();
+
         foreach ($data['pronos'] as $matchId => $pronoData) {
             $match = $matches->get((int) $matchId);
 
@@ -198,6 +197,7 @@ class PronoController extends Controller
                     'predicted_tries' => $pronoData['predicted_tries'],
                     'predicted_home_bonus' => $pronoData['predicted_home_bonus'] ?? null,
                     'predicted_away_bonus' => $pronoData['predicted_away_bonus'] ?? null,
+                    'submitted_at' => $submittedAt,
                 ]
             );
         }
@@ -207,12 +207,8 @@ class PronoController extends Controller
             ->with('success', 'Pronostics enregistrés.');
     }
 
-    private function deletePronoForMatch(
-        Season $season,
-        Journee $journee,
-        $matches,
-        int $matchId
-    ) {
+    private function deletePronoForMatch(Season $season, Journee $journee, $matches, int $matchId)
+    {
         $match = $matches->get($matchId);
 
         if (! $match) {
@@ -246,13 +242,8 @@ class PronoController extends Controller
             );
     }
 
-    private function availableJourneesForUser(
-        Season $season,
-        $preseasonDeadline,
-        bool $preseasonIsLocked,
-        bool $includePreseason,
-        bool $withUserPronoCount
-    ) {
+    private function availableJourneesForUser(Season $season, $preseasonDeadline, bool $preseasonIsLocked, bool $includePreseason, bool $withUserPronoCount)
+    {
         $counts = ['matches'];
 
         if ($withUserPronoCount) {
@@ -274,11 +265,7 @@ class PronoController extends Controller
             ->where('season_id', $season->id)
             ->orderBy('number')
             ->get()
-            ->filter(function ($journee) use (
-                $preseasonDeadline,
-                $preseasonIsLocked,
-                $includePreseason
-            ) {
+            ->filter(function ($journee) use ($preseasonDeadline, $preseasonIsLocked, $includePreseason) {
                 if ($journee->type === 'preseason') {
                     if (! $includePreseason) {
                         return false;
@@ -319,11 +306,8 @@ class PronoController extends Controller
             ->values();
     }
 
-    private function showPreseason(
-        Season $season,
-        Journee $journee,
-        PreseasonDeadlineService $preseasonDeadlineService
-    ) {
+    private function showPreseason(Season $season, Journee $journee, PreseasonDeadlineService $preseasonDeadlineService)
+    {
         $questions = $season->preseasonQuestions()
             ->where('is_active', true)
             ->orderBy('position')
@@ -376,12 +360,8 @@ class PronoController extends Controller
         ]);
     }
 
-    private function storePreseason(
-        Request $request,
-        Season $season,
-        Journee $journee,
-        PreseasonDeadlineService $preseasonDeadlineService
-    ) {
+    private function storePreseason(Request $request, Season $season, Journee $journee, PreseasonDeadlineService $preseasonDeadlineService)
+    {
         $preseasonDeadline = $preseasonDeadlineService->deadlineForUser($season, auth()->user());
 
         if (! $preseasonDeadline) {
@@ -490,11 +470,8 @@ class PronoController extends Controller
             ->with('success', 'Pronostics avant-saison enregistrés.');
     }
 
-    private function effectivePreseasonAnswers(
-        $questions,
-        $existingPredictions,
-        array $submittedAnswers
-    ): array {
+    private function effectivePreseasonAnswers($questions, $existingPredictions, array $submittedAnswers): array
+    {
         $effectiveAnswers = [];
 
         foreach ($questions as $question) {
@@ -613,11 +590,8 @@ class PronoController extends Controller
         }
     }
 
-    private function validatePreseasonAnswer(
-        Season $season,
-        SeasonPreseasonQuestion $question,
-        string $answer
-    ): void {
+    private function validatePreseasonAnswer(Season $season, SeasonPreseasonQuestion $question, string $answer): void
+    {
         if ($question->answer_type === 'free_text') {
             return;
         }

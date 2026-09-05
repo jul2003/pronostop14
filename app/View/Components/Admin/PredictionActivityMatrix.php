@@ -10,9 +10,8 @@ use Illuminate\View\Component;
 
 class PredictionActivityMatrix extends Component
 {
-    public function __construct(
-        public Season $season
-    ) {
+    public function __construct(public Season $season)
+    {
     }
 
     public function render(): View
@@ -31,7 +30,7 @@ class PredictionActivityMatrix extends Component
          * Toutes les journées de la saison sont affichées,
          * même lorsqu'aucun match n'a encore été créé.
          *
-         * Le champ number porte désormais l'ordre fonctionnel :
+         * Le champ number porte l'ordre fonctionnel :
          *
          * Avant-saison
          * J1 à J26
@@ -51,147 +50,90 @@ class PredictionActivityMatrix extends Component
         $activity = [];
 
         if ($players->isNotEmpty()) {
-            $playerIds = $players
-                ->pluck('id')
-                ->values();
+            $playerIds = $players->pluck('id')->values();
 
             /*
              * Pronostics des matchs.
              *
-             * Pour chaque combinaison journée / joueur,
-             * on conserve le updated_at le plus récent parmi
-             * les pronostics encore présents.
+             * submitted_at représente maintenant la dernière
+             * véritable soumission du joueur.
+             *
+             * On n'utilise surtout plus updated_at, car celui-ci
+             * est également modifié lors des recalculs de points.
+             *
+             * created_at reste utilisé en secours pour les
+             * éventuelles anciennes données.
              */
             $matchActivities = DB::table('pronos')
-                ->join(
-                    'match_games',
-                    'match_games.id',
-                    '=',
-                    'pronos.match_game_id'
-                )
-                ->join(
-                    'journees',
-                    'journees.id',
-                    '=',
-                    'match_games.journee_id'
-                )
-                ->where(
-                    'journees.season_id',
-                    $this->season->id
-                )
-                ->whereIn(
-                    'pronos.user_id',
-                    $playerIds
-                )
+                ->join('match_games', 'match_games.id', '=', 'pronos.match_game_id')
+                ->join('journees', 'journees.id', '=', 'match_games.journee_id')
+                ->where('journees.season_id', $this->season->id)
+                ->whereIn('pronos.user_id', $playerIds)
                 ->select([
                     'journees.id as journee_id',
                     'pronos.user_id',
                 ])
-                ->selectRaw(
-                    'MAX(pronos.updated_at) as last_saved_at'
-                )
-                ->groupBy(
-                    'journees.id',
-                    'pronos.user_id'
-                )
+                ->selectRaw('MAX(COALESCE(pronos.submitted_at, pronos.created_at)) as last_saved_at')
+                ->groupBy('journees.id', 'pronos.user_id')
                 ->get();
 
             foreach ($matchActivities as $matchActivity) {
-                $lastSavedAt = $this->parseDate(
-                    $matchActivity->last_saved_at
-                );
+                $lastSavedAt = $this->parseDate($matchActivity->last_saved_at);
 
                 if (! $lastSavedAt) {
                     continue;
                 }
 
-                $activity[
-                    (int) $matchActivity->journee_id
-                ][
-                    (int) $matchActivity->user_id
-                ] = $lastSavedAt;
+                $activity[(int) $matchActivity->journee_id][(int) $matchActivity->user_id] = $lastSavedAt;
             }
 
             /*
              * Pronostics avant-saison.
              *
-             * submitted_at représente précisément la dernière
+             * submitted_at représente déjà précisément la dernière
              * soumission d'une réponse avant-saison.
              *
              * updated_at reste utilisé en secours pour les
              * éventuelles anciennes données.
              */
-            $preseasonJournee = $journees
-                ->firstWhere(
-                    'type',
-                    'preseason'
-                );
+            $preseasonJournee = $journees->firstWhere('type', 'preseason');
 
             if ($preseasonJournee) {
-                $preseasonActivities = DB::table(
-                    'season_preseason_predictions'
-                )
-                    ->where(
-                        'season_id',
-                        $this->season->id
-                    )
-                    ->whereIn(
-                        'user_id',
-                        $playerIds
-                    )
+                $preseasonActivities = DB::table('season_preseason_predictions')
+                    ->where('season_id', $this->season->id)
+                    ->whereIn('user_id', $playerIds)
                     ->select('user_id')
-                    ->selectRaw(
-                        'MAX(COALESCE(submitted_at, updated_at)) as last_saved_at'
-                    )
+                    ->selectRaw('MAX(COALESCE(submitted_at, updated_at)) as last_saved_at')
                     ->groupBy('user_id')
                     ->get();
 
-                foreach (
-                    $preseasonActivities
-                    as $preseasonActivity
-                ) {
-                    $lastSavedAt = $this->parseDate(
-                        $preseasonActivity
-                            ->last_saved_at
-                    );
+                foreach ($preseasonActivities as $preseasonActivity) {
+                    $lastSavedAt = $this->parseDate($preseasonActivity->last_saved_at);
 
                     if (! $lastSavedAt) {
                         continue;
                     }
 
-                    $activity[
-                        $preseasonJournee->id
-                    ][
-                        (int) $preseasonActivity
-                            ->user_id
-                    ] = $lastSavedAt;
+                    $activity[$preseasonJournee->id][(int) $preseasonActivity->user_id] = $lastSavedAt;
                 }
             }
         }
 
-        return view(
-            'components.admin.prediction-activity-matrix',
-            [
-                'players' => $players,
-                'journees' => $journees,
-                'activity' => $activity,
-            ]
-        );
+        return view('components.admin.prediction-activity-matrix', [
+            'players' => $players,
+            'journees' => $journees,
+            'activity' => $activity,
+        ]);
     }
 
-    private function parseDate(
-        ?string $value
-    ): ?Carbon {
+    private function parseDate(?string $value): ?Carbon
+    {
         if (! $value) {
             return null;
         }
 
-        return Carbon::parse($value)
-            ->timezone(
-                config(
-                    'app.timezone',
-                    'Europe/Paris'
-                )
-            );
+        return Carbon::parse($value)->timezone(
+            config('app.timezone', 'Europe/Paris')
+        );
     }
 }
