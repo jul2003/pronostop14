@@ -293,44 +293,35 @@ class JourneeController extends Controller
          * Il décide uniquement si elle sera
          * utilisée sur /resultats.
          */
-        if (
-            $journee->type
-                !== 'preseason'
-        ) {
-            $predictionsVisibleAt =
-                null;
+        $predictionsVisibleAt = null;
 
-            if (
+        if ( $request->filled('predictions_visible_date'))
+        {
+            $time =
                 $request->filled(
-                    'predictions_visible_date'
+                    'predictions_visible_time'
                 )
-            ) {
-                $time =
-                    $request->filled(
+                    ? $data[
                         'predictions_visible_time'
-                    )
-                        ? $data[
-                            'predictions_visible_time'
-                        ]
-                        : $settings
-                            ->defaultPredictionsVisibleTime();
+                    ]
+                    : $settings
+                        ->defaultPredictionsVisibleTime();
 
-                $predictionsVisibleAt =
-                    Carbon::createFromFormat(
-                        'Y-m-d H:i',
-                        $data[
-                            'predictions_visible_date'
-                        ]
-                        .' '
-                        .$time
-                    );
-            }
-
-            $updateData[
-                'predictions_visible_at'
-            ] =
-                $predictionsVisibleAt;
+            $predictionsVisibleAt =
+                Carbon::createFromFormat(
+                    'Y-m-d H:i',
+                    $data[
+                        'predictions_visible_date'
+                    ]
+                    .' '
+                    .$time
+                );
         }
+
+        $updateData[
+            'predictions_visible_at'
+        ] =
+            $predictionsVisibleAt;
 
         $journee->update(
             $updateData

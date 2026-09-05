@@ -12,6 +12,26 @@
         ?? $questions->contains(
             fn ($question) => $question->hasOfficialResult()
         );
+
+    $predictionRecapVisibleAt =
+        $journee->predictions_visible_at;
+
+    $hasEarlyPredictionRecap =
+        app(\App\Services\AppSettingService::class)
+            ->predictionRecapEarlyVisibilityEnabled()
+        && $predictionRecapVisibleAt
+        && $preseasonDeadline
+        && $predictionRecapVisibleAt->lt(
+            $preseasonDeadline
+        );
+
+    $predictionRecapIsVisible =
+        $hasEarlyPredictionRecap
+        && app(\App\Services\AppDateService::class)
+            ->now()
+            ->gte(
+                $predictionRecapVisibleAt
+            );
 @endphp
 
 <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-start gap-3 mb-4">
@@ -60,6 +80,61 @@
         Certaines questions sont déjà clôturées parce que leur résultat officiel est enregistré.
         Elles restent visibles, mais elles ne peuvent plus être saisies ni modifiées.
     </div>
+@endif
+
+@if($hasEarlyPredictionRecap)
+
+    <div class="alert alert-info">
+
+        <div class="fw-bold mb-1">
+            👀 Affichage anticipé des pronostics
+        </div>
+
+        <div>
+
+            @if($predictionRecapIsVisible)
+
+                Le récapitulatif des pronostics
+                avant-saison est visible sur la page
+                Résultats depuis le
+
+                <strong>
+                    {{ $predictionRecapVisibleAt->format('d/m/Y à H:i') }}
+                </strong>.
+
+            @else
+
+                Le récapitulatif des pronostics
+                avant-saison sera visible sur la page
+                Résultats à partir du
+
+                <strong>
+                    {{ $predictionRecapVisibleAt->format('d/m/Y à H:i') }}
+                </strong>.
+
+            @endif
+
+
+            @if(
+                ! $isLocked
+                && $preseasonDeadline
+            )
+
+                <br>
+
+                Tu peux continuer à modifier
+                tes pronostics avant-saison jusqu’au
+
+                <strong>
+                    {{ $preseasonDeadline->format('d/m/Y à H:i') }}
+                </strong>.
+
+            @endif
+
+        </div>
+
+    </div>
+
 @endif
 
 @if($questions->isEmpty())

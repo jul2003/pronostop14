@@ -269,18 +269,78 @@ class RankingController extends Controller
         $players = $season->players()
             ->get();
 
-        $preseasonDeadline = $preseasonDeadlineService
-            ->deadlineForUser(
-                $season,
-                auth()->user()
-            );
+        $preseasonDeadline =
+            $preseasonDeadlineService
+                ->deadlineForUser(
+                    $season,
+                    auth()->user()
+                );
 
-        $preseasonIsVisible = $preseasonDeadline
-            ? $preseasonDeadlineService->isLockedForUser(
-                $season,
-                auth()->user()
+        /*
+        * Fonctionnement historique :
+        * visible lorsque la deadline personnelle
+        * du joueur est dépassée.
+        */
+        $preseasonIsVisibleByDeadline =
+            $preseasonDeadline
+                ? $preseasonDeadlineService
+                    ->isLockedForUser(
+                        $season,
+                        auth()->user()
+                    )
+                : false;
+
+
+        /*
+        * Journée technique "Avant-saison".
+        *
+        * Elle possède maintenant elle aussi
+        * predictions_visible_at.
+        */
+        $preseasonJournee =
+            $season
+                ->journees()
+                ->where(
+                    'type',
+                    'preseason'
+                )
+                ->first();
+
+
+        /*
+        * Affichage anticipé.
+        *
+        * Il n'est pris en compte que si :
+        *
+        * - la fonctionnalité globale est ON ;
+        * - une date est renseignée ;
+        * - cette date est atteinte.
+        */
+        $preseasonIsVisibleEarly =
+            $appSettingService
+                ->predictionRecapEarlyVisibilityEnabled()
+            && $preseasonJournee
+                ?->predictions_visible_at
+            && app(
+                \App\Services\AppDateService::class
             )
-            : false;
+                ->now()
+                ->gte(
+                    $preseasonJournee
+                        ->predictions_visible_at
+                );
+
+
+        /*
+        * L'affichage anticipé ne peut qu'ouvrir
+        * plus tôt.
+        *
+        * Il ne peut jamais retarder l'affichage
+        * historique lié à la deadline personnelle.
+        */
+        $preseasonIsVisible =
+            $preseasonIsVisibleByDeadline
+            || $preseasonIsVisibleEarly;
 
         $preseasonQuestions = collect();
         $preseasonBonusRules = collect();

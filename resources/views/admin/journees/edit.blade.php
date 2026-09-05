@@ -240,237 +240,232 @@
 
             {{-- AFFICHAGE DES PRONOSTICS --}}
 
-            @if($journee->type !== 'preseason')
+            <div class="col-12">
 
-                <div class="col-12">
+                <div class="border rounded-3 p-3 bg-light">
 
-                    <div class="border rounded-3 p-3 bg-light">
+                    <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-1">
 
-                        <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-1">
-
-                            <div class="fw-bold">
-                                Affichage du récapitulatif des pronostics
-                            </div>
-
-                            @if($predictionRecapEarlyVisibilityEnabled)
-
-                                <span class="badge rounded-pill text-bg-success">
-                                    Affichage anticipé activé
-                                </span>
-
-                            @else
-
-                                <span class="badge rounded-pill text-bg-secondary">
-                                    Affichage anticipé désactivé
-                                </span>
-
-                            @endif
-
+                        <div class="fw-bold">
+                            Affichage du récapitulatif des pronostics
                         </div>
-
-
-                        <p class="text-muted small mb-3">
-                            Cette date peut être renseignée
-                            indépendamment de l’activation globale
-                            de la fonctionnalité.
-                        </p>
-
-
-                        <div class="row g-3">
-
-
-                            {{-- DATE D'AFFICHAGE --}}
-
-                            <div class="col-lg-6">
-
-                                <label for="predictionsVisibleDateInput"
-                                       class="form-label fw-bold">
-                                    Date d’affichage
-                                </label>
-
-                                <div class="input-group">
-
-                                    <input type="date"
-                                           id="predictionsVisibleDateInput"
-                                           name="predictions_visible_date"
-                                           value="{{ $predictionsVisibleDateValue }}"
-                                           class="form-control @error('predictions_visible_date') is-invalid @enderror"
-                                           autocomplete="off">
-
-                                    <button type="button"
-                                            class="btn btn-outline-secondary clear-date-button"
-                                            data-target="predictionsVisibleDateInput"
-                                            data-time-target="predictionsVisibleTimeInput"
-                                            title="Effacer la date et l’heure d’affichage"
-                                            aria-label="Effacer la date et l’heure d’affichage">
-                                        ×
-                                    </button>
-
-                                </div>
-
-                                @error('predictions_visible_date')
-
-                                    <div class="text-danger small mt-1">
-                                        {{ $message }}
-                                    </div>
-
-                                @enderror
-
-                            </div>
-
-
-                            {{-- HEURE D'AFFICHAGE --}}
-
-                            <div class="col-lg-6">
-
-                                <label for="predictionsVisibleTimeInput"
-                                       class="form-label fw-bold">
-                                    Heure d’affichage
-                                </label>
-
-                                <div class="input-group">
-
-                                    <input type="time"
-                                           id="predictionsVisibleTimeInput"
-                                           name="predictions_visible_time"
-                                           value="{{ $predictionsVisibleTimeValue }}"
-                                           class="form-control @error('predictions_visible_time') is-invalid @enderror"
-                                           autocomplete="off">
-
-                                    <button type="button"
-                                            id="applyDefaultPredictionsVisibleTimeButton"
-                                            class="btn btn-outline-primary fw-bold"
-                                            data-default-time="{{ $defaultPredictionsVisibleTime }}">
-                                        Appliquer heure par défaut
-                                    </button>
-
-                                </div>
-
-                                <div class="form-text">
-                                    Heure par défaut actuelle :
-                                    {{ $defaultPredictionsVisibleTime }}.
-
-                                    Quand tu changes la date,
-                                    cette heure est automatiquement appliquée.
-                                </div>
-
-                                @error('predictions_visible_time')
-
-                                    <div class="text-danger small mt-1">
-                                        {{ $message }}
-                                    </div>
-
-                                @enderror
-
-                            </div>
-
-                        </div>
-
 
                         @if($predictionRecapEarlyVisibilityEnabled)
 
-                            <div class="alert alert-info mt-3 mb-0">
-
-                                <div class="fw-bold">
-                                    Fonctionnalité activée
-                                </div>
-
-                                <div class="small">
-                                    Si une date d’affichage antérieure
-                                    au premier match est renseignée,
-                                    les pronostics des joueurs seront
-                                    visibles sur la page Résultats
-                                    dès cette date.
-                                </div>
-
-                            </div>
+                            <span class="badge rounded-pill text-bg-success">
+                                Affichage anticipé activé
+                            </span>
 
                         @else
 
-                            <div class="alert alert-secondary mt-3 mb-0">
-
-                                <div class="fw-bold">
-                                    Fonctionnalité actuellement désactivée
-                                </div>
-
-                                <div class="small">
-                                    Tu peux quand même préparer
-                                    et enregistrer cette date.
-
-                                    Tant que l’option globale reste
-                                    désactivée, la page Résultats
-                                    l’ignore et attend la date
-                                    du premier match.
-                                </div>
-
-                            </div>
-
-                        @endif
-
-
-                        @if(
-                            $journee->predictions_visible_at
-                            && $journee->first_match_at
-                            && $journee->predictions_visible_at->lt(
-                                $journee->first_match_at
-                            )
-                        )
-
-                            <div class="alert alert-light border mt-3 mb-0">
-
-                                <div class="fw-bold mb-1">
-                                    Configuration enregistrée
-                                </div>
-
-                                <div class="small">
-                                    Affichage prévu le
-
-                                    <strong>
-                                        {{ $journee->predictions_visible_at->format('d/m/Y à H:i') }}
-                                    </strong>
-
-                                    et clôture de la saisie le
-
-                                    <strong>
-                                        {{ $journee->first_match_at->format('d/m/Y à H:i') }}
-                                    </strong>.
-                                </div>
-
-                            </div>
-
-                        @elseif(
-                            $journee->predictions_visible_at
-                            && $journee->first_match_at
-                            && $journee->predictions_visible_at->gte(
-                                $journee->first_match_at
-                            )
-                        )
-
-                            <div class="alert alert-warning mt-3 mb-0">
-
-                                <div class="fw-bold">
-                                    Date non anticipée
-                                </div>
-
-                                <div class="small">
-                                    La date d’affichage est égale
-                                    ou postérieure au premier match.
-
-                                    Dans ce cas, les pronostics deviennent
-                                    visibles dès le premier match,
-                                    comme avec le fonctionnement normal.
-                                </div>
-
-                            </div>
+                            <span class="badge rounded-pill text-bg-secondary">
+                                Affichage anticipé désactivé
+                            </span>
 
                         @endif
 
                     </div>
 
+
+                    <p class="text-muted small mb-3">
+                        Cette date peut être renseignée
+                        indépendamment de l’activation globale
+                        de la fonctionnalité.
+                    </p>
+
+
+                    <div class="row g-3">
+
+
+                        {{-- DATE D'AFFICHAGE --}}
+
+                        <div class="col-lg-6">
+
+                            <label for="predictionsVisibleDateInput"
+                                    class="form-label fw-bold">
+                                Date d’affichage
+                            </label>
+
+                            <div class="input-group">
+
+                                <input type="date"
+                                        id="predictionsVisibleDateInput"
+                                        name="predictions_visible_date"
+                                        value="{{ $predictionsVisibleDateValue }}"
+                                        class="form-control @error('predictions_visible_date') is-invalid @enderror"
+                                        autocomplete="off">
+
+                                <button type="button"
+                                        class="btn btn-outline-secondary clear-date-button"
+                                        data-target="predictionsVisibleDateInput"
+                                        data-time-target="predictionsVisibleTimeInput"
+                                        title="Effacer la date et l’heure d’affichage"
+                                        aria-label="Effacer la date et l’heure d’affichage">
+                                    ×
+                                </button>
+
+                            </div>
+
+                            @error('predictions_visible_date')
+
+                                <div class="text-danger small mt-1">
+                                    {{ $message }}
+                                </div>
+
+                            @enderror
+
+                        </div>
+
+
+                        {{-- HEURE D'AFFICHAGE --}}
+
+                        <div class="col-lg-6">
+
+                            <label for="predictionsVisibleTimeInput"
+                                    class="form-label fw-bold">
+                                Heure d’affichage
+                            </label>
+
+                            <div class="input-group">
+
+                                <input type="time"
+                                        id="predictionsVisibleTimeInput"
+                                        name="predictions_visible_time"
+                                        value="{{ $predictionsVisibleTimeValue }}"
+                                        class="form-control @error('predictions_visible_time') is-invalid @enderror"
+                                        autocomplete="off">
+
+                                <button type="button"
+                                        id="applyDefaultPredictionsVisibleTimeButton"
+                                        class="btn btn-outline-primary fw-bold"
+                                        data-default-time="{{ $defaultPredictionsVisibleTime }}">
+                                    Appliquer heure par défaut
+                                </button>
+
+                            </div>
+
+                            <div class="form-text">
+                                Heure par défaut actuelle :
+                                {{ $defaultPredictionsVisibleTime }}.
+
+                                Quand tu changes la date,
+                                cette heure est automatiquement appliquée.
+                            </div>
+
+                            @error('predictions_visible_time')
+
+                                <div class="text-danger small mt-1">
+                                    {{ $message }}
+                                </div>
+
+                            @enderror
+
+                        </div>
+
+                    </div>
+
+
+                    @if($predictionRecapEarlyVisibilityEnabled)
+
+                        <div class="alert alert-info mt-3 mb-0">
+
+                            <div class="fw-bold">
+                                Fonctionnalité activée
+                            </div>
+
+                            <div class="small">
+                                Si une date d’affichage antérieure
+                                au premier match est renseignée,
+                                les pronostics des joueurs seront
+                                visibles sur la page Résultats
+                                dès cette date.
+                            </div>
+
+                        </div>
+
+                    @else
+
+                        <div class="alert alert-secondary mt-3 mb-0">
+
+                            <div class="fw-bold">
+                                Fonctionnalité actuellement désactivée
+                            </div>
+
+                            <div class="small">
+                                Tu peux quand même préparer
+                                et enregistrer cette date.
+
+                                Tant que l’option globale reste
+                                désactivée, la page Résultats
+                                l’ignore et attend la date
+                                du premier match.
+                            </div>
+
+                        </div>
+
+                    @endif
+
+
+                    @if(
+                        $journee->predictions_visible_at
+                        && $journee->first_match_at
+                        && $journee->predictions_visible_at->lt(
+                            $journee->first_match_at
+                        )
+                    )
+
+                        <div class="alert alert-light border mt-3 mb-0">
+
+                            <div class="fw-bold mb-1">
+                                Configuration enregistrée
+                            </div>
+
+                            <div class="small">
+                                Affichage prévu le
+
+                                <strong>
+                                    {{ $journee->predictions_visible_at->format('d/m/Y à H:i') }}
+                                </strong>
+
+                                et clôture de la saisie le
+
+                                <strong>
+                                    {{ $journee->first_match_at->format('d/m/Y à H:i') }}
+                                </strong>.
+                            </div>
+
+                        </div>
+
+                    @elseif(
+                        $journee->predictions_visible_at
+                        && $journee->first_match_at
+                        && $journee->predictions_visible_at->gte(
+                            $journee->first_match_at
+                        )
+                    )
+
+                        <div class="alert alert-warning mt-3 mb-0">
+
+                            <div class="fw-bold">
+                                Date non anticipée
+                            </div>
+
+                            <div class="small">
+                                La date d’affichage est égale
+                                ou postérieure au premier match.
+
+                                Dans ce cas, les pronostics deviennent
+                                visibles dès le premier match,
+                                comme avec le fonctionnement normal.
+                            </div>
+
+                        </div>
+
+                    @endif
+
                 </div>
 
-            @endif
-
+            </div>
 
             {{-- ACTIVATION DE LA SAISIE --}}
 
