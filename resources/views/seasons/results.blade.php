@@ -21,12 +21,6 @@
             ?? '#06142F'
         );
 
-    /*
-     * Seule la couleur du texte dépend du joueur.
-     *
-     * Le fond est désormais commun à tous
-     * et défini en CSS via --player-background.
-     */
     $playerStyle = fn ($player) =>
         '--player-color: '
         .$playerColor($player)
@@ -768,13 +762,20 @@
 
                             @foreach($players as $player)
 
-                                <td colspan="9"
-                                    class="player-summary-block-cell total-player-block-cell"
+
+                                <td colspan="8"
+                                    class="player-total-empty-cell"
+                                    style="{{ $playerStyle($player) }}">
+                                </td>
+
+
+                                <td class="player-points-cell total-player-points-cell"
                                     style="{{ $playerStyle($player) }}">
 
                                     {{ $preseasonTotals[$player->id] ?? 0 }}
 
                                 </td>
+
 
                             @endforeach
 
@@ -1093,8 +1094,13 @@
                                 @endphp
 
 
-                                <td colspan="9"
-                                    class="player-summary-block-cell total-player-block-cell"
+                                <td colspan="8"
+                                    class="player-total-empty-cell"
+                                    style="{{ $playerStyle($player) }}">
+                                </td>
+
+
+                                <td class="player-points-cell total-player-points-cell"
                                     style="{{ $playerStyle($player) }}">
 
                                     @if($journee->isLocked())
@@ -1170,13 +1176,7 @@
         --left-offset-bonus-dom: 316px;
         --left-offset-bonus-ext: 360px;
 
-        /*
-         * Fond commun à tous les joueurs.
-         *
-         * Il suffit de changer cette seule valeur
-         * si tu souhaites tester un autre gris.
-         */
-        --player-background: #CED4DA;
+        --player-background: #DEE2E6;
     }
 
 
@@ -1403,9 +1403,6 @@
     }
 
 
-    /*
-     * Nom du joueur.
-     */
     .player-main-head {
         background: var(--player-background) !important;
 
@@ -1425,12 +1422,14 @@
 
     .left-mini-col {
         min-width: var(--left-mini-width);
+
         max-width: var(--left-mini-width);
     }
 
 
     .left-bonus-col {
         min-width: var(--left-bonus-width);
+
         max-width: var(--left-bonus-width);
     }
 
@@ -1489,9 +1488,6 @@
     }
 
 
-    /*
-     * Sous-entêtes joueurs.
-     */
     .player-sub-head {
         background: var(--player-background) !important;
 
@@ -1507,12 +1503,14 @@
 
     .player-mini-sub-head {
         min-width: 26px;
+
         max-width: 26px;
     }
 
 
     .player-bonus-sub-head {
         min-width: 38px;
+
         max-width: 38px;
     }
 
@@ -1627,10 +1625,6 @@
     }
 
 
-    /*
-     * Toutes les valeurs joueur utilisent
-     * désormais le même gris clair.
-     */
     .player-preseason-prono-cell,
     .player-prono-cell,
     .player-points-cell {
@@ -1683,26 +1677,49 @@
     }
 
 
-    /*
-     * Le bonus avant-saison garde son
-     * fond métier spécifique.
-     */
     .preseason-bonus-hit {
         background: var(--preseason-bonus-bg) !important;
     }
 
 
     .total-row td {
-        background: #ffffff;
-
         font-weight: 900;
     }
 
 
     .total-label-cell {
+        background: #ffffff !important;
+
         color: #000000;
 
         text-align: center;
+    }
+
+
+    /*
+     * Les 8 premières colonnes du bloc joueur
+     * restent vides sur les lignes TOTAL.
+     *
+     * Le total lui-même est placé uniquement
+     * dans la 9e colonne : P.
+     */
+    .player-total-empty-cell {
+        background: var(--player-background) !important;
+
+        border-left: 2px solid #000 !important;
+    }
+
+
+    .total-player-points-cell {
+        background: var(--player-background) !important;
+
+        color: var(--player-color) !important;
+
+        font-weight: 900;
+
+        text-align: center !important;
+
+        border-right: 2px solid #000 !important;
     }
 
 
@@ -1723,17 +1740,6 @@
         border-left: 2px solid #000 !important;
 
         border-right: 2px solid #000 !important;
-    }
-
-
-    .total-player-block-cell {
-        background: var(--player-background) !important;
-
-        text-align: center !important;
-
-        padding-left: 0.45rem !important;
-
-        padding-right: 0.45rem !important;
     }
 
 
@@ -1797,10 +1803,6 @@
     }
 
 
-    /*
-     * Le bonus parfait reste prioritaire
-     * sur le fond gris joueur.
-     */
     .journee-perfect-bonus-points-cell.journee-perfect-bonus-hit {
         background: var(--preseason-bonus-bg) !important;
 
@@ -1840,10 +1842,6 @@
     }
 
 
-    /*
-     * Les indicateurs vert / rouge restent
-     * indépendants de la couleur joueur.
-     */
     .result-indicator-cell {
         color: transparent !important;
 
