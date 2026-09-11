@@ -11,43 +11,24 @@
             : $fallback;
     };
 
-    $playerLabel = fn ($player) =>
-        $player->nickname
-        ?? $player->name;
+    $playerLabel = fn ($player) => $player->nickname ?? $player->name;
 
-    $playerColor = fn ($player) =>
-        $safeColor(
-            $player->color
-            ?? '#06142F'
-        );
+    $playerColor = fn ($player) => $safeColor(
+        $player->color ?? '#06142F'
+    );
 
-    $playerStyle = fn ($player) =>
-        '--player-color: '
-        .$playerColor($player)
-        .';';
+    $playerStyle = fn ($player) => '--player-color: '.$playerColor($player).';';
 
     $verticalWord = function (string $word) {
-        return collect(
-            str_split($word)
-        )
-            ->map(
-                fn ($letter) =>
-                    '<span>'.e($letter).'</span>'
-            )
+        return collect(str_split($word))
+            ->map(fn ($letter) => '<span>'.e($letter).'</span>')
             ->implode('');
     };
 
-    $verticalBonus = function (
-        string $side
-    ) use ($verticalWord) {
-        return
-            '<span class="vertical-bonus-label">'
-            .'<span class="vertical-bonus-word">'
-            .$verticalWord('Bonus')
-            .'</span>'
-            .'<span class="vertical-bonus-side">'
-            .$verticalWord($side)
-            .'</span>'
+    $verticalBonus = function (string $side) use ($verticalWord) {
+        return '<span class="vertical-bonus-label">'
+            .'<span class="vertical-bonus-word">'.$verticalWord('Bonus').'</span>'
+            .'<span class="vertical-bonus-side">'.$verticalWord($side).'</span>'
             .'</span>';
     };
 
@@ -57,133 +38,143 @@
         }
 
         return match ($journee->type) {
-            'top14_playoff' =>
-                'Barrages TOP 14',
-
-            'access_match' =>
-                'Access match',
-
-            'top14_semifinal' =>
-                'Demi-finales TOP 14',
-
-            'prod2_final' =>
-                'Finale PRO D2',
-
-            'top14_final' =>
-                'Finale TOP 14',
-
-            default =>
-                $journee->name,
+            'top14_playoff' => 'Barrages TOP 14',
+            'access_match' => 'Access match',
+            'top14_semifinal' => 'Demi-finales TOP 14',
+            'prod2_final' => 'Finale PRO D2',
+            'top14_final' => 'Finale TOP 14',
+            default => $journee->name,
         };
     };
 
     $journeeDateLabel = function ($journee) {
-        if ($journee->first_match_at) {
-            return $journee
-                ->first_match_at
-                ->format('d/m');
-        }
-
-        return '';
+        return $journee->first_match_at
+            ? $journee->first_match_at->format('d/m')
+            : '';
     };
 
-    $clubLabel = fn ($club) =>
-        $club?->name
-        ?? $club?->short_name
-        ?? '';
+    $clubLabel = fn ($club) => $club?->name ?? $club?->short_name ?? '';
 
-    $preseasonAnswerLabel = function (
-        $question,
-        $prediction = null
-    ) use ($clubLabel) {
+    $preseasonAnswerLabel = function ($question, $prediction = null) use ($clubLabel) {
         if (! $prediction) {
             return '';
         }
 
-        if (
-            $question->answer_type
-            === 'free_text'
-        ) {
-            return $prediction
-                ->text_answer
-                ?: '';
+        if ($question->answer_type === 'free_text') {
+            return $prediction->text_answer ?: '';
         }
 
-        return $clubLabel(
-            $prediction->club
-        );
+        return $clubLabel($prediction->club);
     };
 
-    $preseasonOfficialLabel = function (
-        $question
-    ) use ($clubLabel) {
-        if (
-            $question->answer_type
-            === 'free_text'
-        ) {
-            return $question
-                ->result_text_answer
-                ?: '';
+    $preseasonOfficialLabel = function ($question) use ($clubLabel) {
+        if ($question->answer_type === 'free_text') {
+            return $question->result_text_answer ?: '';
         }
 
-        return $clubLabel(
-            $question->resultClub
-        );
+        return $clubLabel($question->resultClub);
     };
 
-    $resultValue = fn ($value) =>
-        $value
-            ? strtolower(
-                (string) $value
-            )
-            : '';
+    $resultValue = fn ($value) => $value ? strtolower((string) $value) : '';
 
     $bonusValue = function ($value) {
-        if (
-            $value === null
-            || $value === ''
-        ) {
+        if ($value === null || $value === '') {
             return '';
         }
 
-        return strtolower(
-            (string) $value
-        );
+        return strtolower((string) $value);
     };
 
-    $statusClass = fn ($status) =>
-        match ($status) {
-            'good' =>
-                'result-good',
+    $statusClass = fn ($status) => match ($status) {
+        'good' => 'result-good',
+        'bad' => 'result-bad',
+        'bonus' => 'result-bonus',
+        default => 'result-neutral',
+    };
 
-            'bad' =>
-                'result-bad',
+    $bonusStatusClass = fn ($status) => match ($status) {
+        'good' => 'bonus-result-good',
+        'bad' => 'bonus-result-bad',
+        default => 'result-neutral',
+    };
 
-            'bonus' =>
-                'result-bonus',
+    $totalColumns = 6 + ($players->count() * 9);
 
-            default =>
-                'result-neutral',
-        };
+    /*
+     |--------------------------------------------------------------------------
+     | Journée mise en avant sur mobile
+     |--------------------------------------------------------------------------
+     |
+     | Si une journée est explicitement sélectionnée dans l'URL,
+     | elle devient la journée cible.
+     |
+     | Sinon :
+     | - journée commencée mais pas terminée ;
+     | - sinon prochaine journée à venir ;
+     | - sinon dernière journée de la saison.
+     |
+     | La journée précédente reste également ouverte.
+     */
 
-    $bonusStatusClass = fn ($status) =>
-        match ($status) {
-            'good' =>
-                'bonus-result-good',
+    $mobileNow = app(\App\Services\AppDateService::class)->now();
 
-            'bad' =>
-                'bonus-result-bad',
+    $mobileFocusJournee = $selectedJournee;
 
-            default =>
-                'result-neutral',
-        };
+    if (! $mobileFocusJournee) {
+        $mobileStartedJournee = $journees
+            ->filter(fn ($journee) => $journee->first_match_at && $journee->first_match_at->lte($mobileNow))
+            ->filter(function ($journee) {
+                if ($journee->matches->isEmpty()) {
+                    return false;
+                }
 
-    $totalColumns =
-        6
-        + (
-            $players->count()
-            * 9
+                return $journee->matches->contains(
+                    fn ($match) => $match->actual_result === null
+                );
+            })
+            ->sortByDesc(fn ($journee) => $journee->first_match_at->timestamp)
+            ->first();
+
+        if ($mobileStartedJournee) {
+            $mobileFocusJournee = $mobileStartedJournee;
+        }
+    }
+
+    if (! $mobileFocusJournee) {
+        $mobileFocusJournee = $journees
+            ->filter(fn ($journee) => $journee->first_match_at && $journee->first_match_at->gt($mobileNow))
+            ->sortBy(fn ($journee) => $journee->first_match_at->timestamp)
+            ->first();
+    }
+
+    if (! $mobileFocusJournee) {
+        $mobileFocusJournee = $journees
+            ->filter(fn ($journee) => $journee->first_match_at)
+            ->sortByDesc(fn ($journee) => $journee->first_match_at->timestamp)
+            ->first();
+    }
+
+    $mobilePreviousJournee = null;
+
+    if ($mobileFocusJournee) {
+        $mobileFocusIndex = $journees->search(
+            fn ($journee) => (int) $journee->id === (int) $mobileFocusJournee->id
         );
+
+        if ($mobileFocusIndex !== false && $mobileFocusIndex > 0) {
+            $mobilePreviousJournee = $journees->get($mobileFocusIndex - 1);
+        }
+    }
+
+    $mobileOpenJourneeIds = collect([
+        $mobileFocusJournee?->id,
+        $mobilePreviousJournee?->id,
+    ])
+        ->filter()
+        ->map(fn ($id) => (int) $id)
+        ->unique()
+        ->values()
+        ->all();
 @endphp
 
 
@@ -197,12 +188,9 @@
         --preseason-bonus-bg: {{ $resultColors['preseason_bonus'] }};
      ">
 
-
-    <div id="page-top"
-         class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-3">
+    <div id="page-top" class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-3">
 
         <div>
-
             <div class="text-uppercase text-primary fw-bold small">
                 Résultats
             </div>
@@ -210,21 +198,15 @@
             <h2 class="fw-bold mb-1">
                 {{ $selectedSeason->name }}
             </h2>
-
         </div>
 
-
         <div class="d-flex flex-wrap gap-2">
-
             @if(Route::has('bilan.season'))
-
                 <a href="{{ route('bilan.season', $selectedSeason) }}"
                    class="btn btn-outline-primary rounded-pill fw-bold px-4">
                     Bilan
                 </a>
-
             @endif
-
         </div>
 
     </div>
@@ -234,13 +216,11 @@
 
         <div class="row g-3 align-items-start">
 
-
             <div class="col-xl-8">
 
                 <div class="d-flex justify-content-between align-items-center gap-2 mb-2">
 
                     <div>
-
                         <h3 class="h6 fw-bold mb-0">
                             Classement saison
                         </h3>
@@ -248,9 +228,7 @@
                         <div class="text-muted small">
                             Journées + avant-saison
                         </div>
-
                     </div>
-
 
                     <span class="badge rounded-pill text-bg-dark">
                         {{ $players->count() }} joueur(s)
@@ -264,29 +242,13 @@
                     <table class="table table-sm table-hover align-middle compact-ranking-table mb-0">
 
                         <thead class="table-light">
-
                             <tr>
-
-                                <th>
-                                    Joueur
-                                </th>
-
-                                <th class="text-center">
-                                    Journées
-                                </th>
-
-                                <th class="text-center">
-                                    Avant-saison
-                                </th>
-
-                                <th class="text-center">
-                                    Total
-                                </th>
-
+                                <th>Joueur</th>
+                                <th class="text-center">Journées</th>
+                                <th class="text-center">Avant-saison</th>
+                                <th class="text-center">Total</th>
                             </tr>
-
                         </thead>
-
 
                         <tbody>
 
@@ -296,21 +258,16 @@
 
                                     <td class="fw-bold ranking-player-cell"
                                         style="{{ $playerStyle($row['user']) }}">
-
                                         {{ $playerLabel($row['user']) }}
-
                                     </td>
-
 
                                     <td class="text-center">
                                         {{ $row['journee_points'] }}
                                     </td>
 
-
                                     <td class="text-center">
                                         {{ $row['preseason_points'] }}
                                     </td>
-
 
                                     <td class="text-center fw-bold">
                                         {{ $row['total_points'] }}
@@ -333,25 +290,19 @@
 
                 <div class="filters-panel">
 
-
                     <div class="mb-2">
 
-                        <label for="seasonSelect"
-                               class="form-label fw-bold small mb-1">
+                        <label for="seasonSelect" class="form-label fw-bold small mb-1">
                             Saison
                         </label>
 
-
-                        <select id="seasonSelect"
-                                class="form-select form-select-sm">
+                        <select id="seasonSelect" class="form-select form-select-sm">
 
                             @foreach($seasons as $seasonOption)
 
                                 <option value="{{ route('results.season', $seasonOption) }}"
                                         @selected($seasonOption->id === $selectedSeason->id)>
-
                                     {{ $seasonOption->name }}
-
                                 </option>
 
                             @endforeach
@@ -363,20 +314,16 @@
 
                     <div>
 
-                        <label for="journeeSelect"
-                               class="form-label fw-bold small mb-1">
+                        <label for="journeeSelect" class="form-label fw-bold small mb-1">
                             Journée
                         </label>
 
-
-                        <select id="journeeSelect"
-                                class="form-select form-select-sm">
+                        <select id="journeeSelect" class="form-select form-select-sm">
 
                             <option value="{{ route('results.season', $selectedSeason) }}"
                                     @selected(! $selectedJournee)>
                                 Avant-saison / haut
                             </option>
-
 
                             @foreach($journees as $journee)
 
@@ -406,14 +353,472 @@
     </div>
 
 
-    <div class="rugby-card p-0 overflow-hidden">
+    {{-- ========================================================= --}}
+    {{-- VERSION MOBILE / PETITE TABLETTE                           --}}
+    {{-- ========================================================= --}}
+
+    <div class="d-lg-none mobile-results">
+
+
+        {{-- AVANT-SAISON : fermé par défaut --}}
+
+        <details class="mobile-results-section mobile-details">
+
+            <summary class="mobile-collapse-toggle">
+
+                <span class="mobile-collapse-heading">
+
+                    <span class="mobile-section-kicker">
+                        Avant-saison
+                    </span>
+
+                    <span class="mobile-section-title">
+                        Pronos d'avant-saison
+                    </span>
+
+                </span>
+
+                <span class="mobile-collapse-chevron" aria-hidden="true">
+                    ›
+                </span>
+
+            </summary>
+
+
+            <div class="mobile-collapse-content">
+
+                @if(! $preseasonIsVisible)
+
+                    <div class="mobile-info-card">
+                        Les pronostics avant-saison ne sont pas encore visibles.
+                    </div>
+
+                @elseif($preseasonQuestions->isEmpty())
+
+                    <div class="mobile-info-card">
+                        Aucun prono avant-saison.
+                    </div>
+
+                @else
+
+                    @foreach($preseasonQuestions as $question)
+
+                        <div class="mobile-preseason-card">
+
+                            <div class="mobile-preseason-question">
+                                {{ $question->label }}
+                            </div>
+
+                            <div class="mobile-preseason-official">
+
+                                <span>
+                                    Résultat
+                                </span>
+
+                                <strong>
+                                    @if($question->hasOfficialResult())
+                                        {{ $preseasonOfficialLabel($question) ?: '—' }}
+                                    @else
+                                        —
+                                    @endif
+                                </strong>
+
+                            </div>
+
+
+                            <div class="mobile-preseason-player-list">
+
+                                @foreach($players as $player)
+
+                                    @php
+                                        $prediction = $question->predictions->firstWhere('user_id', $player->id);
+                                        $points = (int) ($prediction?->points ?? 0);
+                                        $hasResult = $question->hasOfficialResult();
+                                        $hasBonusHighlight = $preseasonBonusQuestionHighlights[$question->id][$player->id] ?? false;
+                                        $answerLabel = $preseasonAnswerLabel($question, $prediction);
+                                    @endphp
+
+
+                                    <div class="mobile-preseason-player"
+                                         style="{{ $playerStyle($player) }}">
+
+                                        <div class="mobile-player-name">
+
+                                            <span class="mobile-player-dot"></span>
+
+                                            <span>
+                                                {{ $playerLabel($player) }}
+                                            </span>
+
+                                        </div>
+
+
+                                        <div class="mobile-preseason-answer">
+                                            {{ $answerLabel !== '' ? $answerLabel : '—' }}
+                                        </div>
+
+
+                                        <div class="mobile-preseason-points {{ $hasBonusHighlight ? 'preseason-bonus-hit' : '' }}">
+
+                                            @if($hasResult)
+                                                {{ $points }}
+                                            @else
+                                                —
+                                            @endif
+
+                                        </div>
+
+                                    </div>
+
+                                @endforeach
+
+                            </div>
+
+                        </div>
+
+                    @endforeach
+
+
+                    <div class="mobile-totals-card">
+
+                        <div class="mobile-totals-title">
+                            Total avant-saison
+                        </div>
+
+
+                        @foreach($players as $player)
+
+                            <div class="mobile-total-row"
+                                 style="{{ $playerStyle($player) }}">
+
+                                <div class="mobile-player-name">
+
+                                    <span class="mobile-player-dot"></span>
+
+                                    <span>
+                                        {{ $playerLabel($player) }}
+                                    </span>
+
+                                </div>
+
+                                <strong class="mobile-total-points">
+                                    {{ $preseasonTotals[$player->id] ?? 0 }} pts
+                                </strong>
+
+                            </div>
+
+                        @endforeach
+
+                    </div>
+
+                @endif
+
+            </div>
+
+        </details>
+
+
+        {{-- JOURNÉES --}}
+
+        @foreach($journees as $journee)
+
+            @php
+                /*
+                 * Même règle que la version desktop.
+                 */
+                $journeeRecapVisible = $journee->isPredictionRecapVisible();
+
+                $mobileIsFocus = $mobileFocusJournee
+                    && (int) $mobileFocusJournee->id === (int) $journee->id;
+
+                $mobileIsPrevious = $mobilePreviousJournee
+                    && (int) $mobilePreviousJournee->id === (int) $journee->id;
+
+                $mobileIsOpen = in_array(
+                    (int) $journee->id,
+                    $mobileOpenJourneeIds,
+                    true
+                );
+            @endphp
+
+
+            <details id="mobile-journee-{{ $journee->slug }}"
+                     class="mobile-results-section mobile-details mobile-journee-section {{ $mobileIsFocus ? 'mobile-focus-journee' : '' }}"
+                     @if($mobileIsOpen) open @endif>
+
+
+                <summary class="mobile-collapse-toggle">
+
+                    <span class="mobile-collapse-heading">
+
+                        <span class="mobile-section-kicker">
+
+                            {{ $journeeSelectionLabel($journee) }}
+
+                            @if($mobileIsFocus)
+
+                                <span class="mobile-state-badge mobile-state-current">
+                                    {{ $selectedJournee ? 'Sélectionnée' : 'En cours' }}
+                                </span>
+
+                            @elseif($mobileIsPrevious)
+
+                                <span class="mobile-state-badge">
+                                    Précédente
+                                </span>
+
+                            @endif
+
+                        </span>
+
+
+                        <span class="mobile-section-title">
+                            {{ $journee->name }}
+                        </span>
+
+                    </span>
+
+
+                    <span class="mobile-collapse-meta">
+
+                        @if($journee->first_match_at)
+
+                            <span class="mobile-date-badge">
+                                {{ $journee->first_match_at->format('d/m/Y') }}
+                            </span>
+
+                        @endif
+
+
+                        <span class="mobile-collapse-chevron" aria-hidden="true">
+                            ›
+                        </span>
+
+                    </span>
+
+                </summary>
+
+
+                <div class="mobile-collapse-content">
+
+                    @if($journee->matches->isEmpty())
+
+                        <div class="mobile-info-card">
+                            Aucun match.
+                        </div>
+
+                    @else
+
+                        @if(! $journeeRecapVisible)
+
+                            <div class="mobile-info-card mb-2">
+                                Les pronostics des joueurs ne sont pas encore visibles.
+                            </div>
+
+                        @endif
+
+
+                        @foreach($journee->matches as $match)
+
+                            <div class="mobile-match-card">
+
+
+                                <div class="mobile-match-title">
+
+                                    <span>
+                                        {{ $clubLabel($match->homeClub) }}
+                                    </span>
+
+                                    <span class="mobile-match-separator">
+                                        —
+                                    </span>
+
+                                    <span>
+                                        {{ $clubLabel($match->awayClub) }}
+                                    </span>
+
+                                </div>
+
+
+                                <div class="mobile-score-grid mobile-score-header">
+
+                                    <div></div>
+                                    <div>REZ</div>
+                                    <div>TRY</div>
+                                    <div>B.Dom</div>
+                                    <div>B.Ext</div>
+                                    <div>P</div>
+
+                                </div>
+
+
+                                <div class="mobile-score-grid mobile-real-row">
+
+                                    <div class="mobile-score-player">
+                                        Réel
+                                    </div>
+
+                                    <div class="mobile-score-value">
+                                        {{ $resultValue($match->actual_result) ?: '—' }}
+                                    </div>
+
+                                    <div class="mobile-score-value">
+                                        {{ $match->actual_tries ?? '—' }}
+                                    </div>
+
+                                    <div class="mobile-score-value">
+                                        {{ $bonusValue($match->actual_home_bonus) ?: '—' }}
+                                    </div>
+
+                                    <div class="mobile-score-value">
+                                        {{ $bonusValue($match->actual_away_bonus) ?: '—' }}
+                                    </div>
+
+                                    <div class="mobile-score-points">
+                                        —
+                                    </div>
+
+                                </div>
+
+
+                                @if($journeeRecapVisible)
+
+                                    @foreach($players as $player)
+
+                                        @php
+                                            $prono = $match->pronos->firstWhere('user_id', $player->id);
+                                            $breakdown = $matchBreakdowns[$match->id][$player->id] ?? null;
+                                            $matchPoints = $breakdown['match_points'] ?? null;
+                                        @endphp
+
+
+                                        <div class="mobile-score-grid mobile-player-score-row"
+                                             style="{{ $playerStyle($player) }}">
+
+                                            <div class="mobile-score-player mobile-player-name">
+
+                                                <span class="mobile-player-dot"></span>
+
+                                                <span>
+                                                    {{ $playerLabel($player) }}
+                                                </span>
+
+                                            </div>
+
+
+                                            <div class="mobile-score-value {{ $statusClass($breakdown['result_status'] ?? 'neutral') }}">
+                                                {{ $resultValue($prono?->predicted_result) ?: '—' }}
+                                            </div>
+
+
+                                            <div class="mobile-score-value {{ $statusClass($breakdown['tries_status'] ?? 'neutral') }}">
+                                                {{ $prono?->predicted_tries ?? '—' }}
+                                            </div>
+
+
+                                            <div class="mobile-score-value {{ $bonusStatusClass($breakdown['home_bonus_status'] ?? 'neutral') }}">
+                                                {{ $bonusValue($prono?->predicted_home_bonus) ?: '—' }}
+                                            </div>
+
+
+                                            <div class="mobile-score-value {{ $bonusStatusClass($breakdown['away_bonus_status'] ?? 'neutral') }}">
+                                                {{ $bonusValue($prono?->predicted_away_bonus) ?: '—' }}
+                                            </div>
+
+
+                                            <div class="mobile-score-points">
+                                                {{ $matchPoints !== null ? $matchPoints : '—' }}
+                                            </div>
+
+                                        </div>
+
+                                    @endforeach
+
+                                @endif
+
+                            </div>
+
+                        @endforeach
+
+
+                        @if($journee->isLocked())
+
+                            <div class="mobile-totals-card">
+
+                                <div class="mobile-totals-title">
+                                    Total {{ $journeeSelectionLabel($journee) }}
+                                </div>
+
+
+                                @foreach($players as $player)
+
+                                    @php
+                                        $journeeMatchTotal = $journeeMatchPoints[$journee->id][$player->id] ?? 0;
+                                        $perfectBonus = $journeePerfectBonuses[$journee->id][$player->id] ?? 0;
+                                        $journeeTotal = $journeeMatchTotal + $perfectBonus;
+                                    @endphp
+
+
+                                    <div class="mobile-total-row"
+                                         style="{{ $playerStyle($player) }}">
+
+                                        <div class="mobile-player-name">
+
+                                            <span class="mobile-player-dot"></span>
+
+                                            <span>
+                                                {{ $playerLabel($player) }}
+                                            </span>
+
+                                        </div>
+
+
+                                        <div class="mobile-total-right">
+
+                                            @if($perfectBonus > 0)
+
+                                                <span class="mobile-perfect-bonus">
+                                                    Bonus +{{ $perfectBonus }}
+                                                </span>
+
+                                            @endif
+
+
+                                            <strong class="mobile-total-points">
+                                                {{ $journeeTotal }} pts
+                                            </strong>
+
+                                        </div>
+
+                                    </div>
+
+                                @endforeach
+
+                            </div>
+
+                        @endif
+
+                    @endif
+
+                </div>
+
+            </details>
+
+        @endforeach
+
+    </div>
+
+
+    {{-- ========================================================= --}}
+    {{-- VERSION DESKTOP                                           --}}
+    {{-- ========================================================= --}}
+
+    <div class="rugby-card p-0 overflow-hidden d-none d-lg-block">
 
         <div class="table-responsive results-table-wrapper"
              id="resultsTableWrapper">
 
-
             <table class="table align-middle mb-0 excel-results-table">
-
 
                 <thead>
 
@@ -695,29 +1100,10 @@
 
 
                                     @php
-                                        $prediction =
-                                            $question
-                                                ->predictions
-                                                ->firstWhere(
-                                                    'user_id',
-                                                    $player->id
-                                                );
-
-                                        $points =
-                                            (int) (
-                                                $prediction?->points
-                                                ?? 0
-                                            );
-
-                                        $hasResult =
-                                            $question
-                                                ->hasOfficialResult();
-
-                                        $hasBonusHighlight =
-                                            $preseasonBonusQuestionHighlights[
-                                                $question->id
-                                            ][$player->id]
-                                            ?? false;
+                                        $prediction = $question->predictions->firstWhere('user_id', $player->id);
+                                        $points = (int) ($prediction?->points ?? 0);
+                                        $hasResult = $question->hasOfficialResult();
+                                        $hasBonusHighlight = $preseasonBonusQuestionHighlights[$question->id][$player->id] ?? false;
                                     @endphp
 
 
@@ -832,15 +1218,8 @@
 
 
                                 @php
-                                    $perfectBonus =
-                                        $journeePerfectBonuses[
-                                            $journee->id
-                                        ][$player->id]
-                                        ?? 0;
-
-                                    $hasPerfectBonus =
-                                        $journee->isLocked()
-                                        && $perfectBonus > 0;
+                                    $perfectBonus = $journeePerfectBonuses[$journee->id][$player->id] ?? 0;
+                                    $hasPerfectBonus = $journee->isLocked() && $perfectBonus > 0;
                                 @endphp
 
 
@@ -961,19 +1340,8 @@
 
 
                                         @php
-                                            $prono =
-                                                $match
-                                                    ->pronos
-                                                    ->firstWhere(
-                                                        'user_id',
-                                                        $player->id
-                                                    );
-
-                                            $breakdown =
-                                                $matchBreakdowns[
-                                                    $match->id
-                                                ][$player->id]
-                                                ?? null;
+                                            $prono = $match->pronos->firstWhere('user_id', $player->id);
+                                            $breakdown = $matchBreakdowns[$match->id][$player->id] ?? null;
                                         @endphp
 
 
@@ -1076,21 +1444,9 @@
 
 
                                 @php
-                                    $matchPoints =
-                                        $journeeMatchPoints[
-                                            $journee->id
-                                        ][$player->id]
-                                        ?? 0;
-
-                                    $perfectBonus =
-                                        $journeePerfectBonuses[
-                                            $journee->id
-                                        ][$player->id]
-                                        ?? 0;
-
-                                    $total =
-                                        $matchPoints
-                                        + $perfectBonus;
+                                    $matchPoints = $journeeMatchPoints[$journee->id][$player->id] ?? 0;
+                                    $perfectBonus = $journeePerfectBonuses[$journee->id][$player->id] ?? 0;
+                                    $total = $matchPoints + $perfectBonus;
                                 @endphp
 
 
@@ -1206,36 +1562,502 @@
     .ranking-player-cell {
         color: var(--player-color) !important;
         background: var(--player-background) !important;
-
         max-width: 130px;
-
         overflow: hidden;
-
         text-overflow: ellipsis;
     }
 
 
     .filters-panel {
         border-left: 1px solid rgba(0, 0, 0, 0.08);
-
         padding-left: 1rem;
     }
 
 
+    /*
+     |--------------------------------------------------------------------------
+     | Mobile
+     |--------------------------------------------------------------------------
+     */
+
+    .mobile-results {
+        padding-bottom: 1rem;
+    }
+
+
+    .mobile-results-section {
+        margin-bottom: 0.75rem;
+        scroll-margin-top: 0.5rem;
+    }
+
+
+    /*
+     * On utilise <details> natif.
+     * Aucun JavaScript Bootstrap n'intervient.
+     */
+
+    .mobile-details {
+        display: block;
+    }
+
+
+    .mobile-details > summary {
+        list-style: none;
+    }
+
+
+    .mobile-details > summary::-webkit-details-marker {
+        display: none;
+    }
+
+
+    .mobile-details > summary::marker {
+        display: none;
+        content: '';
+    }
+
+
+    .mobile-collapse-toggle {
+        display: flex;
+        width: 100%;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.75rem;
+        border: 1px solid #dee2e6;
+        border-radius: 0.9rem;
+        background: #ffffff;
+        box-shadow: 0 0.15rem 0.45rem rgba(0, 0, 0, 0.05);
+        color: inherit;
+        cursor: pointer;
+        padding: 0.7rem 0.75rem;
+        text-align: left;
+        -webkit-tap-highlight-color: transparent;
+        user-select: none;
+    }
+
+
+    .mobile-details[open] > .mobile-collapse-toggle {
+        border-bottom-left-radius: 0;
+        border-bottom-right-radius: 0;
+        background: #f8f9fa;
+    }
+
+
+    .mobile-focus-journee > .mobile-collapse-toggle {
+        border-color: rgba(13, 110, 253, 0.45);
+        box-shadow: 0 0.18rem 0.55rem rgba(13, 110, 253, 0.12);
+    }
+
+
+    .mobile-collapse-heading {
+        display: flex;
+        flex: 1 1 auto;
+        min-width: 0;
+        flex-direction: column;
+        gap: 0.1rem;
+    }
+
+
+    .mobile-section-kicker {
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+        color: #0d6efd;
+        font-size: 0.7rem;
+        font-weight: 800;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+    }
+
+
+    .mobile-section-title {
+        display: block;
+        min-width: 0;
+        color: #06142F;
+        font-size: 0.95rem;
+        font-weight: 800;
+        line-height: 1.15;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+
+    .mobile-state-badge {
+        display: inline-flex;
+        align-items: center;
+        border-radius: 999px;
+        background: #e9ecef;
+        color: #495057;
+        font-size: 0.55rem;
+        font-weight: 800;
+        letter-spacing: 0;
+        padding: 0.18rem 0.38rem;
+        text-transform: none;
+    }
+
+
+    .mobile-state-current {
+        background: #0d6efd;
+        color: #ffffff;
+    }
+
+
+    .mobile-collapse-meta {
+        display: flex;
+        flex: 0 0 auto;
+        align-items: center;
+        gap: 0.55rem;
+    }
+
+
+    .mobile-collapse-chevron {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        color: #6c757d;
+        font-size: 1.45rem;
+        font-weight: 700;
+        line-height: 1;
+        transform: rotate(0deg);
+        transition: transform 0.15s ease;
+    }
+
+
+    .mobile-details[open] > .mobile-collapse-toggle .mobile-collapse-chevron {
+        transform: rotate(90deg);
+    }
+
+
+    .mobile-collapse-content {
+        border-right: 1px solid #dee2e6;
+        border-bottom: 1px solid #dee2e6;
+        border-left: 1px solid #dee2e6;
+        border-bottom-right-radius: 0.9rem;
+        border-bottom-left-radius: 0.9rem;
+        background: #f8f9fa;
+        padding: 0.65rem;
+    }
+
+
+    .mobile-date-badge {
+        flex: 0 0 auto;
+        background: #ffffff;
+        border: 1px solid #dee2e6;
+        border-radius: 999px;
+        color: #495057;
+        font-size: 0.68rem;
+        font-weight: 700;
+        padding: 0.28rem 0.5rem;
+    }
+
+
+    .mobile-info-card {
+        background: #ffffff;
+        border: 1px solid #dee2e6;
+        border-radius: 0.7rem;
+        color: #6c757d;
+        font-size: 0.82rem;
+        padding: 0.75rem;
+    }
+
+
+    .mobile-preseason-card,
+    .mobile-match-card,
+    .mobile-totals-card {
+        background: #ffffff;
+        border: 1px solid #dee2e6;
+        border-radius: 0.8rem;
+        box-shadow: 0 0.12rem 0.35rem rgba(0, 0, 0, 0.04);
+        margin-bottom: 0.65rem;
+        overflow: hidden;
+    }
+
+
+    .mobile-preseason-card:last-child,
+    .mobile-match-card:last-child,
+    .mobile-totals-card:last-child {
+        margin-bottom: 0;
+    }
+
+
+    .mobile-preseason-question {
+        background: #f8f9fa;
+        border-bottom: 1px solid #dee2e6;
+        color: #06142F;
+        font-size: 0.86rem;
+        font-weight: 800;
+        padding: 0.7rem 0.75rem;
+    }
+
+
+    .mobile-preseason-official {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.75rem;
+        border-bottom: 1px solid #e9ecef;
+        padding: 0.55rem 0.75rem;
+        font-size: 0.78rem;
+    }
+
+
+    .mobile-preseason-official span {
+        color: #6c757d;
+        font-weight: 700;
+    }
+
+
+    .mobile-preseason-official strong {
+        color: #212529;
+        text-align: right;
+    }
+
+
+    .mobile-preseason-player-list {
+        padding: 0.25rem 0;
+    }
+
+
+    .mobile-preseason-player {
+        display: grid;
+        grid-template-columns: minmax(90px, 0.9fr) minmax(100px, 1.4fr) 36px;
+        gap: 0.4rem;
+        align-items: center;
+        border-bottom: 1px solid #f1f3f5;
+        padding: 0.48rem 0.65rem;
+    }
+
+
+    .mobile-preseason-player:last-child {
+        border-bottom: 0;
+    }
+
+
+    .mobile-player-name {
+        display: flex;
+        align-items: center;
+        gap: 0.38rem;
+        min-width: 0;
+        color: #212529;
+        font-size: 0.75rem;
+        font-weight: 800;
+    }
+
+
+    .mobile-player-name span:last-child {
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+
+    .mobile-player-dot {
+        display: inline-block;
+        flex: 0 0 auto;
+        width: 0.62rem;
+        height: 0.62rem;
+        border-radius: 50%;
+        background: var(--player-color, #06142F);
+        border: 1px solid rgba(0, 0, 0, 0.15);
+    }
+
+
+    .mobile-preseason-answer {
+        min-width: 0;
+        color: #343a40;
+        font-size: 0.75rem;
+        font-weight: 600;
+        overflow: hidden;
+        text-align: right;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+
+    .mobile-preseason-points {
+        min-width: 32px;
+        background: var(--player-background);
+        border-radius: 0.4rem;
+        color: #212529;
+        font-size: 0.76rem;
+        font-weight: 900;
+        padding: 0.3rem 0.2rem;
+        text-align: center;
+    }
+
+
+    .mobile-match-title {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.4rem;
+        background: #06142F;
+        color: #ffffff;
+        font-size: 0.82rem;
+        font-weight: 800;
+        padding: 0.65rem 0.45rem;
+        text-align: center;
+    }
+
+
+    .mobile-match-title > span:not(.mobile-match-separator) {
+        min-width: 0;
+    }
+
+
+    .mobile-match-separator {
+        color: rgba(255, 255, 255, 0.55);
+        flex: 0 0 auto;
+    }
+
+
+    .mobile-score-grid {
+        display: grid;
+        grid-template-columns: minmax(74px, 1fr) 34px 34px 42px 42px 34px;
+        gap: 3px;
+        align-items: stretch;
+        padding: 0 0.45rem;
+    }
+
+
+    .mobile-score-header {
+        background: #f8f9fa;
+        border-bottom: 1px solid #dee2e6;
+        color: #6c757d;
+        font-size: 0.56rem;
+        font-weight: 800;
+        padding-top: 0.4rem;
+        padding-bottom: 0.35rem;
+        text-align: center;
+    }
+
+
+    .mobile-real-row,
+    .mobile-player-score-row {
+        padding-top: 0.38rem;
+        padding-bottom: 0.38rem;
+        border-bottom: 1px solid #f1f3f5;
+    }
+
+
+    .mobile-player-score-row:last-child {
+        border-bottom: 0;
+    }
+
+
+    .mobile-score-player {
+        display: flex;
+        align-items: center;
+        min-width: 0;
+        color: #495057;
+        font-size: 0.72rem;
+        font-weight: 800;
+    }
+
+
+    .mobile-score-value,
+    .mobile-score-points {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 0;
+        min-height: 31px;
+        border-radius: 0.35rem;
+        font-size: 0.7rem;
+        font-weight: 900;
+        text-align: center;
+    }
+
+
+    .mobile-real-row .mobile-score-value {
+        background: #f8f9fa;
+        color: #212529;
+        border: 1px solid #e9ecef;
+    }
+
+
+    .mobile-score-points {
+        background: var(--player-background);
+        color: #212529;
+    }
+
+
+    .mobile-real-row .mobile-score-points {
+        background: #f8f9fa;
+        color: #adb5bd;
+    }
+
+
+    .mobile-totals-title {
+        background: #f8f9fa;
+        border-bottom: 1px solid #dee2e6;
+        color: #06142F;
+        font-size: 0.78rem;
+        font-weight: 900;
+        padding: 0.6rem 0.7rem;
+        text-transform: uppercase;
+    }
+
+
+    .mobile-total-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.6rem;
+        border-bottom: 1px solid #f1f3f5;
+        padding: 0.55rem 0.7rem;
+    }
+
+
+    .mobile-total-row:last-child {
+        border-bottom: 0;
+    }
+
+
+    .mobile-total-right {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 0.45rem;
+    }
+
+
+    .mobile-total-points {
+        color: #06142F;
+        font-size: 0.8rem;
+        white-space: nowrap;
+    }
+
+
+    .mobile-perfect-bonus {
+        background: var(--preseason-bonus-bg);
+        border-radius: 999px;
+        color: #000000;
+        font-size: 0.62rem;
+        font-weight: 900;
+        padding: 0.25rem 0.45rem;
+        white-space: nowrap;
+    }
+
+
+    /*
+     |--------------------------------------------------------------------------
+     | Desktop
+     |--------------------------------------------------------------------------
+     */
+
     .results-table-wrapper {
         max-height: 78vh;
-
         overflow: auto;
     }
 
 
     .excel-results-table {
         border-collapse: separate;
-
         border-spacing: 0;
-
         font-size: 0.78rem;
-
         min-width: max-content;
     }
 
@@ -1243,65 +2065,46 @@
     .excel-results-table th,
     .excel-results-table td {
         border-color: transparent !important;
-
         padding: 0.12rem 0.22rem;
-
         white-space: nowrap;
-
         vertical-align: middle;
-
         line-height: 1.05;
-
         background-clip: padding-box;
     }
 
 
     .excel-results-table thead tr:first-child th {
         position: sticky;
-
         top: 0;
-
         z-index: 40;
-
         height: 28px;
     }
 
 
     .excel-results-table thead tr:nth-child(2) th {
         position: sticky;
-
         top: 28px;
-
         z-index: 39;
-
         height: 92px;
     }
 
 
     .left-main-head {
         position: sticky !important;
-
         left: 0;
-
         z-index: 70 !important;
-
         background: #ffffff !important;
-
         min-width: var(--left-total-width);
         max-width: var(--left-total-width);
         width: var(--left-total-width);
-
         border-right: 2px solid #000 !important;
     }
 
 
     .left-col {
         background: #ffffff !important;
-
         color: #000000;
-
         text-align: center;
-
         font-weight: 800;
     }
 
@@ -1313,9 +2116,7 @@
     .sticky-left-bonus-dom,
     .sticky-left-bonus-ext {
         position: sticky !important;
-
         z-index: 25 !important;
-
         background: #ffffff !important;
     }
 
@@ -1332,7 +2133,6 @@
 
     .sticky-left-journee {
         left: 0;
-
         min-width: var(--left-journee-width);
         max-width: var(--left-journee-width);
         width: var(--left-journee-width);
@@ -1341,7 +2141,6 @@
 
     .sticky-left-date {
         left: var(--left-offset-date);
-
         min-width: var(--left-date-width);
         max-width: var(--left-date-width);
         width: var(--left-date-width);
@@ -1350,7 +2149,6 @@
 
     .sticky-left-rez {
         left: var(--left-offset-rez);
-
         min-width: var(--left-mini-width);
         max-width: var(--left-mini-width);
         width: var(--left-mini-width);
@@ -1359,7 +2157,6 @@
 
     .sticky-left-try {
         left: var(--left-offset-try);
-
         min-width: var(--left-mini-width);
         max-width: var(--left-mini-width);
         width: var(--left-mini-width);
@@ -1368,7 +2165,6 @@
 
     .sticky-left-bonus-dom {
         left: var(--left-offset-bonus-dom);
-
         min-width: var(--left-bonus-width);
         max-width: var(--left-bonus-width);
         width: var(--left-bonus-width);
@@ -1377,93 +2173,66 @@
 
     .sticky-left-bonus-ext {
         left: var(--left-offset-bonus-ext);
-
         min-width: var(--left-bonus-width);
         max-width: var(--left-bonus-width);
         width: var(--left-bonus-width);
-
         border-right: 2px solid #000 !important;
     }
 
 
     .sticky-left-full {
         position: sticky !important;
-
         left: 0;
-
         z-index: 26 !important;
-
         min-width: var(--left-total-width);
         max-width: var(--left-total-width);
         width: var(--left-total-width);
-
         background: #ffffff !important;
-
         border-right: 2px solid #000 !important;
     }
 
 
     .player-main-head {
         background: var(--player-background) !important;
-
         color: var(--player-color) !important;
-
         font-size: 1.05rem;
-
         font-weight: 800;
-
         min-width: 244px;
-
         border-left: 2px solid #000 !important;
-
         border-right: 2px solid #000 !important;
     }
 
 
     .left-mini-col {
         min-width: var(--left-mini-width);
-
         max-width: var(--left-mini-width);
     }
 
 
     .left-bonus-col {
         min-width: var(--left-bonus-width);
-
         max-width: var(--left-bonus-width);
     }
 
 
     .vertical-word {
         display: inline-flex;
-
         flex-direction: column;
-
         align-items: center;
-
         justify-content: center;
-
         gap: 0.06rem;
-
         line-height: 0.82;
-
         min-height: 3.2rem;
-
         text-align: center;
     }
 
 
     .vertical-bonus-label {
         display: inline-flex;
-
         align-items: center;
-
         justify-content: center;
-
         gap: 0.1rem;
-
         min-height: 4.9rem;
-
         line-height: 0.82;
     }
 
@@ -1471,46 +2240,33 @@
     .vertical-bonus-word,
     .vertical-bonus-side {
         display: inline-flex;
-
         flex-direction: column;
-
         align-items: center;
-
         justify-content: center;
-
         gap: 0.04rem;
-
         min-height: 4.9rem;
-
         text-align: center;
-
         font-size: 0.72rem;
     }
 
 
     .player-sub-head {
         background: var(--player-background) !important;
-
         color: var(--player-color) !important;
-
         text-align: center;
-
         font-weight: 800;
-
         font-size: 0.72rem;
     }
 
 
     .player-mini-sub-head {
         min-width: 26px;
-
         max-width: 26px;
     }
 
 
     .player-bonus-sub-head {
         min-width: 38px;
-
         max-width: 38px;
     }
 
@@ -1533,44 +2289,32 @@
 
     .player-p-sub-head {
         min-width: 34px;
-
         max-width: 34px;
-
         border-right: 2px solid #000 !important;
-
         font-size: 0.9rem;
     }
 
 
     .section-spacer-row td {
         height: 18px;
-
         padding: 0;
-
         background: #ffffff;
     }
 
 
     .section-title-row td {
         height: 22px;
-
         padding-top: 0.15rem;
-
         padding-bottom: 0.15rem;
-
         background: #ffffff;
     }
 
 
     .section-title-cell {
         background: #f9cb9c !important;
-
         color: #000000;
-
         font-weight: 900;
-
         text-align: center;
-
         text-transform: uppercase;
     }
 
@@ -1582,45 +2326,29 @@
 
     .preseason-left-grid {
         display: grid;
-
-        grid-template-columns:
-            var(--left-info-width)
-            var(--left-result-width);
-
+        grid-template-columns: var(--left-info-width) var(--left-result-width);
         align-items: center;
-
         min-height: 100%;
     }
 
 
     .preseason-label-cell {
         color: #000000;
-
         font-weight: 600;
-
         text-align: center;
-
         padding: 0.12rem 0.22rem;
-
         overflow: hidden;
-
         text-overflow: ellipsis;
     }
 
 
     .preseason-result-cell {
         color: #000000;
-
         font-style: italic;
-
         font-weight: 800;
-
         text-align: center;
-
         padding: 0.12rem 0.22rem;
-
         overflow: hidden;
-
         text-overflow: ellipsis;
     }
 
@@ -1629,11 +2357,8 @@
     .player-prono-cell,
     .player-points-cell {
         background: var(--player-background) !important;
-
         color: var(--player-color) !important;
-
         font-weight: 700;
-
         text-align: center;
     }
 
@@ -1645,14 +2370,12 @@
 
     .player-mini-cell {
         min-width: 26px;
-
         max-width: 26px;
     }
 
 
     .player-bonus-cell {
         min-width: 38px;
-
         max-width: 38px;
     }
 
@@ -1670,9 +2393,7 @@
 
     .player-points-cell {
         min-width: 34px;
-
         max-width: 34px;
-
         border-right: 2px solid #000 !important;
     }
 
@@ -1689,102 +2410,67 @@
 
     .total-label-cell {
         background: #ffffff !important;
-
         color: #000000;
-
         text-align: center;
     }
 
 
-    /*
-     * Les 8 premières colonnes du bloc joueur
-     * restent vides sur les lignes TOTAL.
-     *
-     * Le total lui-même est placé uniquement
-     * dans la 9e colonne : P.
-     */
     .player-total-empty-cell {
         background: var(--player-background) !important;
-
         border-left: 2px solid #000 !important;
     }
 
 
     .total-player-points-cell {
         background: var(--player-background) !important;
-
         color: var(--player-color) !important;
-
         font-weight: 900;
-
         text-align: center !important;
-
         border-right: 2px solid #000 !important;
     }
 
 
     .player-summary-block-cell {
         background: var(--player-background) !important;
-
-        color: var(
-            --player-color,
-            #000000
-        ) !important;
-
+        color: var(--player-color, #000000) !important;
         font-weight: 900;
-
         text-align: right;
-
         padding-right: 0.45rem !important;
-
         border-left: 2px solid #000 !important;
-
         border-right: 2px solid #000 !important;
     }
 
 
     .journee-title-row td {
         background: #ffffff;
-
         font-weight: 900;
     }
 
 
     .journee-left-combined-cell {
         padding: 0 !important;
-
         background: #f9cb9c !important;
     }
 
 
     .journee-left-grid {
         display: grid;
-
-        grid-template-columns:
-            var(--left-journee-width)
-            var(--left-date-width)
-            var(--left-result-width);
-
+        grid-template-columns: var(--left-journee-width) var(--left-date-width) var(--left-result-width);
         align-items: center;
-
         min-height: 100%;
     }
 
 
     .journee-name-cell {
         color: #000000;
-
         text-align: center;
-
         padding: 0.12rem 0.22rem;
     }
 
 
     .journee-date-cell {
         color: #a000a0;
-
         text-align: center;
-
         padding: 0.12rem 0.22rem;
     }
 
@@ -1796,69 +2482,57 @@
 
     .journee-perfect-bonus-points-cell {
         background: var(--player-background) !important;
-
         text-align: center;
-
         padding-right: 0.22rem !important;
     }
 
 
     .journee-perfect-bonus-points-cell.journee-perfect-bonus-hit {
         background: var(--preseason-bonus-bg) !important;
-
         color: #000000 !important;
     }
 
 
     .team-cell {
         color: #000000;
-
         font-weight: 600;
-
         text-align: center;
     }
 
 
     .official-value-cell {
         color: #000000;
-
         font-weight: 800;
-
         text-align: center;
     }
 
 
     .official-mini-cell {
         min-width: var(--left-mini-width);
-
         max-width: var(--left-mini-width);
     }
 
 
     .official-bonus-cell {
         min-width: var(--left-bonus-width);
-
         max-width: var(--left-bonus-width);
     }
 
 
     .result-indicator-cell {
         color: transparent !important;
-
         font-size: 0;
     }
 
 
     .result-mini-cell {
         min-width: 20px;
-
         max-width: 20px;
     }
 
 
     .result-bonus-cell {
         min-width: 28px;
-
         max-width: 28px;
     }
 
@@ -1897,11 +2571,8 @@
 
         .filters-panel {
             border-left: 0;
-
             border-top: 1px solid rgba(0, 0, 0, 0.08);
-
             padding-left: 0;
-
             padding-top: 0.75rem;
         }
 
@@ -1910,8 +2581,59 @@
 
     @media (max-width: 991.98px) {
 
-        .results-table-wrapper {
-            max-height: 75vh;
+        .results-control-panel {
+            padding: 0.75rem !important;
+        }
+
+        .ranking-scroll {
+            overflow-x: auto;
+        }
+
+        .compact-ranking-table {
+            font-size: 0.7rem;
+        }
+
+        .compact-ranking-table th,
+        .compact-ranking-table td {
+            padding: 0.3rem;
+        }
+
+    }
+
+
+    @media (max-width: 420px) {
+
+        .mobile-score-grid {
+            grid-template-columns: minmax(68px, 1fr) 31px 31px 39px 39px 31px;
+            gap: 2px;
+            padding-left: 0.35rem;
+            padding-right: 0.35rem;
+        }
+
+        .mobile-score-header {
+            font-size: 0.52rem;
+        }
+
+        .mobile-score-value,
+        .mobile-score-points {
+            font-size: 0.66rem;
+        }
+
+        .mobile-player-name {
+            font-size: 0.7rem;
+        }
+
+        .mobile-preseason-player {
+            grid-template-columns: minmax(78px, 0.85fr) minmax(85px, 1.3fr) 34px;
+        }
+
+        .mobile-date-badge {
+            font-size: 0.62rem;
+            padding: 0.25rem 0.4rem;
+        }
+
+        .mobile-collapse-toggle {
+            padding: 0.62rem 0.65rem;
         }
 
     }
@@ -1926,170 +2648,118 @@
 <script>
 
     function setupBackToTopButton() {
-
-        const button =
-            document.getElementById(
-                'backToTopButton'
-            );
-
+        const button = document.getElementById('backToTopButton');
 
         if (!button) {
             return;
         }
 
-
         function refreshButtonVisibility() {
-
-            if (
-                window.scrollY
-                > 350
-            ) {
-
-                button.classList.remove(
-                    'd-none'
-                );
-
+            if (window.scrollY > 350) {
+                button.classList.remove('d-none');
             } else {
-
-                button.classList.add(
-                    'd-none'
-                );
-
+                button.classList.add('d-none');
             }
-
         }
 
+        button.addEventListener('click', function () {
+            window.scrollTo({
+                top: 0,
+                behavior: 'smooth'
+            });
+        });
 
-        button.addEventListener(
-            'click',
-            function () {
-
-                window.scrollTo({
-                    top: 0,
-                    behavior: 'smooth'
-                });
-
-            }
-        );
-
-
-        window.addEventListener(
-            'scroll',
-            refreshButtonVisibility,
-            {
-                passive: true
-            }
-        );
-
+        window.addEventListener('scroll', refreshButtonVisibility, {
+            passive: true
+        });
 
         refreshButtonVisibility();
-
     }
 
 
-    function setupRedirectSelect(
-        selectId
-    ) {
-
-        const select =
-            document.getElementById(
-                selectId
-            );
-
+    function setupRedirectSelect(selectId) {
+        const select = document.getElementById(selectId);
 
         if (!select) {
             return;
         }
 
-
-        select.addEventListener(
-            'change',
-            function () {
-
-                if (select.value) {
-
-                    window.location.href =
-                        select.value;
-
-                }
-
+        select.addEventListener('change', function () {
+            if (select.value) {
+                window.location.href = select.value;
             }
-        );
-
+        });
     }
 
 
     function scrollToSelectedJournee() {
+        const selectedJourneeSlug = @json($selectedJournee?->slug);
+        const mobileFocusJourneeSlug = @json($mobileFocusJournee?->slug);
+        const isMobileLayout = window.matchMedia('(max-width: 991.98px)').matches;
 
-        const selectedJourneeId =
-            @json(
-                $selectedJournee
-                    ? 'journee-'.$selectedJournee->slug
-                    : null
+        if (isMobileLayout) {
+            if (!mobileFocusJourneeSlug) {
+                return;
+            }
+
+            const mobileTarget = document.getElementById(
+                'mobile-journee-' + mobileFocusJourneeSlug
             );
 
+            if (!mobileTarget) {
+                return;
+            }
 
-        if (!selectedJourneeId) {
-            return;
-        }
+            /*
+             * Pas d'animation ni de délai.
+             *
+             * Cela évite l'impression que le contenu apparaît
+             * puis disparaît pendant que Safari descend vers
+             * la journée cible.
+             */
+            requestAnimationFrame(function () {
+                const targetTop = mobileTarget.getBoundingClientRect().top
+                    + window.scrollY
+                    - 8;
 
-
-        const wrapper =
-            document.getElementById(
-                'resultsTableWrapper'
-            );
-
-
-        const target =
-            document.getElementById(
-                selectedJourneeId
-            );
-
-
-        if (
-            !wrapper
-            || !target
-        ) {
-            return;
-        }
-
-
-        setTimeout(
-            function () {
-
-                wrapper.scrollTo({
-                    top: Math.max(
-                        target.offsetTop - 130,
-                        0
-                    ),
-                    behavior: 'smooth'
+                window.scrollTo({
+                    top: Math.max(targetTop, 0),
+                    behavior: 'auto'
                 });
+            });
 
-            },
-            250
+            return;
+        }
+
+        if (!selectedJourneeSlug) {
+            return;
+        }
+
+        const wrapper = document.getElementById('resultsTableWrapper');
+
+        const desktopTarget = document.getElementById(
+            'journee-' + selectedJourneeSlug
         );
 
+        if (!wrapper || !desktopTarget) {
+            return;
+        }
+
+        setTimeout(function () {
+            wrapper.scrollTo({
+                top: Math.max(desktopTarget.offsetTop - 130, 0),
+                behavior: 'smooth'
+            });
+        }, 250);
     }
 
 
-    document.addEventListener(
-        'DOMContentLoaded',
-        function () {
-
-            setupBackToTopButton();
-
-            setupRedirectSelect(
-                'seasonSelect'
-            );
-
-            setupRedirectSelect(
-                'journeeSelect'
-            );
-
-            scrollToSelectedJournee();
-
-        }
-    );
+    document.addEventListener('DOMContentLoaded', function () {
+        setupBackToTopButton();
+        setupRedirectSelect('seasonSelect');
+        setupRedirectSelect('journeeSelect');
+        scrollToSelectedJournee();
+    });
 
 </script>
 
