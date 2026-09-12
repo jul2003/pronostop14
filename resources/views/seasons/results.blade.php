@@ -102,26 +102,32 @@
 
     /*
      |--------------------------------------------------------------------------
-     | Journée mise en avant sur mobile
+     | Journées visibles
      |--------------------------------------------------------------------------
      |
-     | Si une journée est explicitement sélectionnée dans l'URL,
-     | elle devient la journée cible.
+     | Une journée n'apparaît sur la page Résultats que lorsque la saisie
+     | des pronostics a été activée dans l'administration.
      |
-     | Sinon :
-     | - journée commencée mais pas terminée ;
-     | - sinon prochaine journée à venir ;
-     | - sinon dernière journée de la saison.
-     |
-     | La journée précédente reste également ouverte.
+     | Cela ne modifie ni les journées en base ni les calculs de classement.
+     */
+    $visibleJournees = $journees
+        ->filter(fn ($journee) => (bool) $journee->predictions_enabled)
+        ->values();
+
+    /*
+     |--------------------------------------------------------------------------
+     | Journée mise en avant sur mobile
+     |--------------------------------------------------------------------------
      */
 
     $mobileNow = app(\App\Services\AppDateService::class)->now();
 
-    $mobileFocusJournee = $selectedJournee;
+    $mobileFocusJournee = $selectedJournee && (bool) $selectedJournee->predictions_enabled
+        ? $selectedJournee
+        : null;
 
     if (! $mobileFocusJournee) {
-        $mobileStartedJournee = $journees
+        $mobileStartedJournee = $visibleJournees
             ->filter(fn ($journee) => $journee->first_match_at && $journee->first_match_at->lte($mobileNow))
             ->filter(function ($journee) {
                 if ($journee->matches->isEmpty()) {
@@ -141,14 +147,14 @@
     }
 
     if (! $mobileFocusJournee) {
-        $mobileFocusJournee = $journees
+        $mobileFocusJournee = $visibleJournees
             ->filter(fn ($journee) => $journee->first_match_at && $journee->first_match_at->gt($mobileNow))
             ->sortBy(fn ($journee) => $journee->first_match_at->timestamp)
             ->first();
     }
 
     if (! $mobileFocusJournee) {
-        $mobileFocusJournee = $journees
+        $mobileFocusJournee = $visibleJournees
             ->filter(fn ($journee) => $journee->first_match_at)
             ->sortByDesc(fn ($journee) => $journee->first_match_at->timestamp)
             ->first();
@@ -157,12 +163,12 @@
     $mobilePreviousJournee = null;
 
     if ($mobileFocusJournee) {
-        $mobileFocusIndex = $journees->search(
+        $mobileFocusIndex = $visibleJournees->search(
             fn ($journee) => (int) $journee->id === (int) $mobileFocusJournee->id
         );
 
         if ($mobileFocusIndex !== false && $mobileFocusIndex > 0) {
-            $mobilePreviousJournee = $journees->get($mobileFocusIndex - 1);
+            $mobilePreviousJournee = $visibleJournees->get($mobileFocusIndex - 1);
         }
     }
 
@@ -189,7 +195,6 @@
      ">
 
     <div id="page-top" class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-3">
-
         <div>
             <div class="text-uppercase text-primary fw-bold small">
                 Résultats
@@ -208,18 +213,14 @@
                 </a>
             @endif
         </div>
-
     </div>
 
 
     <div class="results-control-panel rugby-card p-2 p-lg-3 mb-3">
-
         <div class="row g-3 align-items-start">
 
             <div class="col-xl-8">
-
                 <div class="d-flex justify-content-between align-items-center gap-2 mb-2">
-
                     <div>
                         <h3 class="h6 fw-bold mb-0">
                             Classement saison
@@ -233,14 +234,10 @@
                     <span class="badge rounded-pill text-bg-dark">
                         {{ $players->count() }} joueur(s)
                     </span>
-
                 </div>
 
-
                 <div class="table-responsive ranking-scroll">
-
                     <table class="table table-sm table-hover align-middle compact-ranking-table mb-0">
-
                         <thead class="table-light">
                             <tr>
                                 <th>Joueur</th>
@@ -251,11 +248,8 @@
                         </thead>
 
                         <tbody>
-
                             @foreach($rankingRows as $row)
-
                                 <tr>
-
                                     <td class="fw-bold ranking-player-cell"
                                         style="{{ $playerStyle($row['user']) }}">
                                         {{ $playerLabel($row['user']) }}
@@ -272,102 +266,70 @@
                                     <td class="text-center fw-bold">
                                         {{ $row['total_points'] }}
                                     </td>
-
                                 </tr>
-
                             @endforeach
-
                         </tbody>
-
                     </table>
-
                 </div>
-
             </div>
 
 
             <div class="col-xl-4">
-
                 <div class="filters-panel">
 
                     <div class="mb-2">
-
                         <label for="seasonSelect" class="form-label fw-bold small mb-1">
                             Saison
                         </label>
 
                         <select id="seasonSelect" class="form-select form-select-sm">
-
                             @foreach($seasons as $seasonOption)
-
                                 <option value="{{ route('results.season', $seasonOption) }}"
                                         @selected($seasonOption->id === $selectedSeason->id)>
                                     {{ $seasonOption->name }}
                                 </option>
-
                             @endforeach
-
                         </select>
-
                     </div>
 
-
                     <div>
-
                         <label for="journeeSelect" class="form-label fw-bold small mb-1">
                             Journée
                         </label>
 
                         <select id="journeeSelect" class="form-select form-select-sm">
-
                             <option value="{{ route('results.season', $selectedSeason) }}"
                                     @selected(! $selectedJournee)>
                                 Avant-saison / haut
                             </option>
 
-                            @foreach($journees as $journee)
-
+                            @foreach($visibleJournees as $journee)
                                 <option value="{{ route('results.journee', [$selectedSeason, $journee]) }}"
                                         @selected($selectedJournee?->id === $journee->id)>
-
                                     {{ $journeeSelectionLabel($journee) }}
 
                                     @if(! $journee->isPredictionRecapVisible())
                                         — masqué
                                     @endif
-
                                 </option>
-
                             @endforeach
-
                         </select>
-
                     </div>
 
                 </div>
-
             </div>
 
         </div>
-
     </div>
 
 
-    {{-- ========================================================= --}}
-    {{-- VERSION MOBILE / PETITE TABLETTE                           --}}
-    {{-- ========================================================= --}}
+    {{-- VERSION MOBILE --}}
 
     <div class="d-lg-none mobile-results">
 
-
-        {{-- AVANT-SAISON : fermé par défaut --}}
-
         <details class="mobile-results-section mobile-details">
-
             <summary class="mobile-collapse-toggle">
-
                 <span class="mobile-collapse-heading">
-
                     <span class="mobile-section-kicker">
                         Avant-saison
                     </span>
@@ -375,15 +337,12 @@
                     <span class="mobile-section-title">
                         Pronos d'avant-saison
                     </span>
-
                 </span>
 
                 <span class="mobile-collapse-chevron" aria-hidden="true">
                     ›
                 </span>
-
             </summary>
-
 
             <div class="mobile-collapse-content">
 
@@ -410,10 +369,7 @@
                             </div>
 
                             <div class="mobile-preseason-official">
-
-                                <span>
-                                    Résultat
-                                </span>
+                                <span>Résultat</span>
 
                                 <strong>
                                     @if($question->hasOfficialResult())
@@ -422,9 +378,7 @@
                                         —
                                     @endif
                                 </strong>
-
                             </div>
-
 
                             <div class="mobile-preseason-player-list">
 
@@ -438,34 +392,24 @@
                                         $answerLabel = $preseasonAnswerLabel($question, $prediction);
                                     @endphp
 
-
                                     <div class="mobile-preseason-player"
                                          style="{{ $playerStyle($player) }}">
 
                                         <div class="mobile-player-name">
-
                                             <span class="mobile-player-dot"></span>
-
-                                            <span>
-                                                {{ $playerLabel($player) }}
-                                            </span>
-
+                                            <span>{{ $playerLabel($player) }}</span>
                                         </div>
-
 
                                         <div class="mobile-preseason-answer">
                                             {{ $answerLabel !== '' ? $answerLabel : '—' }}
                                         </div>
 
-
                                         <div class="mobile-preseason-points {{ $hasBonusHighlight ? 'preseason-bonus-hit' : '' }}">
-
                                             @if($hasResult)
                                                 {{ $points }}
                                             @else
                                                 —
                                             @endif
-
                                         </div>
 
                                     </div>
@@ -485,20 +429,14 @@
                             Total avant-saison
                         </div>
 
-
                         @foreach($players as $player)
 
                             <div class="mobile-total-row"
                                  style="{{ $playerStyle($player) }}">
 
                                 <div class="mobile-player-name">
-
                                     <span class="mobile-player-dot"></span>
-
-                                    <span>
-                                        {{ $playerLabel($player) }}
-                                    </span>
-
+                                    <span>{{ $playerLabel($player) }}</span>
                                 </div>
 
                                 <strong class="mobile-total-points">
@@ -518,14 +456,9 @@
         </details>
 
 
-        {{-- JOURNÉES --}}
-
-        @foreach($journees as $journee)
+        @foreach($visibleJournees as $journee)
 
             @php
-                /*
-                 * Même règle que la version desktop.
-                 */
                 $journeeRecapVisible = $journee->isPredictionRecapVisible();
 
                 $mobileIsFocus = $mobileFocusJournee
@@ -541,36 +474,27 @@
                 );
             @endphp
 
-
             <details id="mobile-journee-{{ $journee->slug }}"
                      class="mobile-results-section mobile-details mobile-journee-section {{ $mobileIsFocus ? 'mobile-focus-journee' : '' }}"
                      @if($mobileIsOpen) open @endif>
-
 
                 <summary class="mobile-collapse-toggle">
 
                     <span class="mobile-collapse-heading">
 
                         <span class="mobile-section-kicker">
-
                             {{ $journeeSelectionLabel($journee) }}
 
                             @if($mobileIsFocus)
-
                                 <span class="mobile-state-badge mobile-state-current">
                                     {{ $selectedJournee ? 'Sélectionnée' : 'En cours' }}
                                 </span>
-
                             @elseif($mobileIsPrevious)
-
                                 <span class="mobile-state-badge">
                                     Précédente
                                 </span>
-
                             @endif
-
                         </span>
-
 
                         <span class="mobile-section-title">
                             {{ $journee->name }}
@@ -578,17 +502,13 @@
 
                     </span>
 
-
                     <span class="mobile-collapse-meta">
 
                         @if($journee->first_match_at)
-
                             <span class="mobile-date-badge">
                                 {{ $journee->first_match_at->format('d/m/Y') }}
                             </span>
-
                         @endif
-
 
                         <span class="mobile-collapse-chevron" aria-hidden="true">
                             ›
@@ -597,7 +517,6 @@
                     </span>
 
                 </summary>
-
 
                 <div class="mobile-collapse-content">
 
@@ -610,50 +529,31 @@
                     @else
 
                         @if(! $journeeRecapVisible)
-
                             <div class="mobile-info-card mb-2">
                                 Les pronostics des joueurs ne sont pas encore visibles.
                             </div>
-
                         @endif
-
 
                         @foreach($journee->matches as $match)
 
                             <div class="mobile-match-card">
 
-
                                 <div class="mobile-match-title">
-
-                                    <span>
-                                        {{ $clubLabel($match->homeClub) }}
-                                    </span>
-
-                                    <span class="mobile-match-separator">
-                                        —
-                                    </span>
-
-                                    <span>
-                                        {{ $clubLabel($match->awayClub) }}
-                                    </span>
-
+                                    <span>{{ $clubLabel($match->homeClub) }}</span>
+                                    <span class="mobile-match-separator">—</span>
+                                    <span>{{ $clubLabel($match->awayClub) }}</span>
                                 </div>
 
-
                                 <div class="mobile-score-grid mobile-score-header">
-
                                     <div></div>
                                     <div>REZ</div>
                                     <div>TRY</div>
                                     <div>B.Dom</div>
                                     <div>B.Ext</div>
                                     <div>P</div>
-
                                 </div>
 
-
                                 <div class="mobile-score-grid mobile-real-row">
-
                                     <div class="mobile-score-player">
                                         Réel
                                     </div>
@@ -677,9 +577,7 @@
                                     <div class="mobile-score-points">
                                         —
                                     </div>
-
                                 </div>
-
 
                                 @if($journeeRecapVisible)
 
@@ -691,40 +589,29 @@
                                             $matchPoints = $breakdown['match_points'] ?? null;
                                         @endphp
 
-
                                         <div class="mobile-score-grid mobile-player-score-row"
                                              style="{{ $playerStyle($player) }}">
 
                                             <div class="mobile-score-player mobile-player-name">
-
                                                 <span class="mobile-player-dot"></span>
-
-                                                <span>
-                                                    {{ $playerLabel($player) }}
-                                                </span>
-
+                                                <span>{{ $playerLabel($player) }}</span>
                                             </div>
-
 
                                             <div class="mobile-score-value {{ $statusClass($breakdown['result_status'] ?? 'neutral') }}">
                                                 {{ $resultValue($prono?->predicted_result) ?: '—' }}
                                             </div>
 
-
                                             <div class="mobile-score-value {{ $statusClass($breakdown['tries_status'] ?? 'neutral') }}">
                                                 {{ $prono?->predicted_tries ?? '—' }}
                                             </div>
-
 
                                             <div class="mobile-score-value {{ $bonusStatusClass($breakdown['home_bonus_status'] ?? 'neutral') }}">
                                                 {{ $bonusValue($prono?->predicted_home_bonus) ?: '—' }}
                                             </div>
 
-
                                             <div class="mobile-score-value {{ $bonusStatusClass($breakdown['away_bonus_status'] ?? 'neutral') }}">
                                                 {{ $bonusValue($prono?->predicted_away_bonus) ?: '—' }}
                                             </div>
-
 
                                             <div class="mobile-score-points">
                                                 {{ $matchPoints !== null ? $matchPoints : '—' }}
@@ -740,7 +627,6 @@
 
                         @endforeach
 
-
                         @if($journee->isLocked())
 
                             <div class="mobile-totals-card">
@@ -748,7 +634,6 @@
                                 <div class="mobile-totals-title">
                                     Total {{ $journeeSelectionLabel($journee) }}
                                 </div>
-
 
                                 @foreach($players as $player)
 
@@ -758,31 +643,21 @@
                                         $journeeTotal = $journeeMatchTotal + $perfectBonus;
                                     @endphp
 
-
                                     <div class="mobile-total-row"
                                          style="{{ $playerStyle($player) }}">
 
                                         <div class="mobile-player-name">
-
                                             <span class="mobile-player-dot"></span>
-
-                                            <span>
-                                                {{ $playerLabel($player) }}
-                                            </span>
-
+                                            <span>{{ $playerLabel($player) }}</span>
                                         </div>
-
 
                                         <div class="mobile-total-right">
 
                                             @if($perfectBonus > 0)
-
                                                 <span class="mobile-perfect-bonus">
                                                     Bonus +{{ $perfectBonus }}
                                                 </span>
-
                                             @endif
-
 
                                             <strong class="mobile-total-points">
                                                 {{ $journeeTotal }} pts
@@ -809,37 +684,26 @@
     </div>
 
 
-    {{-- ========================================================= --}}
-    {{-- VERSION DESKTOP                                           --}}
-    {{-- ========================================================= --}}
+    {{-- VERSION DESKTOP --}}
 
     <div class="rugby-card p-0 overflow-hidden d-none d-lg-block">
 
-        <div class="table-responsive results-table-wrapper"
-             id="resultsTableWrapper">
+        <div class="table-responsive results-table-wrapper" id="resultsTableWrapper">
 
             <table class="table align-middle mb-0 excel-results-table">
 
                 <thead>
 
-
                     <tr class="main-header-row">
 
-                        <th colspan="6"
-                            class="left-main-head">
-                        </th>
-
+                        <th colspan="6" class="left-main-head"></th>
 
                         @foreach($players as $player)
-
                             <th colspan="9"
                                 class="player-main-head text-center"
                                 style="{{ $playerStyle($player) }}">
-
                                 {{ $playerLabel($player) }}
-
                             </th>
-
                         @endforeach
 
                     </tr>
@@ -847,39 +711,29 @@
 
                     <tr class="sub-header-row">
 
-
                         <th class="left-col left-journee sticky-left-journee">
                             Journée
                         </th>
-
 
                         <th class="left-col left-date sticky-left-date">
                             Date
                         </th>
 
-
                         <th class="left-col left-mini-col sticky-left-rez">
-
                             <span class="vertical-word">
                                 {!! $verticalWord('REZ') !!}
                             </span>
-
                         </th>
 
-
                         <th class="left-col left-mini-col sticky-left-try">
-
                             <span class="vertical-word">
                                 {!! $verticalWord('TRY') !!}
                             </span>
-
                         </th>
-
 
                         <th class="left-col left-bonus-col sticky-left-bonus-dom">
                             {!! $verticalBonus('Dom') !!}
                         </th>
-
 
                         <th class="left-col left-bonus-col sticky-left-bonus-ext">
                             {!! $verticalBonus('Ext') !!}
@@ -888,216 +742,137 @@
 
                         @foreach($players as $player)
 
-
                             <th class="player-sub-head player-mini-sub-head player-group-start-sub-head"
                                 style="{{ $playerStyle($player) }}">
-
                                 <span class="vertical-word">
                                     {!! $verticalWord('REZ') !!}
                                 </span>
-
                             </th>
-
 
                             <th class="player-sub-head player-mini-sub-head"
                                 style="{{ $playerStyle($player) }}">
-
                                 <span class="vertical-word">
                                     {!! $verticalWord('TRY') !!}
                                 </span>
-
                             </th>
-
 
                             <th class="player-sub-head player-bonus-sub-head"
                                 style="{{ $playerStyle($player) }}">
-
                                 {!! $verticalBonus('Dom') !!}
-
                             </th>
-
 
                             <th class="player-sub-head player-bonus-sub-head player-prono-end-sub-head"
                                 style="{{ $playerStyle($player) }}">
-
                                 {!! $verticalBonus('Ext') !!}
-
                             </th>
-
 
                             <th class="player-sub-head player-mini-sub-head player-result-sub-head"
                                 style="{{ $playerStyle($player) }}">
-
                                 <span class="vertical-word">
                                     {!! $verticalWord('REZ') !!}
                                 </span>
-
                             </th>
-
 
                             <th class="player-sub-head player-mini-sub-head player-result-sub-head"
                                 style="{{ $playerStyle($player) }}">
-
                                 <span class="vertical-word">
                                     {!! $verticalWord('TRY') !!}
                                 </span>
-
                             </th>
-
 
                             <th class="player-sub-head player-bonus-sub-head player-result-sub-head"
                                 style="{{ $playerStyle($player) }}">
-
                                 {!! $verticalBonus('Dom') !!}
-
                             </th>
-
 
                             <th class="player-sub-head player-bonus-sub-head player-result-sub-head player-result-end-sub-head"
                                 style="{{ $playerStyle($player) }}">
-
                                 {!! $verticalBonus('Ext') !!}
-
                             </th>
-
 
                             <th class="player-sub-head player-p-sub-head"
                                 style="{{ $playerStyle($player) }}">
-
                                 P
-
                             </th>
-
 
                         @endforeach
 
-
                     </tr>
-
 
                 </thead>
 
 
                 <tbody>
 
-
                     <tr class="section-spacer-row">
-
-                        <td colspan="{{ $totalColumns }}">
-                        </td>
-
+                        <td colspan="{{ $totalColumns }}"></td>
                     </tr>
 
 
                     <tr class="section-title-row">
 
-
-                        <td colspan="6"
-                            class="sticky-left-full section-title-cell">
-
+                        <td colspan="6" class="sticky-left-full section-title-cell">
                             PRONOS D'AVANT SAISON
-
                         </td>
 
-
                         @foreach($players as $player)
-
-                            <td colspan="9"
-                                class="player-summary-block-cell">
-                            </td>
-
+                            <td colspan="9" class="player-summary-block-cell"></td>
                         @endforeach
-
 
                     </tr>
 
 
                     @if(! $preseasonIsVisible)
 
-
                         <tr>
-
-
-                            <td colspan="6"
-                                class="sticky-left-full fw-bold">
-
+                            <td colspan="6" class="sticky-left-full fw-bold">
                                 Avant-saison non visible
-
                             </td>
 
-
                             @foreach($players as $player)
-
-                                <td colspan="9"
-                                    class="player-summary-block-cell">
-                                </td>
-
+                                <td colspan="9" class="player-summary-block-cell"></td>
                             @endforeach
-
-
                         </tr>
 
 
                     @elseif($preseasonQuestions->isEmpty())
 
-
                         <tr>
-
-
-                            <td colspan="6"
-                                class="sticky-left-full fw-bold">
-
+                            <td colspan="6" class="sticky-left-full fw-bold">
                                 Aucun prono avant-saison
-
                             </td>
 
-
                             @foreach($players as $player)
-
-                                <td colspan="9"
-                                    class="player-summary-block-cell">
-                                </td>
-
+                                <td colspan="9" class="player-summary-block-cell"></td>
                             @endforeach
-
-
                         </tr>
 
 
                     @else
 
-
                         @foreach($preseasonQuestions as $question)
 
-
                             <tr class="preseason-row">
-
 
                                 <td colspan="6"
                                     class="sticky-left-full preseason-left-combined-cell">
 
-
                                     <span class="preseason-left-grid">
-
 
                                         <span class="preseason-label-cell">
                                             {{ $question->label }}
                                         </span>
 
-
                                         <span class="preseason-result-cell">
                                             {{ $preseasonOfficialLabel($question) }}
                                         </span>
 
-
                                     </span>
-
 
                                 </td>
 
 
                                 @foreach($players as $player)
-
 
                                     @php
                                         $prediction = $question->predictions->firstWhere('user_id', $player->id);
@@ -1106,154 +881,95 @@
                                         $hasBonusHighlight = $preseasonBonusQuestionHighlights[$question->id][$player->id] ?? false;
                                     @endphp
 
-
                                     <td colspan="8"
                                         class="player-preseason-prono-cell player-group-start-cell {{ $hasBonusHighlight ? 'preseason-bonus-hit' : '' }}"
                                         style="{{ $playerStyle($player) }}">
-
                                         {{ $preseasonAnswerLabel($question, $prediction) }}
-
                                     </td>
-
 
                                     <td class="player-points-cell player-preseason-points-cell {{ $hasBonusHighlight ? 'preseason-bonus-hit' : '' }}"
                                         style="{{ $playerStyle($player) }}">
-
                                         @if($hasResult)
                                             {{ $points }}
                                         @endif
-
                                     </td>
-
 
                                 @endforeach
 
-
                             </tr>
-
 
                         @endforeach
 
 
                         <tr class="total-row">
 
-
-                            <td colspan="6"
-                                class="sticky-left-full total-label-cell">
-
+                            <td colspan="6" class="sticky-left-full total-label-cell">
                                 TOTAL
-
                             </td>
 
-
                             @foreach($players as $player)
-
 
                                 <td colspan="8"
                                     class="player-total-empty-cell"
                                     style="{{ $playerStyle($player) }}">
                                 </td>
 
-
                                 <td class="player-points-cell total-player-points-cell"
                                     style="{{ $playerStyle($player) }}">
-
                                     {{ $preseasonTotals[$player->id] ?? 0 }}
-
                                 </td>
-
 
                             @endforeach
 
-
                         </tr>
-
 
                     @endif
 
 
                     <tr class="section-spacer-row">
-
-                        <td colspan="{{ $totalColumns }}">
-                        </td>
-
+                        <td colspan="{{ $totalColumns }}"></td>
                     </tr>
 
 
-                    @foreach($journees as $journee)
+                    @foreach($visibleJournees as $journee)
 
-
-                        <tr id="journee-{{ $journee->slug }}"
-                            class="journee-title-row">
-
+                        <tr id="journee-{{ $journee->slug }}" class="journee-title-row">
 
                             <td colspan="6"
                                 class="sticky-left-full journee-left-combined-cell">
 
-
                                 <span class="journee-left-grid">
-
 
                                     <span class="journee-name-cell">
                                         {{ $journeeSelectionLabel($journee) }}
                                     </span>
 
-
                                     <span class="journee-date-cell">
                                         {{ $journeeDateLabel($journee) }}
                                     </span>
 
-
-                                    <span>
-                                    </span>
-
+                                    <span></span>
 
                                 </span>
-
 
                             </td>
 
 
                             @foreach($players as $player)
 
-
                                 @php
                                     $perfectBonus = $journeePerfectBonuses[$journee->id][$player->id] ?? 0;
                                     $hasPerfectBonus = $journee->isLocked() && $perfectBonus > 0;
                                 @endphp
 
-
-                                <td class="journee-bonus-empty-cell player-mini-cell player-group-start-cell">
-                                </td>
-
-
-                                <td class="journee-bonus-empty-cell player-mini-cell">
-                                </td>
-
-
-                                <td class="journee-bonus-empty-cell player-bonus-cell">
-                                </td>
-
-
-                                <td class="journee-bonus-empty-cell player-bonus-cell player-prono-end-cell">
-                                </td>
-
-
-                                <td class="journee-bonus-empty-cell result-mini-cell">
-                                </td>
-
-
-                                <td class="journee-bonus-empty-cell result-mini-cell">
-                                </td>
-
-
-                                <td class="journee-bonus-empty-cell result-bonus-cell">
-                                </td>
-
-
-                                <td class="journee-bonus-empty-cell result-bonus-cell player-result-end-cell">
-                                </td>
-
+                                <td class="journee-bonus-empty-cell player-mini-cell player-group-start-cell"></td>
+                                <td class="journee-bonus-empty-cell player-mini-cell"></td>
+                                <td class="journee-bonus-empty-cell player-bonus-cell"></td>
+                                <td class="journee-bonus-empty-cell player-bonus-cell player-prono-end-cell"></td>
+                                <td class="journee-bonus-empty-cell result-mini-cell"></td>
+                                <td class="journee-bonus-empty-cell result-mini-cell"></td>
+                                <td class="journee-bonus-empty-cell result-bonus-cell"></td>
+                                <td class="journee-bonus-empty-cell result-bonus-cell player-result-end-cell"></td>
 
                                 <td class="player-points-cell journee-perfect-bonus-points-cell {{ $hasPerfectBonus ? 'journee-perfect-bonus-hit' : '' }}"
                                     style="{{ $playerStyle($player) }}">
@@ -1264,72 +980,50 @@
 
                                 </td>
 
-
                             @endforeach
-
 
                         </tr>
 
 
                         @if($journee->matches->isEmpty())
 
-
                             <tr>
 
-
-                                <td colspan="6"
-                                    class="sticky-left-full text-muted">
-
+                                <td colspan="6" class="sticky-left-full text-muted">
                                     Aucun match
-
                                 </td>
 
-
                                 @foreach($players as $player)
-
-                                    <td colspan="9"
-                                        class="player-summary-block-cell">
-                                    </td>
-
+                                    <td colspan="9" class="player-summary-block-cell"></td>
                                 @endforeach
-
 
                             </tr>
 
-
                         @else
-
 
                             @foreach($journee->matches as $match)
 
-
                                 <tr class="match-row">
-
 
                                     <td class="team-cell team-home-cell sticky-left-journee">
                                         {{ $clubLabel($match->homeClub) }}
                                     </td>
 
-
                                     <td class="team-cell team-away-cell sticky-left-date">
                                         {{ $clubLabel($match->awayClub) }}
                                     </td>
-
 
                                     <td class="official-value-cell official-mini-cell sticky-left-rez">
                                         {{ $resultValue($match->actual_result) }}
                                     </td>
 
-
                                     <td class="official-value-cell official-mini-cell sticky-left-try">
                                         {{ $match->actual_tries ?? '' }}
                                     </td>
 
-
                                     <td class="official-value-cell official-bonus-cell sticky-left-bonus-dom">
                                         {{ $bonusValue($match->actual_home_bonus) }}
                                     </td>
-
 
                                     <td class="official-value-cell official-bonus-cell sticky-left-bonus-ext">
                                         {{ $bonusValue($match->actual_away_bonus) }}
@@ -1337,7 +1031,6 @@
 
 
                                     @foreach($players as $player)
-
 
                                         @php
                                             $prono = $match->pronos->firstWhere('user_id', $player->id);
@@ -1347,54 +1040,33 @@
 
                                         @if($journee->isPredictionRecapVisible())
 
-
                                             <td class="player-prono-cell player-mini-cell player-group-start-cell"
                                                 style="{{ $playerStyle($player) }}">
-
                                                 {{ $resultValue($prono?->predicted_result) }}
-
                                             </td>
-
 
                                             <td class="player-prono-cell player-mini-cell"
                                                 style="{{ $playerStyle($player) }}">
-
                                                 {{ $prono?->predicted_tries ?? '' }}
-
                                             </td>
-
 
                                             <td class="player-prono-cell player-bonus-cell"
                                                 style="{{ $playerStyle($player) }}">
-
                                                 {{ $bonusValue($prono?->predicted_home_bonus) }}
-
                                             </td>
-
 
                                             <td class="player-prono-cell player-bonus-cell player-prono-end-cell"
                                                 style="{{ $playerStyle($player) }}">
-
                                                 {{ $bonusValue($prono?->predicted_away_bonus) }}
-
                                             </td>
 
+                                            <td class="result-indicator-cell result-mini-cell {{ $statusClass($breakdown['result_status'] ?? 'neutral') }}"></td>
 
-                                            <td class="result-indicator-cell result-mini-cell {{ $statusClass($breakdown['result_status'] ?? 'neutral') }}">
-                                            </td>
+                                            <td class="result-indicator-cell result-mini-cell {{ $statusClass($breakdown['tries_status'] ?? 'neutral') }}"></td>
 
+                                            <td class="result-indicator-cell result-bonus-cell {{ $bonusStatusClass($breakdown['home_bonus_status'] ?? 'neutral') }}"></td>
 
-                                            <td class="result-indicator-cell result-mini-cell {{ $statusClass($breakdown['tries_status'] ?? 'neutral') }}">
-                                            </td>
-
-
-                                            <td class="result-indicator-cell result-bonus-cell {{ $bonusStatusClass($breakdown['home_bonus_status'] ?? 'neutral') }}">
-                                            </td>
-
-
-                                            <td class="result-indicator-cell result-bonus-cell player-result-end-cell {{ $bonusStatusClass($breakdown['away_bonus_status'] ?? 'neutral') }}">
-                                            </td>
-
+                                            <td class="result-indicator-cell result-bonus-cell player-result-end-cell {{ $bonusStatusClass($breakdown['away_bonus_status'] ?? 'neutral') }}"></td>
 
                                             <td class="player-points-cell"
                                                 style="{{ $playerStyle($player) }}">
@@ -1405,43 +1077,31 @@
 
                                             </td>
 
-
                                         @else
-
 
                                             <td colspan="9"
                                                 class="player-summary-block-cell">
                                             </td>
 
-
                                         @endif
-
 
                                     @endforeach
 
-
                                 </tr>
 
-
                             @endforeach
-
 
                         @endif
 
 
                         <tr class="total-row">
 
-
                             <td colspan="6"
                                 class="sticky-left-full total-label-cell">
-
                                 TOTAL
-
                             </td>
 
-
                             @foreach($players as $player)
-
 
                                 @php
                                     $matchPoints = $journeeMatchPoints[$journee->id][$player->id] ?? 0;
@@ -1449,12 +1109,10 @@
                                     $total = $matchPoints + $perfectBonus;
                                 @endphp
 
-
                                 <td colspan="8"
                                     class="player-total-empty-cell"
                                     style="{{ $playerStyle($player) }}">
                                 </td>
-
 
                                 <td class="player-points-cell total-player-points-cell"
                                     style="{{ $playerStyle($player) }}">
@@ -1465,29 +1123,20 @@
 
                                 </td>
 
-
                             @endforeach
-
 
                         </tr>
 
 
                         <tr class="section-spacer-row">
-
-                            <td colspan="{{ $totalColumns }}">
-                            </td>
-
+                            <td colspan="{{ $totalColumns }}"></td>
                         </tr>
-
 
                     @endforeach
 
-
                 </tbody>
 
-
             </table>
-
 
         </div>
 
@@ -1500,11 +1149,8 @@
             style="right: 1.25rem; bottom: 1.25rem; z-index: 1050; width: 3rem; height: 3rem;"
             aria-label="Retour en haut"
             title="Retour en haut">
-
         ↑
-
     </button>
-
 
 </div>
 
@@ -1514,50 +1160,40 @@
 @push('styles')
 
 <style>
-
     .results-page {
         --left-journee-width: 128px;
         --left-date-width: 128px;
         --left-mini-width: 30px;
         --left-bonus-width: 44px;
-
         --left-info-width: 256px;
         --left-result-width: 148px;
-
         --left-total-width: 404px;
-
         --left-offset-date: 128px;
         --left-offset-rez: 256px;
         --left-offset-try: 286px;
         --left-offset-bonus-dom: 316px;
         --left-offset-bonus-ext: 360px;
-
         --player-background: #DEE2E6;
     }
-
 
     .results-control-panel {
         border: 2px solid rgba(13, 110, 253, 0.12);
     }
-
 
     .ranking-scroll {
         max-height: none;
         overflow-y: visible;
     }
 
-
     .compact-ranking-table {
         font-size: 0.78rem;
     }
-
 
     .compact-ranking-table th,
     .compact-ranking-table td {
         padding: 0.22rem 0.4rem;
         white-space: nowrap;
     }
-
 
     .ranking-player-cell {
         color: var(--player-color) !important;
@@ -1567,55 +1203,36 @@
         text-overflow: ellipsis;
     }
 
-
     .filters-panel {
         border-left: 1px solid rgba(0, 0, 0, 0.08);
         padding-left: 1rem;
     }
 
-
-    /*
-     |--------------------------------------------------------------------------
-     | Mobile
-     |--------------------------------------------------------------------------
-     */
-
     .mobile-results {
         padding-bottom: 1rem;
     }
-
 
     .mobile-results-section {
         margin-bottom: 0.75rem;
         scroll-margin-top: 0.5rem;
     }
 
-
-    /*
-     * On utilise <details> natif.
-     * Aucun JavaScript Bootstrap n'intervient.
-     */
-
     .mobile-details {
         display: block;
     }
-
 
     .mobile-details > summary {
         list-style: none;
     }
 
-
     .mobile-details > summary::-webkit-details-marker {
         display: none;
     }
-
 
     .mobile-details > summary::marker {
         display: none;
         content: '';
     }
-
 
     .mobile-collapse-toggle {
         display: flex;
@@ -1635,19 +1252,16 @@
         user-select: none;
     }
 
-
     .mobile-details[open] > .mobile-collapse-toggle {
         border-bottom-left-radius: 0;
         border-bottom-right-radius: 0;
         background: #f8f9fa;
     }
 
-
     .mobile-focus-journee > .mobile-collapse-toggle {
         border-color: rgba(13, 110, 253, 0.45);
         box-shadow: 0 0.18rem 0.55rem rgba(13, 110, 253, 0.12);
     }
-
 
     .mobile-collapse-heading {
         display: flex;
@@ -1656,7 +1270,6 @@
         flex-direction: column;
         gap: 0.1rem;
     }
-
 
     .mobile-section-kicker {
         display: flex;
@@ -1669,7 +1282,6 @@
         text-transform: uppercase;
     }
 
-
     .mobile-section-title {
         display: block;
         min-width: 0;
@@ -1681,7 +1293,6 @@
         text-overflow: ellipsis;
         white-space: nowrap;
     }
-
 
     .mobile-state-badge {
         display: inline-flex;
@@ -1696,12 +1307,10 @@
         text-transform: none;
     }
 
-
     .mobile-state-current {
         background: #0d6efd;
         color: #ffffff;
     }
-
 
     .mobile-collapse-meta {
         display: flex;
@@ -1709,7 +1318,6 @@
         align-items: center;
         gap: 0.55rem;
     }
-
 
     .mobile-collapse-chevron {
         display: inline-flex;
@@ -1723,11 +1331,9 @@
         transition: transform 0.15s ease;
     }
 
-
     .mobile-details[open] > .mobile-collapse-toggle .mobile-collapse-chevron {
         transform: rotate(90deg);
     }
-
 
     .mobile-collapse-content {
         border-right: 1px solid #dee2e6;
@@ -1738,7 +1344,6 @@
         background: #f8f9fa;
         padding: 0.65rem;
     }
-
 
     .mobile-date-badge {
         flex: 0 0 auto;
@@ -1751,7 +1356,6 @@
         padding: 0.28rem 0.5rem;
     }
 
-
     .mobile-info-card {
         background: #ffffff;
         border: 1px solid #dee2e6;
@@ -1760,7 +1364,6 @@
         font-size: 0.82rem;
         padding: 0.75rem;
     }
-
 
     .mobile-preseason-card,
     .mobile-match-card,
@@ -1773,13 +1376,11 @@
         overflow: hidden;
     }
 
-
     .mobile-preseason-card:last-child,
     .mobile-match-card:last-child,
     .mobile-totals-card:last-child {
         margin-bottom: 0;
     }
-
 
     .mobile-preseason-question {
         background: #f8f9fa;
@@ -1789,7 +1390,6 @@
         font-weight: 800;
         padding: 0.7rem 0.75rem;
     }
-
 
     .mobile-preseason-official {
         display: flex;
@@ -1801,23 +1401,19 @@
         font-size: 0.78rem;
     }
 
-
     .mobile-preseason-official span {
         color: #6c757d;
         font-weight: 700;
     }
-
 
     .mobile-preseason-official strong {
         color: #212529;
         text-align: right;
     }
 
-
     .mobile-preseason-player-list {
         padding: 0.25rem 0;
     }
-
 
     .mobile-preseason-player {
         display: grid;
@@ -1828,11 +1424,9 @@
         padding: 0.48rem 0.65rem;
     }
 
-
     .mobile-preseason-player:last-child {
         border-bottom: 0;
     }
-
 
     .mobile-player-name {
         display: flex;
@@ -1844,14 +1438,12 @@
         font-weight: 800;
     }
 
-
     .mobile-player-name span:last-child {
         min-width: 0;
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
     }
-
 
     .mobile-player-dot {
         display: inline-block;
@@ -1862,7 +1454,6 @@
         background: var(--player-color, #06142F);
         border: 1px solid rgba(0, 0, 0, 0.15);
     }
-
 
     .mobile-preseason-answer {
         min-width: 0;
@@ -1875,7 +1466,6 @@
         white-space: nowrap;
     }
 
-
     .mobile-preseason-points {
         min-width: 32px;
         background: var(--player-background);
@@ -1886,7 +1476,6 @@
         padding: 0.3rem 0.2rem;
         text-align: center;
     }
-
 
     .mobile-match-title {
         display: flex;
@@ -1901,17 +1490,14 @@
         text-align: center;
     }
 
-
     .mobile-match-title > span:not(.mobile-match-separator) {
         min-width: 0;
     }
-
 
     .mobile-match-separator {
         color: rgba(255, 255, 255, 0.55);
         flex: 0 0 auto;
     }
-
 
     .mobile-score-grid {
         display: grid;
@@ -1920,7 +1506,6 @@
         align-items: stretch;
         padding: 0 0.45rem;
     }
-
 
     .mobile-score-header {
         background: #f8f9fa;
@@ -1933,7 +1518,6 @@
         text-align: center;
     }
 
-
     .mobile-real-row,
     .mobile-player-score-row {
         padding-top: 0.38rem;
@@ -1941,11 +1525,9 @@
         border-bottom: 1px solid #f1f3f5;
     }
 
-
     .mobile-player-score-row:last-child {
         border-bottom: 0;
     }
-
 
     .mobile-score-player {
         display: flex;
@@ -1955,7 +1537,6 @@
         font-size: 0.72rem;
         font-weight: 800;
     }
-
 
     .mobile-score-value,
     .mobile-score-points {
@@ -1970,25 +1551,21 @@
         text-align: center;
     }
 
-
     .mobile-real-row .mobile-score-value {
         background: #f8f9fa;
         color: #212529;
         border: 1px solid #e9ecef;
     }
 
-
     .mobile-score-points {
         background: var(--player-background);
         color: #212529;
     }
 
-
     .mobile-real-row .mobile-score-points {
         background: #f8f9fa;
         color: #adb5bd;
     }
-
 
     .mobile-totals-title {
         background: #f8f9fa;
@@ -2000,7 +1577,6 @@
         text-transform: uppercase;
     }
 
-
     .mobile-total-row {
         display: flex;
         align-items: center;
@@ -2010,11 +1586,9 @@
         padding: 0.55rem 0.7rem;
     }
 
-
     .mobile-total-row:last-child {
         border-bottom: 0;
     }
-
 
     .mobile-total-right {
         display: flex;
@@ -2023,13 +1597,11 @@
         gap: 0.45rem;
     }
 
-
     .mobile-total-points {
         color: #06142F;
         font-size: 0.8rem;
         white-space: nowrap;
     }
-
 
     .mobile-perfect-bonus {
         background: var(--preseason-bonus-bg);
@@ -2041,18 +1613,10 @@
         white-space: nowrap;
     }
 
-
-    /*
-     |--------------------------------------------------------------------------
-     | Desktop
-     |--------------------------------------------------------------------------
-     */
-
     .results-table-wrapper {
         max-height: 78vh;
         overflow: auto;
     }
-
 
     .excel-results-table {
         border-collapse: separate;
@@ -2060,7 +1624,6 @@
         font-size: 0.78rem;
         min-width: max-content;
     }
-
 
     .excel-results-table th,
     .excel-results-table td {
@@ -2072,7 +1635,6 @@
         background-clip: padding-box;
     }
 
-
     .excel-results-table thead tr:first-child th {
         position: sticky;
         top: 0;
@@ -2080,14 +1642,12 @@
         height: 28px;
     }
 
-
     .excel-results-table thead tr:nth-child(2) th {
         position: sticky;
         top: 28px;
         z-index: 39;
         height: 92px;
     }
-
 
     .left-main-head {
         position: sticky !important;
@@ -2100,14 +1660,12 @@
         border-right: 2px solid #000 !important;
     }
 
-
     .left-col {
         background: #ffffff !important;
         color: #000000;
         text-align: center;
         font-weight: 800;
     }
-
 
     .sticky-left-journee,
     .sticky-left-date,
@@ -2120,7 +1678,6 @@
         background: #ffffff !important;
     }
 
-
     thead .sticky-left-journee,
     thead .sticky-left-date,
     thead .sticky-left-rez,
@@ -2130,14 +1687,12 @@
         z-index: 65 !important;
     }
 
-
     .sticky-left-journee {
         left: 0;
         min-width: var(--left-journee-width);
         max-width: var(--left-journee-width);
         width: var(--left-journee-width);
     }
-
 
     .sticky-left-date {
         left: var(--left-offset-date);
@@ -2146,14 +1701,12 @@
         width: var(--left-date-width);
     }
 
-
     .sticky-left-rez {
         left: var(--left-offset-rez);
         min-width: var(--left-mini-width);
         max-width: var(--left-mini-width);
         width: var(--left-mini-width);
     }
-
 
     .sticky-left-try {
         left: var(--left-offset-try);
@@ -2162,14 +1715,12 @@
         width: var(--left-mini-width);
     }
 
-
     .sticky-left-bonus-dom {
         left: var(--left-offset-bonus-dom);
         min-width: var(--left-bonus-width);
         max-width: var(--left-bonus-width);
         width: var(--left-bonus-width);
     }
-
 
     .sticky-left-bonus-ext {
         left: var(--left-offset-bonus-ext);
@@ -2178,7 +1729,6 @@
         width: var(--left-bonus-width);
         border-right: 2px solid #000 !important;
     }
-
 
     .sticky-left-full {
         position: sticky !important;
@@ -2191,7 +1741,6 @@
         border-right: 2px solid #000 !important;
     }
 
-
     .player-main-head {
         background: var(--player-background) !important;
         color: var(--player-color) !important;
@@ -2202,18 +1751,15 @@
         border-right: 2px solid #000 !important;
     }
 
-
     .left-mini-col {
         min-width: var(--left-mini-width);
         max-width: var(--left-mini-width);
     }
 
-
     .left-bonus-col {
         min-width: var(--left-bonus-width);
         max-width: var(--left-bonus-width);
     }
-
 
     .vertical-word {
         display: inline-flex;
@@ -2226,7 +1772,6 @@
         text-align: center;
     }
 
-
     .vertical-bonus-label {
         display: inline-flex;
         align-items: center;
@@ -2235,7 +1780,6 @@
         min-height: 4.9rem;
         line-height: 0.82;
     }
-
 
     .vertical-bonus-word,
     .vertical-bonus-side {
@@ -2249,7 +1793,6 @@
         font-size: 0.72rem;
     }
 
-
     .player-sub-head {
         background: var(--player-background) !important;
         color: var(--player-color) !important;
@@ -2258,34 +1801,28 @@
         font-size: 0.72rem;
     }
 
-
     .player-mini-sub-head {
         min-width: 26px;
         max-width: 26px;
     }
-
 
     .player-bonus-sub-head {
         min-width: 38px;
         max-width: 38px;
     }
 
-
     .player-result-sub-head {
         font-style: italic;
     }
-
 
     .player-group-start-sub-head {
         border-left: 2px solid #000 !important;
     }
 
-
     .player-prono-end-sub-head,
     .player-result-end-sub-head {
         border-right: 1px solid #000 !important;
     }
-
 
     .player-p-sub-head {
         min-width: 34px;
@@ -2294,13 +1831,11 @@
         font-size: 0.9rem;
     }
 
-
     .section-spacer-row td {
         height: 18px;
         padding: 0;
         background: #ffffff;
     }
-
 
     .section-title-row td {
         height: 22px;
@@ -2308,7 +1843,6 @@
         padding-bottom: 0.15rem;
         background: #ffffff;
     }
-
 
     .section-title-cell {
         background: #f9cb9c !important;
@@ -2318,11 +1852,9 @@
         text-transform: uppercase;
     }
 
-
     .preseason-left-combined-cell {
         padding: 0 !important;
     }
-
 
     .preseason-left-grid {
         display: grid;
@@ -2330,7 +1862,6 @@
         align-items: center;
         min-height: 100%;
     }
-
 
     .preseason-label-cell {
         color: #000000;
@@ -2340,7 +1871,6 @@
         overflow: hidden;
         text-overflow: ellipsis;
     }
-
 
     .preseason-result-cell {
         color: #000000;
@@ -2352,7 +1882,6 @@
         text-overflow: ellipsis;
     }
 
-
     .player-preseason-prono-cell,
     .player-prono-cell,
     .player-points-cell {
@@ -2362,34 +1891,28 @@
         text-align: center;
     }
 
-
     .player-preseason-prono-cell {
         min-width: 210px;
     }
-
 
     .player-mini-cell {
         min-width: 26px;
         max-width: 26px;
     }
 
-
     .player-bonus-cell {
         min-width: 38px;
         max-width: 38px;
     }
 
-
     .player-group-start-cell {
         border-left: 2px solid #000 !important;
     }
-
 
     .player-prono-end-cell,
     .player-result-end-cell {
         border-right: 1px solid #000 !important;
     }
-
 
     .player-points-cell {
         min-width: 34px;
@@ -2397,16 +1920,13 @@
         border-right: 2px solid #000 !important;
     }
 
-
     .preseason-bonus-hit {
         background: var(--preseason-bonus-bg) !important;
     }
 
-
     .total-row td {
         font-weight: 900;
     }
-
 
     .total-label-cell {
         background: #ffffff !important;
@@ -2414,12 +1934,10 @@
         text-align: center;
     }
 
-
     .player-total-empty-cell {
         background: var(--player-background) !important;
         border-left: 2px solid #000 !important;
     }
-
 
     .total-player-points-cell {
         background: var(--player-background) !important;
@@ -2428,7 +1946,6 @@
         text-align: center !important;
         border-right: 2px solid #000 !important;
     }
-
 
     .player-summary-block-cell {
         background: var(--player-background) !important;
@@ -2440,18 +1957,15 @@
         border-right: 2px solid #000 !important;
     }
 
-
     .journee-title-row td {
         background: #ffffff;
         font-weight: 900;
     }
 
-
     .journee-left-combined-cell {
         padding: 0 !important;
         background: #f9cb9c !important;
     }
-
 
     .journee-left-grid {
         display: grid;
@@ -2460,13 +1974,11 @@
         min-height: 100%;
     }
 
-
     .journee-name-cell {
         color: #000000;
         text-align: center;
         padding: 0.12rem 0.22rem;
     }
-
 
     .journee-date-cell {
         color: #a000a0;
@@ -2474,11 +1986,9 @@
         padding: 0.12rem 0.22rem;
     }
 
-
     .journee-bonus-empty-cell {
         background: var(--player-background) !important;
     }
-
 
     .journee-perfect-bonus-points-cell {
         background: var(--player-background) !important;
@@ -2486,12 +1996,10 @@
         padding-right: 0.22rem !important;
     }
 
-
     .journee-perfect-bonus-points-cell.journee-perfect-bonus-hit {
         background: var(--preseason-bonus-bg) !important;
         color: #000000 !important;
     }
-
 
     .team-cell {
         color: #000000;
@@ -2499,88 +2007,71 @@
         text-align: center;
     }
 
-
     .official-value-cell {
         color: #000000;
         font-weight: 800;
         text-align: center;
     }
 
-
     .official-mini-cell {
         min-width: var(--left-mini-width);
         max-width: var(--left-mini-width);
     }
-
 
     .official-bonus-cell {
         min-width: var(--left-bonus-width);
         max-width: var(--left-bonus-width);
     }
 
-
     .result-indicator-cell {
         color: transparent !important;
         font-size: 0;
     }
-
 
     .result-mini-cell {
         min-width: 20px;
         max-width: 20px;
     }
 
-
     .result-bonus-cell {
         min-width: 28px;
         max-width: 28px;
     }
 
-
     .result-good {
         background: var(--result-good-bg) !important;
     }
-
 
     .result-bad {
         background: var(--result-bad-bg) !important;
     }
 
-
     .bonus-result-good {
         background: var(--bonus-good-bg) !important;
     }
-
 
     .bonus-result-bad {
         background: var(--bonus-bad-bg) !important;
     }
 
-
     .result-bonus {
         background: var(--result-bonus-bg) !important;
     }
-
 
     .result-neutral {
         background: #ffffff !important;
     }
 
-
     @media (max-width: 1199.98px) {
-
         .filters-panel {
             border-left: 0;
             border-top: 1px solid rgba(0, 0, 0, 0.08);
             padding-left: 0;
             padding-top: 0.75rem;
         }
-
     }
 
-
     @media (max-width: 991.98px) {
-
         .results-control-panel {
             padding: 0.75rem !important;
         }
@@ -2597,12 +2088,9 @@
         .compact-ranking-table td {
             padding: 0.3rem;
         }
-
     }
 
-
     @media (max-width: 420px) {
-
         .mobile-score-grid {
             grid-template-columns: minmax(68px, 1fr) 31px 31px 39px 39px 31px;
             gap: 2px;
@@ -2635,9 +2123,7 @@
         .mobile-collapse-toggle {
             padding: 0.62rem 0.65rem;
         }
-
     }
-
 </style>
 
 @endpush
@@ -2646,7 +2132,6 @@
 @push('scripts')
 
 <script>
-
     function setupBackToTopButton() {
         const button = document.getElementById('backToTopButton');
 
@@ -2693,7 +2178,12 @@
 
 
     function scrollToSelectedJournee() {
-        const selectedJourneeSlug = @json($selectedJournee?->slug);
+        const selectedJourneeSlug = @json(
+            $selectedJournee && (bool) $selectedJournee->predictions_enabled
+                ? $selectedJournee->slug
+                : null
+        );
+
         const mobileFocusJourneeSlug = @json($mobileFocusJournee?->slug);
         const isMobileLayout = window.matchMedia('(max-width: 991.98px)').matches;
 
@@ -2710,13 +2200,6 @@
                 return;
             }
 
-            /*
-             * Pas d'animation ni de délai.
-             *
-             * Cela évite l'impression que le contenu apparaît
-             * puis disparaît pendant que Safari descend vers
-             * la journée cible.
-             */
             requestAnimationFrame(function () {
                 const targetTop = mobileTarget.getBoundingClientRect().top
                     + window.scrollY
@@ -2736,7 +2219,6 @@
         }
 
         const wrapper = document.getElementById('resultsTableWrapper');
-
         const desktopTarget = document.getElementById(
             'journee-' + selectedJourneeSlug
         );
@@ -2760,7 +2242,6 @@
         setupRedirectSelect('journeeSelect');
         scrollToSelectedJournee();
     });
-
 </script>
 
 @endpush
