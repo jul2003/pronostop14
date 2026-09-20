@@ -174,7 +174,6 @@
 
     $mobileOpenJourneeIds = collect([
         $mobileFocusJournee?->id,
-        $mobilePreviousJournee?->id,
     ])
         ->filter()
         ->map(fn ($id) => (int) $id)
