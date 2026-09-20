@@ -534,6 +534,50 @@
                             </div>
                         @endif
 
+                        @if($journee->isLocked())
+
+                            <div class="mobile-totals-card">
+
+                                <div class="mobile-totals-title">
+                                    Classement {{ $journeeSelectionLabel($journee) }}
+                                </div>
+
+                                @foreach($journeeRankingRows[$journee->id] ?? collect() as $row)
+
+                                    @php
+                                        $player = $row['user'];
+                                    @endphp
+
+                                    <div class="mobile-total-row"
+                                         style="{{ $playerStyle($player) }}">
+
+                                        <div class="mobile-player-name">
+                                            <span class="mobile-player-dot"></span>
+                                            <span>{{ $playerLabel($player) }}</span>
+                                        </div>
+
+                                        <div class="mobile-total-right">
+
+                                            @if($row['perfect_bonus'] > 0)
+                                                <span class="mobile-perfect-bonus">
+                                                    Bonus +{{ $row['perfect_bonus'] }}
+                                                </span>
+                                            @endif
+
+                                            <strong class="mobile-total-points">
+                                                {{ $row['total_points'] }} pts
+                                            </strong>
+
+                                        </div>
+
+                                    </div>
+
+                                @endforeach
+
+                            </div>
+
+                        @endif
+
                         @foreach($journee->matches as $match)
 
                             <div class="mobile-match-card">
@@ -626,52 +670,6 @@
                             </div>
 
                         @endforeach
-
-                        @if($journee->isLocked())
-
-                            <div class="mobile-totals-card">
-
-                                <div class="mobile-totals-title">
-                                    Total {{ $journeeSelectionLabel($journee) }}
-                                </div>
-
-                                @foreach($players as $player)
-
-                                    @php
-                                        $journeeMatchTotal = $journeeMatchPoints[$journee->id][$player->id] ?? 0;
-                                        $perfectBonus = $journeePerfectBonuses[$journee->id][$player->id] ?? 0;
-                                        $journeeTotal = $journeeMatchTotal + $perfectBonus;
-                                    @endphp
-
-                                    <div class="mobile-total-row"
-                                         style="{{ $playerStyle($player) }}">
-
-                                        <div class="mobile-player-name">
-                                            <span class="mobile-player-dot"></span>
-                                            <span>{{ $playerLabel($player) }}</span>
-                                        </div>
-
-                                        <div class="mobile-total-right">
-
-                                            @if($perfectBonus > 0)
-                                                <span class="mobile-perfect-bonus">
-                                                    Bonus +{{ $perfectBonus }}
-                                                </span>
-                                            @endif
-
-                                            <strong class="mobile-total-points">
-                                                {{ $journeeTotal }} pts
-                                            </strong>
-
-                                        </div>
-
-                                    </div>
-
-                                @endforeach
-
-                            </div>
-
-                        @endif
 
                     @endif
 

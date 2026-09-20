@@ -422,6 +422,7 @@ class RankingController extends Controller
         $journeeTotals = [];
         $journeeMatchPoints = [];
         $journeePerfectBonuses = [];
+        $journeeRankingRows = [];
 
         $rankingRows = [];
         $matchBreakdowns = [];
@@ -556,6 +557,61 @@ class RankingController extends Controller
             if (! $journee->isLocked()) {
                 continue;
             }
+
+            $journeeRankingRows[$journee->id] = $players
+                ->map(function ($player) use (
+                    $journee,
+                    $journeeMatchPoints,
+                    $journeePerfectBonuses,
+                ): array {
+                    $matchPoints = $journeeMatchPoints[
+                        $journee->id
+                    ][$player->id] ?? 0;
+
+                    $perfectBonus = $journeePerfectBonuses[
+                        $journee->id
+                    ][$player->id] ?? 0;
+
+                    return [
+                        'user' => $player,
+                        'match_points' => $matchPoints,
+                        'perfect_bonus' => $perfectBonus,
+                        'total_points' => $matchPoints + $perfectBonus,
+                    ];
+                })
+                ->sort(function (array $a, array $b): int {
+                    $pointsComparison = $b['total_points']
+                        <=> $a['total_points'];
+
+                    if ($pointsComparison !== 0) {
+                        return $pointsComparison;
+                    }
+
+                    $aPseudo = trim((string) (
+                        $a['user']->nickname
+                        ?: $a['user']->name
+                        ?: ''
+                    ));
+
+                    $bPseudo = trim((string) (
+                        $b['user']->nickname
+                        ?: $b['user']->name
+                        ?: ''
+                    ));
+
+                    $pseudoComparison = strnatcasecmp(
+                        $aPseudo,
+                        $bPseudo
+                    );
+
+                    if ($pseudoComparison !== 0) {
+                        return $pseudoComparison;
+                    }
+
+                    return (int) $a['user']->id
+                        <=> (int) $b['user']->id;
+                })
+                ->values();
 
             $rules = $this->rulesForJournee(
                 $journee
@@ -704,6 +760,9 @@ class RankingController extends Controller
 
             'journeePerfectBonuses' =>
                 $journeePerfectBonuses,
+
+            'journeeRankingRows' =>
+                $journeeRankingRows,
 
             'matchBreakdowns' =>
                 $matchBreakdowns,
